@@ -6,12 +6,14 @@
 // data channel using JSON-RPC ids.
 //
 // State machine:
-//   'idle'       — constructed, no connect() yet
-//   'connecting' — connect() in flight
-//   'connected'  — data channel open
-//   'closing'    — close() in flight
-//   'closed'     — close() done
-//   'failed'     — ICE failed / dc closed unexpectedly
+//   'idle'         — constructed, no connect() yet
+//   'connecting'   — connect() in flight
+//   'connected'    — data channel open
+//   'reconnecting' — ICE restart in flight (M10/M12; recovers to 'connected'
+//                    or escalates to 'failed' on a second restart loss)
+//   'closing'      — close() in flight
+//   'closed'       — close() done
+//   'failed'       — ICE failed / dc closed unexpectedly
 //
 // Wire format on the channel: a single JSON-RPC envelope per text frame.
 // Length-prefixed binary framing is reserved for M11.
@@ -136,6 +138,7 @@ export class HomeTransport {
      *   iceDisconnectGraceMs?: number,
      *   restartTimeoutMs?: number,
      *   onSessionReset?: (info: {dropped: boolean, newSession: boolean}) => void,
+     *   onStateChange?: (info: {prev: string, next: string}) => void,
      *   _clock?: { setInterval: typeof setInterval, clearInterval: typeof clearInterval, setTimeout: typeof setTimeout, clearTimeout: typeof clearTimeout, now: () => number },
      * }} opts
      */
@@ -154,6 +157,11 @@ export class HomeTransport {
         this._iceDisconnectGraceMs = typeof opts.iceDisconnectGraceMs === 'number' ? opts.iceDisconnectGraceMs : 5000;
         this._restartTimeoutMs = typeof opts.restartTimeoutMs === 'number' ? opts.restartTimeoutMs : 30000;
         this._onSessionReset = typeof opts.onSessionReset === 'function' ? opts.onSessionReset : null;
+        // M12 — state-change observer. Fired (synchronously) on every
+        // transition so the chat UI can keep a status pill in lockstep
+        // with reconnect/resume without polling. Errors thrown by the
+        // observer are swallowed — UI bugs must not break the transport.
+        this._onStateChange = typeof opts.onStateChange === 'function' ? opts.onStateChange : null;
 
         // Clock injection. In production we use the global timer functions;
         // in tests we hand in a fake clock so the heartbeat / disconnect
@@ -190,7 +198,14 @@ export class HomeTransport {
     /** Wall-clock ms timestamp of the last successful pong (M10 diagnostic). */
     get lastPongAt() { return this._lastPongAt; }
 
-    _setState(next) { this._state = next; }
+    _setState(next) {
+        const prev = this._state;
+        if (prev === next) return;
+        this._state = next;
+        if (this._onStateChange) {
+            try { this._onStateChange({ prev, next }); } catch (_) { /* swallow */ }
+        }
+    }
 
     /**
      * Begin the connection. Resolves when the data channel is open.
@@ -488,9 +503,12 @@ export class HomeTransport {
     }
 
     async _iceRestartOnce(reason) {
-        if (this._state !== 'connected' && this._state !== 'connecting') {
+        if (this._state !== 'connected' && this._state !== 'connecting' && this._state !== 'reconnecting') {
             throw new Error(`HomeTransport._iceRestartOnce: bad state ${this._state}`);
         }
+        // M12 — surface the in-flight restart so the status pill goes
+        // amber. We restore 'connected' once the new ICE pair is up.
+        if (this._state === 'connected') this._setState('reconnecting');
         const pc = this._pc;
         if (!pc) throw new Error('HomeTransport._iceRestartOnce: no peer connection');
         // restartIce() bumps the ICE ufrag/pwd on the next negotiation.
@@ -518,6 +536,9 @@ export class HomeTransport {
 
         // Wait for the connection to actually recover.
         await this._waitIceConnected();
+        // M12 — restart finished cleanly; flip back to 'connected' so the
+        // status pill returns to green before system/resume.
+        if (this._state === 'reconnecting') this._setState('connected');
         console.info(`home-transport: ICE restart succeeded (reason=${reason})`);
     }
 

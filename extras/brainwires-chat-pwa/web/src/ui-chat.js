@@ -106,6 +106,7 @@ const _ui = {
     sendBtn: null,
     micBtn: null,
     providerChip: null,
+    homeStatusPill: null,
     listening: false,
 };
 
@@ -280,6 +281,16 @@ function buildLayout() {
     }, t('chat.provider'));
     _ui.providerChip = providerChip;
 
+    // M12 — home-transport status pill. Hidden by default; only visible
+    // when the active provider is the home agent. State text/colour is
+    // refreshed by updateHomeStatusPill() on every provider change and
+    // every 'home-transport-state' event.
+    const homeStatusPill = el('span', {
+        class: 'pill home-status-pill',
+        attrs: { hidden: '', 'aria-live': 'polite', 'data-state': 'idle' },
+    }, '');
+    _ui.homeStatusPill = homeStatusPill;
+
     const attachmentStrip = buildAttachmentStrip();
 
     const composer = el('form', {
@@ -298,6 +309,7 @@ function buildLayout() {
         ),
         el('div', { class: 'composer-meta' },
             providerChip,
+            homeStatusPill,
         ),
     );
     _ui.composer = composer;
@@ -833,6 +845,24 @@ function subscribeStreams() {
         _streaming = null;
         toast(err, 'error');
     });
+
+    // M12 — home-transport status events: keep the pill in lockstep
+    // and surface a toast when the link drops while the user is on
+    // the home agent. Suppress the toast for transient blips during
+    // M10's reconnect flow — only 'failed' (after retries exhausted)
+    // turns into a user-visible alert.
+    stateEvents.addEventListener('home-transport-state', (e) => {
+        const d = e.detail || {};
+        updateHomeStatusPill();
+        if (d.next === 'failed' && _activeProviderId === homeProvider.id) {
+            toast(t('home.status.failed'), 'error');
+        }
+    });
+    // After unpair, hide "Home agent" from the picker and reset the pill.
+    stateEvents.addEventListener('home-unpaired', () => {
+        refreshActiveProvider().catch(() => {});
+        updateHomeStatusPill();
+    });
 }
 
 // Run the tool calls produced by the just-finished assistant message,
@@ -1003,6 +1033,46 @@ function updateProviderChip() {
     const providers = listProviders();
     const p = providers.find((x) => x.id === _activeProviderId);
     _ui.providerChip.textContent = p ? p.displayName : t('chat.provider');
+    updateHomeStatusPill();
+}
+
+/**
+ * M12 — sync the connection-status pill to the home-transport state.
+ * Hidden when the home agent isn't the active provider, or in the
+ * 'idle' / 'closed' states (nothing to surface). Exported via the
+ * module-level `homeStatusPillState()` helper for the unit tests.
+ */
+function updateHomeStatusPill() {
+    const pill = _ui.homeStatusPill;
+    if (!pill) return;
+    const activeIsHome = _activeProviderId === homeProvider.id;
+    const state = homeProvider.getTransportState ? homeProvider.getTransportState() : 'idle';
+    pill.dataset.state = state;
+    if (!activeIsHome || state === 'idle' || state === 'closed' || state === 'closing') {
+        pill.setAttribute('hidden', '');
+        pill.textContent = '';
+        pill.classList.remove('pill-ok', 'pill-warn', 'pill-err');
+        return;
+    }
+    pill.removeAttribute('hidden');
+    pill.classList.remove('pill-ok', 'pill-warn', 'pill-err');
+    if (state === 'connecting') {
+        pill.classList.add('pill-warn');
+        pill.textContent = t('home.status.connecting');
+    } else if (state === 'connected') {
+        pill.classList.add('pill-ok');
+        pill.textContent = t('home.status.connected');
+    } else if (state === 'reconnecting') {
+        pill.classList.add('pill-warn');
+        pill.textContent = t('home.status.reconnecting');
+    } else if (state === 'failed') {
+        pill.classList.add('pill-err');
+        pill.textContent = t('home.status.failed');
+    } else {
+        // Unknown state — show muted with the raw label so we don't lie.
+        pill.classList.add('pill-warn');
+        pill.textContent = state;
+    }
 }
 
 async function canUseProvider(id) {

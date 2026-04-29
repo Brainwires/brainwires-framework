@@ -14,6 +14,7 @@
 
 import { el, clear, toast } from './utils.js';
 import { t } from './i18n.js';
+import { appEvents } from './state.js';
 import {
     parseQrPayload,
     claim,
@@ -23,6 +24,7 @@ import {
     clearPairingBundle,
     deviceIdentity,
 } from './home-pairing.js';
+import { disconnect as disconnectHome } from './home-provider.js';
 
 /**
  * Render the "Home agent" card body. Caller wraps in a section and adds it
@@ -34,6 +36,29 @@ export async function renderHomePairingCard() {
     const card = el('div', { class: 'settings-card' });
     await refresh(card);
     return card;
+}
+
+/**
+ * Drive the unpair side effects: best-effort disconnect of the active
+ * transport, drop the encrypted bundle, then fan out a `home-unpaired`
+ * event so the chat UI's provider list / status pill react.
+ *
+ * Exported so the unit tests can drive the side effects directly. The
+ * UI button delegates here and toasts on completion.
+ */
+export async function performUnpair({
+    _disconnect = disconnectHome,
+    _clearPairingBundle = clearPairingBundle,
+    _events = appEvents,
+} = {}) {
+    // Disconnect first so an in-flight WebRTC peer doesn't keep using
+    // a bundle we're about to delete. Errors here are best-effort —
+    // the user's intent is clear.
+    try { await _disconnect(); } catch (_) { /* swallow */ }
+    await _clearPairingBundle();
+    if (_events && typeof _events.dispatchEvent === 'function') {
+        _events.dispatchEvent(new CustomEvent('home-unpaired'));
+    }
 }
 
 async function refresh(card) {
@@ -51,11 +76,15 @@ async function refresh(card) {
             attrs: { type: 'button' },
             onClick: async () => {
                 if (!confirm(t('settings.home.unpairConfirm'))) return;
-                await clearPairingBundle();
-                toast(t('settings.home.notPaired'), 'info');
+                try {
+                    await performUnpair();
+                    toast(t('settings.home.unpaired'), 'info');
+                } catch (e) {
+                    toast(e && e.message ? e.message : String(e), 'error');
+                }
                 await refresh(card);
             },
-        }, t('settings.home.unpair')));
+        }, t('settings.home.removeDevice')));
         card.appendChild(actions);
     } else {
         card.appendChild(el('p', { class: 'settings-help' }, t('settings.home.notPaired')));

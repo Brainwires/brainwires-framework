@@ -13,8 +13,7 @@ negotiated, A2A traffic flows peer-to-peer over an SCTP DataChannel.
 
 ## Status
 
-Phase 2 of the chat-PWA pivot. Milestones land directly on the version
-branch.
+**Phase 2 complete.** All 12 milestones landed on the version branch.
 
 | Milestone | What lands                                                              | Status     |
 |-----------|--------------------------------------------------------------------------|------------|
@@ -28,8 +27,8 @@ branch.
 | M8        | Pairing flow (`/pair/claim`, `/pair/confirm`, QR + 6-digit confirm)     | landed     |
 | M9        | `home-provider.js` adapter — "Home agent" appears as a chat provider   | landed     |
 | M10       | Reconnect/resume — heartbeat, ICE restart, outbox replay                | landed     |
-| **M11**   | Multimodal chunking — `bin/begin` + `bin/chunk` + `bin/end`            | this commit |
-| M12       | Polish                                                                  | —          |
+| M11       | Multimodal chunking — `bin/begin` + `bin/chunk` + `bin/end`            | landed     |
+| **M12**   | Polish — connection-status pill, error toasts, "remove paired device"  | landed     |
 
 ## Architecture
 
@@ -158,10 +157,9 @@ turn, with the reply dispatched as a `chat_chunk` + `chat_done` pair on
 `state.events` — the same channel cloud / local providers use, so the
 chat UI is provider-agnostic.
 
-M9 ships **non-streaming** (one chunk per turn) so the round trip can be
-end-to-end-validated in isolation. Incremental streaming via
-`message/stream` (daemon-side `Provider::stream_chat` plumbing + a
-PWA-side `home-stream.js` adapter) is a follow-up — tracked under M10.
+The home provider currently ships **non-streaming** (one chunk per
+turn) — incremental streaming via `message/stream` is a deferred
+follow-up. See [Known limitations](#known-limitations) below.
 
 ## Data-channel protocol — A2A JSON-RPC over SCTP
 
@@ -400,6 +398,50 @@ provides:
 The daemon also enforces its own `Authorization: Bearer <device_token>`
 on every signaling request — defence in depth, so a leaked CF service
 token alone cannot reach the agent.
+
+## Phase 2 verification (manual)
+
+These are the user-facing acceptance tests that closed out Phase 2. All
+seven require real hardware (a paired phone or laptop talking to a home
+machine through a Cloudflare Tunnel) so they're driven manually rather
+than from `cargo test`. The unit suites in `cargo test -p brainwires-home`
+and `cd web && npm test` cover the underlying primitives in process.
+
+| ID | What it exercises                                                                          |
+|----|--------------------------------------------------------------------------------------------|
+| T1 | `brainwires-home pair` flow end-to-end — QR scan + 6-digit confirm, bundle persisted       |
+| T2 | "Home agent" provider becomes selectable in the chat UI once paired                        |
+| T3 | A2A `message/send` round-trip — text reply rendered in the chat bubble                     |
+| T4 | Multimodal — image + PDF attachment uploaded via `bin/begin`+`bin/chunk`+`bin/end`         |
+| T5 | Cellular path — TURN-relayed connection from phone over LTE through CF Calls TURN          |
+| T6 | Reconnect — drop wifi mid-conversation; ICE restart recovers the session within ~10 s      |
+| T7 | Unpair — "Remove paired device" disconnects + clears the bundle + hides the provider       |
+
+## Known limitations
+
+These are deferred follow-ups, not regressions — Phase 2's surface is
+intentionally small. Each is independently shippable as a future
+milestone.
+
+- **Streaming via `message/stream`.** The home provider does one
+  `message/send` round-trip per turn. True incremental streaming needs
+  daemon-side `Provider::stream_chat` plumbing plus a PWA-side
+  `home-stream.js` adapter that subscribes to JSON-RPC notifications.
+  The chat UI's `chat_chunk` plumbing already supports incremental
+  rendering, so the change is local to the provider adapter.
+
+- **Length-prefixed binary framing.** M11 uplinks file payloads as
+  base64-in-text frames (`bin/chunk { data: "<b64>" }`). A length-
+  prefixed binary framing on the same data channel (`[u32 LE
+  length][bytes]`) would cut ~33% of bandwidth and CPU. Not user-
+  visible until somebody pushes >100 MB through one upload.
+
+- **CF Access service-token minting from the daemon.** Today the
+  operator pre-provisions one `(client_id, client_secret)` pair via
+  `--cf-access-client-id` / `--cf-access-client-secret`. A future
+  improvement is for the daemon to mint a fresh service-token pair per
+  paired device against the Cloudflare API — same security gain CF
+  Calls TURN already has (M7), applied to the signaling path.
 
 ## What this crate is not
 

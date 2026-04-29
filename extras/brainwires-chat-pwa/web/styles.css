@@ -808,6 +808,23 @@ body.drawer-open .drawer-scrim { opacity: 1; pointer-events: auto; }
 }
 .pill-ok { background: color-mix(in srgb, var(--ok) 25%, var(--surface-2)); color: var(--ok); }
 .pill-muted { background: var(--surface-2); color: var(--muted); }
+/* M12 — home-transport status pill states. Yellow = in-flight,
+   green = healthy, red = disconnected. The pill is hidden when
+   the home agent isn't the active provider (see ui-chat.js). */
+.pill-warn { background: color-mix(in srgb, var(--warn, #c89400) 25%, var(--surface-2)); color: var(--warn, #c89400); }
+.pill-err { background: color-mix(in srgb, var(--danger) 25%, var(--surface-2)); color: var(--danger); }
+.pill[hidden] { display: none; }
+.home-status-pill { margin-left: 8px; }
+.home-status-pill::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-right: 6px;
+    vertical-align: middle;
+}
 
 /* ── Unlock view ─────────────────────────────────────────── */
 

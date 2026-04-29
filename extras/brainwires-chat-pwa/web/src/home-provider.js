@@ -17,6 +17,20 @@ import { SignalingClient } from './home-signaling.js';
 import { loadPairingBundle } from './home-pairing.js';
 import { events as stateEvents, appEvents } from './state.js';
 
+// M12 — public observable of the underlying transport state, surfaced
+// via app-level events so the chat UI's status pill can subscribe
+// without reaching past the provider façade. Mirrors HomeTransport's
+// state machine ('idle'|'connecting'|'connected'|'reconnecting'|'failed'|'closed').
+let _publicState = 'idle';
+function _setPublicState(next) {
+    if (_publicState === next) return;
+    const prev = _publicState;
+    _publicState = next;
+    appEvents.dispatchEvent(new CustomEvent('home-transport-state', { detail: { prev, next } }));
+}
+/** Snapshot of the current home-transport state. */
+export function getTransportState() { return _publicState; }
+
 export const id = 'home';
 export const displayName = 'Home agent';
 export const runtime = 'home';
@@ -81,6 +95,10 @@ async function getTransport(opts = {}) {
         });
         const transport = new HomeTransport({
             signaling,
+            // M12 — mirror the transport's internal state into the
+            // app-event bus so the chat UI's status pill can listen
+            // without polling.
+            onStateChange: ({ next }) => _setPublicState(next),
             // M10 — when the post-restart resume protocol reports that the
             // outbox cursor predates the daemon's window (or two restarts
             // failed and we re-handshook into a brand-new session), the
@@ -428,6 +446,10 @@ export async function disconnect() {
     if (t && typeof t.close === 'function') {
         try { await t.close(); } catch (_) { /* best-effort */ }
     }
+    // M12 — close() drives the transport through 'closing' → 'closed',
+    // but if the disconnect was forced (e.g. unpair flow) we want the
+    // pill back to 'idle' so it hides cleanly.
+    _setPublicState('idle');
 }
 
 /**
@@ -453,4 +475,5 @@ export function _resetForTests() {
     _transport = null;
     _connecting = null;
     _activeChatContext = null;
+    _publicState = 'idle';
 }
