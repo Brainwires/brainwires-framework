@@ -14,6 +14,16 @@ brainwires-core = { path = "../../../crates/brainwires-core", default-features =
 brainwires-providers = { path = "../../../crates/brainwires-providers", default-features = false, features = ["local-llm-candle", "web-speech", "candle-wgpu"] }
 brainwires-storage = { path = "../../../crates/brainwires-storage", default-features = false, features = ["hnsw-wasm"] }
 
+# Candle BERT (embedding model). Pulled in directly so we can use the
+# `candle_transformers::models::bert::BertModel` API; the workspace patch
+# at the root redirects this to the Brainwires candle-0.10 fork.
+candle-transformers = { version = "0.10", default-features = false }
+
+# HF tokenizer with `unstable_wasm` for wasm32 target. The provider crate
+# already pulls tokenizers in with `fancy-regex`; declaring it here adds the
+# wasm feature without disturbing the native build.
+tokenizers = { version = "0.22", default-features = false, features = ["unstable_wasm"] }
+
 # WASM bindings
 wasm-bindgen = "0.2"
 js-sys = "0.3"

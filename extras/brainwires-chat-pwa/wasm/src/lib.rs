@@ -55,6 +55,9 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{ReadableStream, ReadableStreamDefaultController};
 
+mod embedding;
+pub use embedding::{init_embedding_model, EmbeddingHandle};
+
 #[wasm_bindgen(start)]
 pub fn __start() {
     console_error_panic_hook::set_once();
