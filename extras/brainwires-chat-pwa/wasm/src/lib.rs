@@ -58,6 +58,9 @@ use web_sys::{ReadableStream, ReadableStreamDefaultController};
 mod embedding;
 pub use embedding::{init_embedding_model, EmbeddingHandle};
 
+mod vision;
+pub use vision::{init_local_multimodal, local_chat_stream_with_image, LocalMultiModalHandle};
+
 #[wasm_bindgen(start)]
 pub fn __start() {
     console_error_panic_hook::set_once();

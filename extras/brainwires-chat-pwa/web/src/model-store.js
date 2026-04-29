@@ -34,6 +34,10 @@ export const KNOWN_MODELS = {
         estimatedBytes: 10_246_621_918,
         contextSize: 8192,
         gated: false,
+        // Gemma 4 E2B ships with the SigLIP vision tower; the worker uses
+        // this flag to pick `init_local_multimodal` over the text-only
+        // loader so `vision_chat` (parts[] with image entries) works.
+        multimodal: true,
     },
 };
 

@@ -620,6 +620,15 @@ describe('model-store', () => {
         assert.deepEqual(kinds, ['tokenizer', 'weights']);
     });
 
+    test('gemma-4-e2b is flagged multimodal so the worker picks the vision loader', () => {
+        // The worker reads this flag to decide between
+        // `init_local_multimodal` and the text-only `init_local_model_*`
+        // exports. Without it, `vision_chat` would fall through to the
+        // text path and surface a cryptic error.
+        const m = modelStore.KNOWN_MODELS['gemma-4-e2b'];
+        assert.equal(m.multimodal, true);
+    });
+
     test('cacheKey produces a HF resolve URL', () => {
         const url = modelStore.cacheKey('gemma-4-e2b', 'model.safetensors');
         assert.equal(url, 'https://huggingface.co/google/gemma-4-e2b/resolve/main/model.safetensors');

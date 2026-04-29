@@ -51,8 +51,9 @@ async function _getOpfsFile(modelId, filename) {
 }
 
 // Mirror of the registry in src/model-store.js. Kept in lock-step; the
-// only fields we actually need here are the HF (repo, revision) and the
-// list of files (kind, filename) so we can build the cache key.
+// only fields we actually need here are the HF (repo, revision), the list
+// of files (kind, filename) so we can build the cache key, and a
+// `multimodal` flag that selects the vision-capable loader path.
 const KNOWN_MODELS = {
     'gemma-4-e2b': {
         id: 'gemma-4-e2b',
@@ -61,6 +62,9 @@ const KNOWN_MODELS = {
             { kind: 'weights', filename: 'model.safetensors' },
             { kind: 'tokenizer', filename: 'tokenizer.json' },
         ],
+        // Gemma 4 E2B ships with the SigLIP vision tower — load via
+        // `init_local_multimodal*` so `vision_chat` works end-to-end.
+        multimodal: true,
     },
 };
 
@@ -75,6 +79,10 @@ let wasm = null;
 let wasmPromise = null;
 let handle = null;
 let loadedModelId = null;
+// Track whether the active handle is multimodal so we can fail fast on
+// `vision_chat` against a text-only handle (and vice versa) instead of
+// silently calling the wrong wasm export.
+let handleIsMultimodal = false;
 
 // Embedding model lives in a separate slot from the chat handle — RAG
 // indexing and assistant generation can run with different weights.
@@ -217,27 +225,48 @@ async function handleLoad(msg) {
         }
         handle = null;
         loadedModelId = null;
+        handleIsMultimodal = false;
 
-        // Try chunked loading from OPFS first — reads tensors one at a
-        // time so we never allocate a 10 GB buffer. Falls back to the
-        // old bulk-read path for legacy Cache Storage data.
-        if (typeof mod.init_local_model_chunked === 'function') {
+        const m = KNOWN_MODELS[modelId];
+        const multimodal = !!(m && m.multimodal);
+
+        // Multimodal models load through `init_local_multimodal` (bulk-read
+        // only — Stage E ships without a chunked multimodal loader because
+        // routing tensors across SigLIP / projector / decoder VarBuilders
+        // exceeded reasonable scope). Text-only models prefer the chunked
+        // loader so we don't allocate a 10 GB buffer for a single
+        // safetensors file.
+        if (!multimodal && typeof mod.init_local_model_chunked === 'function') {
             const loaded = await tryChunkedLoad(mod, modelId, requestId);
             if (loaded) return;
             console.log('[local-worker] chunked load unavailable, falling back to bulk read');
         }
 
-        // Legacy bulk-read path (small models or Cache Storage data).
-        const initFn = typeof mod.init_local_model_gpu === 'function'
-            ? mod.init_local_model_gpu
-            : mod.init_local_model;
-        if (!initFn) {
-            self.postMessage({
-                requestId,
-                type: 'load_error',
-                error: 'wasm.init_local_model not available — rebuild the WASM crate',
-            });
-            return;
+        // Bulk-read path. Multimodal goes through `init_local_multimodal`,
+        // text-only through `init_local_model_gpu` / `init_local_model`.
+        let initFn;
+        if (multimodal) {
+            initFn = mod.init_local_multimodal;
+            if (!initFn) {
+                self.postMessage({
+                    requestId,
+                    type: 'load_error',
+                    error: 'wasm.init_local_multimodal not available — rebuild the WASM crate with local-llm-vision',
+                });
+                return;
+            }
+        } else {
+            initFn = typeof mod.init_local_model_gpu === 'function'
+                ? mod.init_local_model_gpu
+                : mod.init_local_model;
+            if (!initFn) {
+                self.postMessage({
+                    requestId,
+                    type: 'load_error',
+                    error: 'wasm.init_local_model not available — rebuild the WASM crate',
+                });
+                return;
+            }
         }
 
         let { weights, tokenizer } = await getModelBytes(modelId);
@@ -248,6 +277,7 @@ async function handleLoad(msg) {
             tokenizer = null;
         }
         loadedModelId = modelId;
+        handleIsMultimodal = multimodal;
 
         const deviceType = handle.device_type || 'cpu';
         self.postMessage({ type: 'load_progress', phase: 'ready', modelId, deviceType });
@@ -319,6 +349,9 @@ async function tryChunkedLoad(mod, modelId, requestId) {
 
         handle = await mod.init_local_model_chunked(readFn, fileSize, tokenizerBytes, modelId);
         loadedModelId = modelId;
+        // Chunked path is text-only; multimodal weights take a different
+        // prefix-aware loader (Stage E ships bulk-read for that case).
+        handleIsMultimodal = false;
 
         weightsSyncHandle.close();
         weightsSyncHandle = null;
@@ -341,11 +374,22 @@ async function handleChat(msg) {
 }
 
 // Same shape as handleChat but routed through `local_chat_stream_with_image`,
-// which (when the wasm crate exposes it) accepts the parts[] message shape
-// directly so {type:'image'} parts can be decoded inside Rust. Falls back to
-// a clear error message when the wasm side hasn't been rebuilt yet — the
-// JS plumbing is here so the upgrade is just a wasm-pack rebuild away.
+// which accepts the parts[] message shape directly so {type:'image'} parts
+// can be decoded inside Rust.
+//
+// Pre-flight guard: vision_chat against a text-only handle is a programmer
+// error (the model registry says which loader to use; if the wrong one was
+// run we can't usefully recover here). Surface a clear chat_error rather
+// than letting the wasm export reject with a cryptic type-mismatch.
 async function handleVisionChat(msg) {
+    const { requestId, conversationId, messageId } = msg;
+    if (handle !== null && !handleIsMultimodal) {
+        self.postMessage({
+            requestId, type: 'chat_error', conversationId, messageId,
+            error: 'model not loaded as multimodal — reload with a vision-capable model',
+        });
+        return;
+    }
     return runChatStream(msg, 'local_chat_stream_with_image');
 }
 
@@ -541,5 +585,6 @@ function handleUnload(msg) {
     }
     handle = null;
     loadedModelId = null;
+    handleIsMultimodal = false;
     self.postMessage({ requestId, type: 'unload_ack' });
 }

@@ -11,13 +11,19 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # Framework crates — only `crates/*` allowed; never depend on other extras.
 brainwires-core = { path = "../../../crates/brainwires-core", default-features = false, features = ["wasm"] }
-brainwires-providers = { path = "../../../crates/brainwires-providers", default-features = false, features = ["local-llm-candle", "web-speech", "candle-wgpu"] }
+brainwires-providers = { path = "../../../crates/brainwires-providers", default-features = false, features = ["local-llm-candle", "local-llm-vision", "web-speech", "candle-wgpu"] }
 brainwires-storage = { path = "../../../crates/brainwires-storage", default-features = false, features = ["hnsw-wasm"] }
 
 # Candle BERT (embedding model). Pulled in directly so we can use the
 # `candle_transformers::models::bert::BertModel` API; the workspace patch
 # at the root redirects this to the Brainwires candle-0.10 fork.
 candle-transformers = { version = "0.10", default-features = false }
+
+# Candle NN — needed for the multimodal vision path which references
+# `candle_nn::Activation` when constructing the `gemma3_mm::Config`. The
+# providers crate re-exports `VarBuilder` but not the full `candle_nn`
+# surface, so we depend on it directly here.
+candle-nn = { version = "0.10", default-features = false }
 
 # HF tokenizer with `unstable_wasm` for wasm32 target. The provider crate
 # already pulls tokenizers in with `fancy-regex`; declaring it here adds the
@@ -59,6 +65,11 @@ console_error_panic_hook = "0.1"
 # Pulled in transitively by uuid / rand-using crates; declaring keeps the
 # `js` feature on the same getrandom 0.2 instance the dep graph picks.
 getrandom = { version = "0.2", features = ["js"] }
+
+# Base64 decode for inbound image parts in `local_chat_stream_with_image`.
+# JS sends `{type:'image', data: <base64>}` parts; we decode inside wasm
+# rather than over the postMessage boundary so the JS side stays small.
+base64 = { workspace = true }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
