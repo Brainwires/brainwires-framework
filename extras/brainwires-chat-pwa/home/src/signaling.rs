@@ -7,6 +7,7 @@
 //! routes into a real `RTCPeerConnection`.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use axum::{
@@ -21,8 +22,14 @@ use brainwires_a2a::{
 };
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::{Notify, RwLock, broadcast};
 use uuid::Uuid;
+use webrtc::data_channel::DataChannel as WrtcDataChannel;
+use webrtc::peer_connection::{PeerConnection, RTCIceCandidateInit};
+
+use crate::webrtc::{
+    PeerEvent, apply_offer_and_create_answer, build_answerer, run_a2a_loop,
+};
 
 /// Default long-poll wait. The PWA retries on 204.
 pub const DEFAULT_LONG_POLL: Duration = Duration::from_secs(25);
@@ -81,6 +88,13 @@ pub struct IceQuery {
 // ---------- session state ----------
 
 /// Per-session in-memory state.
+///
+/// `peer` and `data_channel` are populated by [`post_offer`] once the home
+/// daemon accepts an SDP offer and runs the answerer handshake. The
+/// `ice_candidates` buffer is the **home → PWA** direction (the PWA
+/// long-polls it). Inbound PWA → home candidates go straight into
+/// `peer.add_ice_candidate(...)` — see [`post_ice`] — and are counted in
+/// `peer_input_count` for diagnostics only.
 pub struct SessionState {
     pub session_id: String,
     pub created_at: Instant,
@@ -89,6 +103,11 @@ pub struct SessionState {
     pub ice_candidates: RwLock<Vec<IceCandidate>>,
     pub answer_notify: Notify,
     pub ice_notify: Notify,
+    pub peer: RwLock<Option<Arc<dyn PeerConnection>>>,
+    pub data_channel: RwLock<Option<Arc<dyn WrtcDataChannel>>>,
+    /// Count of PWA-originated ICE candidates we've forwarded into the peer.
+    /// Logging only — the wire protocol doesn't expose this.
+    pub peer_input_count: AtomicUsize,
 }
 
 impl SessionState {
@@ -101,6 +120,9 @@ impl SessionState {
             ice_candidates: RwLock::new(Vec::new()),
             answer_notify: Notify::new(),
             ice_notify: Notify::new(),
+            peer: RwLock::new(None),
+            data_channel: RwLock::new(None),
+            peer_input_count: AtomicUsize::new(0),
         }
     }
 }
@@ -182,8 +204,95 @@ async fn post_offer(
     let Some(s) = state.sessions.get(&session).map(|e| e.value().clone()) else {
         return StatusCode::NOT_FOUND;
     };
-    *s.offer.write().await = Some(body);
+
+    // Stash the offer for diagnostic / replay purposes.
+    *s.offer.write().await = Some(body.clone());
+
+    // Build the answerer peer. We deliberately *don't* await ICE-gathering
+    // completion before responding — candidates trickle to the PWA via
+    // `/signal/ice/{session}` instead.
+    let peer = match build_answerer().await {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!(session = %session, error = %e, "build_answerer failed");
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        }
+    };
+
+    // Subscribe to the peer's event broadcaster BEFORE applying the offer so
+    // we don't miss any candidates that surface synchronously inside
+    // `set_local_description`. Two subscribers: one for ICE relay (PWA
+    // direction), one for the data-channel watcher (a2a ping/pong loop).
+    let ice_rx = peer.subscribe();
+    let session_state = s.clone();
+    tokio::spawn(relay_local_ice(ice_rx, session_state));
+
+    // Stash the underlying PeerConnection on the session so `post_ice`
+    // (PWA → home direction) can feed it remote candidates.
+    *s.peer.write().await = Some(peer.pc.clone());
+
+    // Drive the offer/answer dance. After this, ICE gathering is in flight
+    // and host candidates are being broadcast on `peer`'s event bus.
+    let answer_sdp = match apply_offer_and_create_answer(&peer, body.sdp).await {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::error!(session = %session, error = %e, "apply_offer_and_create_answer failed");
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        }
+    };
+
+    // Now move the HomePeer wrapper into a background task that waits for
+    // the PWA-created data channel to arrive and runs the JSON-RPC ping/pong
+    // loop. `s.peer` already holds an Arc on the underlying PeerConnection
+    // (so the event handler — which owns the broadcast `tx` — stays alive
+    // for the session lifetime), but the HomePeer wrapper itself is what
+    // exposes `subscribe()`, so we keep ownership of it inside the task.
+    let session_state = s.clone();
+    tokio::spawn(async move {
+        match run_a2a_loop(&peer).await {
+            Ok(dc) => {
+                *session_state.data_channel.write().await = Some(dc);
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "a2a loop exited before data channel arrived");
+            }
+        }
+        // Drop `peer` here; the underlying PeerConnection is still kept alive
+        // by `session_state.peer` until the session is GC'd or DELETE'd.
+        drop(peer);
+    });
+
+    // Publish the answer + wake any /signal/answer long-pollers.
+    *s.answer.write().await = Some(SdpDesc {
+        sdp: answer_sdp,
+        kind: "answer".to_string(),
+    });
+    s.answer_notify.notify_waiters();
     StatusCode::NO_CONTENT
+}
+
+/// Background task: forward local ICE candidates into the session's outbound
+/// buffer and wake any long-pollers.
+async fn relay_local_ice(mut rx: broadcast::Receiver<PeerEvent>, s: Arc<SessionState>) {
+    loop {
+        match rx.recv().await {
+            Ok(PeerEvent::LocalIceCandidate {
+                candidate,
+                sdp_mid,
+                sdp_mline_index,
+            }) => {
+                s.ice_candidates.write().await.push(IceCandidate {
+                    candidate: Some(candidate),
+                    sdp_mid,
+                    sdp_m_line_index: sdp_mline_index,
+                });
+                s.ice_notify.notify_waiters();
+            }
+            Ok(_) => continue,
+            Err(broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(_) => break,
+        }
+    }
 }
 
 async fn get_answer(
@@ -223,8 +332,39 @@ async fn post_ice(
     let Some(s) = state.sessions.get(&session).map(|e| e.value().clone()) else {
         return StatusCode::NOT_FOUND;
     };
-    s.ice_candidates.write().await.push(body);
-    s.ice_notify.notify_waiters();
+
+    // PWA → home direction: feed the candidate into the answerer peer if it
+    // has been built (i.e. `post_offer` has already run). End-of-candidates
+    // markers (candidate == null) are dropped here — webrtc-rs treats an
+    // empty `RTCIceCandidateInit.candidate` string as malformed, and the
+    // home side doesn't need a sentinel because trickle-ICE keeps gathering
+    // until the connection is established or fails.
+    if let Some(s_str) = body.candidate.as_deref() {
+        if !s_str.is_empty() {
+            if let Some(pc) = s.peer.read().await.clone() {
+                if let Err(e) = pc
+                    .add_ice_candidate(RTCIceCandidateInit {
+                        candidate: s_str.to_string(),
+                        sdp_mid: body.sdp_mid.clone(),
+                        sdp_mline_index: body.sdp_m_line_index,
+                        username_fragment: None,
+                        url: None,
+                    })
+                    .await
+                {
+                    tracing::warn!(session = %session, error = %e, "add_ice_candidate failed");
+                } else {
+                    s.peer_input_count.fetch_add(1, Ordering::Relaxed);
+                }
+            } else {
+                tracing::debug!(
+                    session = %session,
+                    "received PWA ICE candidate before offer; buffering would race the answerer build"
+                );
+            }
+        }
+    }
+
     StatusCode::NO_CONTENT
 }
 
@@ -339,15 +479,6 @@ mod tests {
         to_bytes(body, 1 << 20).await.expect("collect body").to_vec()
     }
 
-    fn json_request(method: Method, uri: &str, body: Value) -> Request<Body> {
-        Request::builder()
-            .method(method)
-            .uri(uri)
-            .header("content-type", "application/json")
-            .body(Body::from(serde_json::to_vec(&body).unwrap()))
-            .unwrap()
-    }
-
     fn empty_request(method: Method, uri: &str) -> Request<Body> {
         Request::builder()
             .method(method)
@@ -385,33 +516,19 @@ mod tests {
         assert!(ice.is_empty(), "ice_servers must be empty in M2");
     }
 
+    /// Repurposed from the M2 stub-SDP test. Now that `post_offer` actually
+    /// parses the SDP and runs an answerer, we can't use a fake string —
+    /// instead we test the answer route's fast-path by poking the session
+    /// state directly. The full handshake through `post_offer` is exercised
+    /// by `test_offer_produces_answer` and `test_full_handshake_in_process`
+    /// in the `m3_handshake` module.
     #[tokio::test]
-    async fn test_offer_then_answer_roundtrip() {
+    async fn test_answer_fast_path_returns_stored_sdp() {
         let state = test_state();
         let app = router(state.clone());
         let id = new_session(&app).await;
 
-        // Post an offer.
-        let offer = serde_json::json!({ "sdp": "v=0\r\n...offer", "type": "offer" });
-        let resp = app
-            .clone()
-            .oneshot(json_request(
-                Method::POST,
-                &format!("/signal/offer/{id}"),
-                offer.clone(),
-            ))
-            .await
-            .unwrap();
-        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
-
-        // Sanity: offer landed on session state.
-        {
-            let s = state.sessions.get(&id).unwrap().value().clone();
-            assert_eq!(s.offer.read().await.as_ref().unwrap().kind, "offer");
-        }
-
-        // Simulate the home side filling in the answer (M3 will wire this from
-        // the WebRTC peer; M2 we poke the state directly to test the route).
+        // Pretend the home side has filled in an answer.
         let answer = SdpDesc {
             sdp: "v=0\r\n...answer".to_string(),
             kind: "answer".to_string(),
@@ -467,33 +584,34 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 
+    /// Repurposed from the M2 test that POST'd into the ICE buffer directly.
+    /// In M3 the buffer is the **home → PWA** direction; PWA-originated
+    /// candidates go straight into `peer.add_ice_candidate`. So we now poke
+    /// the buffer the way `relay_local_ice` does and assert the GET endpoint
+    /// surfaces them with cursor semantics.
     #[tokio::test]
-    async fn test_ice_append_and_get() {
-        let app = router(test_state());
+    async fn test_ice_buffer_get_with_cursor() {
+        let state = test_state();
+        let app = router(state.clone());
         let id = new_session(&app).await;
 
-        let cand_a = serde_json::json!({
-            "candidate": "candidate:1 1 UDP 2122260223 192.168.1.10 51234 typ host",
-            "sdpMid": "0",
-            "sdpMLineIndex": 0
-        });
-        let cand_b = serde_json::json!({
-            "candidate": "candidate:2 1 UDP 2122194687 192.168.1.10 51235 typ host",
-            "sdpMid": "0",
-            "sdpMLineIndex": 0
-        });
+        let s = state.sessions.get(&id).unwrap().value().clone();
 
-        // POST first candidate.
-        let resp = app
-            .clone()
-            .oneshot(json_request(
-                Method::POST,
-                &format!("/signal/ice/{id}"),
-                cand_a.clone(),
-            ))
-            .await
-            .unwrap();
-        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+        // Push two candidates into the home → PWA buffer the same way
+        // `relay_local_ice` does when the answerer's peer surfaces them.
+        let cand_a = IceCandidate {
+            candidate: Some("candidate:1 1 UDP 2122260223 192.168.1.10 51234 typ host".to_string()),
+            sdp_mid: Some("0".to_string()),
+            sdp_m_line_index: Some(0),
+        };
+        let cand_b = IceCandidate {
+            candidate: Some("candidate:2 1 UDP 2122194687 192.168.1.10 51235 typ host".to_string()),
+            sdp_mid: Some("0".to_string()),
+            sdp_m_line_index: Some(0),
+        };
+
+        s.ice_candidates.write().await.push(cand_a.clone());
+        s.ice_notify.notify_waiters();
 
         // GET ?since=0 returns it.
         let resp = app
@@ -509,19 +627,13 @@ mod tests {
         assert_eq!(v["cursor"].as_u64().unwrap(), 1);
         let cands = v["candidates"].as_array().unwrap();
         assert_eq!(cands.len(), 1);
-        assert_eq!(cands[0]["candidate"], cand_a["candidate"]);
+        assert_eq!(
+            cands[0]["candidate"].as_str().unwrap(),
+            cand_a.candidate.as_deref().unwrap()
+        );
 
-        // POST second.
-        let resp = app
-            .clone()
-            .oneshot(json_request(
-                Method::POST,
-                &format!("/signal/ice/{id}"),
-                cand_b.clone(),
-            ))
-            .await
-            .unwrap();
-        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+        s.ice_candidates.write().await.push(cand_b.clone());
+        s.ice_notify.notify_waiters();
 
         // GET ?since=1 returns just the second.
         let resp = app
@@ -537,7 +649,10 @@ mod tests {
         assert_eq!(v["cursor"].as_u64().unwrap(), 2);
         let cands = v["candidates"].as_array().unwrap();
         assert_eq!(cands.len(), 1);
-        assert_eq!(cands[0]["candidate"], cand_b["candidate"]);
+        assert_eq!(
+            cands[0]["candidate"].as_str().unwrap(),
+            cand_b.candidate.as_deref().unwrap()
+        );
     }
 
     #[tokio::test]
@@ -592,5 +707,335 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(80)).await;
         state.gc_expired();
         assert!(!state.sessions.contains_key(&id), "session should be GC'd");
+    }
+}
+
+// ---------- M3 integration tests: real WebRTC handshake through the router ----------
+
+#[cfg(test)]
+mod m3_handshake {
+    use super::*;
+    use axum::body::{Body, to_bytes};
+    use axum::http::{Method, Request};
+    use serde_json::Value;
+    use std::time::Duration;
+    use tokio::sync::mpsc;
+    use tower::ServiceExt;
+    use webrtc::data_channel::DataChannelEvent;
+
+    use crate::webrtc::{A2A_CHANNEL_LABEL, build_peer, open_a2a_channel};
+
+    fn handshake_state() -> AppState {
+        // Short long-poll so timeouts don't drag the test out, but long
+        // enough that a real ICE candidate arrives within one wait window.
+        AppState::new(Duration::from_secs(2), DEFAULT_SESSION_TTL)
+    }
+
+    async fn body_json(resp: axum::response::Response) -> Value {
+        let body = resp.into_body();
+        let bytes = to_bytes(body, 1 << 20).await.expect("collect body");
+        serde_json::from_slice(&bytes).expect("body is valid JSON")
+    }
+
+    fn json_request(method: Method, uri: &str, body: Value) -> Request<Body> {
+        Request::builder()
+            .method(method)
+            .uri(uri)
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::to_vec(&body).unwrap()))
+            .unwrap()
+    }
+
+    fn empty_request(method: Method, uri: &str) -> Request<Body> {
+        Request::builder()
+            .method(method)
+            .uri(uri)
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    async fn new_session(app: &Router) -> String {
+        let resp = app
+            .clone()
+            .oneshot(empty_request(Method::POST, "/signal/session"))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let v = body_json(resp).await;
+        v["session_id"].as_str().unwrap().to_string()
+    }
+
+    /// `post_offer` accepts a real PWA-side SDP and the answer endpoint
+    /// returns a non-empty SDP within a couple of seconds.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_offer_produces_answer() -> anyhow::Result<()> {
+        let state = handshake_state();
+        let app = router(state.clone());
+        let id = new_session(&app).await;
+
+        // Build a real PWA-side offerer with an `"a2a"` data channel, just
+        // so the offer SDP is well-formed for the home parser.
+        let pwa = build_peer(vec![]).await?;
+        let _dc = open_a2a_channel(&pwa).await?;
+        let offer = pwa.pc.create_offer(None).await
+            .map_err(|e| anyhow::anyhow!("create_offer: {e}"))?;
+        pwa.pc.set_local_description(offer.clone()).await
+            .map_err(|e| anyhow::anyhow!("set_local_description: {e}"))?;
+
+        // POST the offer.
+        let resp = app
+            .clone()
+            .oneshot(json_request(
+                Method::POST,
+                &format!("/signal/offer/{id}"),
+                serde_json::json!({ "sdp": offer.sdp, "type": "offer" }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        // GET the answer; should fast-path because post_offer fills it
+        // synchronously before returning.
+        let resp = tokio::time::timeout(
+            Duration::from_secs(5),
+            app.clone().oneshot(empty_request(
+                Method::GET,
+                &format!("/signal/answer/{id}"),
+            )),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("answer GET timed out"))?
+        .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let v = body_json(resp).await;
+        assert_eq!(v["type"].as_str().unwrap(), "answer");
+        let sdp = v["sdp"].as_str().unwrap();
+        assert!(!sdp.is_empty(), "answer SDP should be non-empty");
+        assert!(sdp.starts_with("v=0"), "answer SDP should start with v=0: {sdp}");
+
+        // Cleanup.
+        let _ = pwa.pc.close().await;
+        let _ = app
+            .oneshot(empty_request(Method::DELETE, &format!("/signal/{id}")))
+            .await;
+        Ok(())
+    }
+
+    /// Full end-to-end handshake. PWA-side offerer drives the real axum
+    /// router via `tower::ServiceExt::oneshot` for every signaling call.
+    /// Once the data channel opens, sends a JSON-RPC `ping` and asserts the
+    /// home daemon echoes back a `pong`-shaped reply on the same channel.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_full_handshake_in_process() -> anyhow::Result<()> {
+        // Long-poll long enough for ICE on a cold-start webrtc-rs instance.
+        let state = AppState::new(Duration::from_secs(3), DEFAULT_SESSION_TTL);
+        let app = router(state.clone());
+
+        // Step 1: create the session.
+        let id = new_session(&app).await;
+
+        // Step 2: PWA builds a peer + opens the canonical data channel.
+        let pwa = build_peer(vec![]).await?;
+        let dc = open_a2a_channel(&pwa).await?;
+        assert_eq!(
+            dc.label().await.unwrap_or_default(),
+            A2A_CHANNEL_LABEL
+        );
+
+        // Step 3: forward PWA local ICE candidates to the home side via
+        // `POST /signal/ice/{id}`.
+        let mut pwa_events = pwa.subscribe();
+        let app_for_ice = app.clone();
+        let id_for_ice = id.clone();
+        let pwa_ice_relay = tokio::spawn(async move {
+            loop {
+                match pwa_events.recv().await {
+                    Ok(crate::webrtc::PeerEvent::LocalIceCandidate {
+                        candidate,
+                        sdp_mid,
+                        sdp_mline_index,
+                    }) => {
+                        let body = serde_json::json!({
+                            "candidate": candidate,
+                            "sdpMid": sdp_mid,
+                            "sdpMLineIndex": sdp_mline_index,
+                        });
+                        let _ = app_for_ice
+                            .clone()
+                            .oneshot(json_request(
+                                Method::POST,
+                                &format!("/signal/ice/{id_for_ice}"),
+                                body,
+                            ))
+                            .await;
+                    }
+                    Ok(crate::webrtc::PeerEvent::ConnectionState(s))
+                        if matches!(
+                            s,
+                            webrtc::peer_connection::RTCPeerConnectionState::Connected
+                                | webrtc::peer_connection::RTCPeerConnectionState::Failed
+                                | webrtc::peer_connection::RTCPeerConnectionState::Closed
+                        ) =>
+                    {
+                        break;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    _ => continue,
+                }
+            }
+        });
+
+        // Step 4: pump home → PWA ICE candidates by long-polling
+        // `/signal/ice/{id}` and feeding them into `pwa.pc.add_ice_candidate`.
+        let app_for_pull = app.clone();
+        let id_for_pull = id.clone();
+        let pwa_pc_clone = pwa.pc.clone();
+        let home_to_pwa_relay = tokio::spawn(async move {
+            let mut cursor: usize = 0;
+            for _ in 0..40 {
+                let resp = app_for_pull
+                    .clone()
+                    .oneshot(empty_request(
+                        Method::GET,
+                        &format!("/signal/ice/{id_for_pull}?since={cursor}"),
+                    ))
+                    .await
+                    .unwrap();
+                if resp.status() != StatusCode::OK {
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                    continue;
+                }
+                let v = body_json(resp).await;
+                let new_cursor = v["cursor"].as_u64().unwrap_or(cursor as u64) as usize;
+                if let Some(arr) = v["candidates"].as_array() {
+                    for c in arr {
+                        if let Some(cand_str) = c.get("candidate").and_then(|x| x.as_str()) {
+                            if cand_str.is_empty() {
+                                continue;
+                            }
+                            let init = webrtc::peer_connection::RTCIceCandidateInit {
+                                candidate: cand_str.to_string(),
+                                sdp_mid: c
+                                    .get("sdpMid")
+                                    .and_then(|x| x.as_str())
+                                    .map(|s| s.to_string()),
+                                sdp_mline_index: c
+                                    .get("sdpMLineIndex")
+                                    .and_then(|x| x.as_u64())
+                                    .map(|x| x as u16),
+                                username_fragment: None,
+                                url: None,
+                            };
+                            let _ = pwa_pc_clone.add_ice_candidate(init).await;
+                        }
+                    }
+                }
+                cursor = new_cursor;
+            }
+        });
+
+        // Step 5: PWA → home offer.
+        let offer = pwa
+            .pc
+            .create_offer(None)
+            .await
+            .map_err(|e| anyhow::anyhow!("create_offer: {e}"))?;
+        pwa.pc
+            .set_local_description(offer.clone())
+            .await
+            .map_err(|e| anyhow::anyhow!("set_local_description: {e}"))?;
+
+        let resp = app
+            .clone()
+            .oneshot(json_request(
+                Method::POST,
+                &format!("/signal/offer/{id}"),
+                serde_json::json!({ "sdp": offer.sdp, "type": "offer" }),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        // Step 6: GET the answer + apply it.
+        let resp = app
+            .clone()
+            .oneshot(empty_request(
+                Method::GET,
+                &format!("/signal/answer/{id}"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let v = body_json(resp).await;
+        let answer_sdp = v["sdp"].as_str().unwrap().to_string();
+        assert!(!answer_sdp.is_empty(), "answer SDP should be non-empty");
+        let answer = webrtc::peer_connection::RTCSessionDescription::answer(answer_sdp)
+            .map_err(|e| anyhow::anyhow!("RTCSessionDescription::answer: {e}"))?;
+        pwa.pc
+            .set_remote_description(answer)
+            .await
+            .map_err(|e| anyhow::anyhow!("set_remote_description(answer): {e}"))?;
+
+        // Step 7: Wait for the data channel to open on the PWA side, send
+        // a JSON-RPC ping, capture the reply.
+        let (got_tx, mut got_rx) = mpsc::channel::<String>(1);
+        let dc_for_reader = dc.clone();
+        let reader = tokio::spawn(async move {
+            let ping = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "ping",
+                "params": {}
+            })
+            .to_string();
+            let mut sent = false;
+            loop {
+                match dc_for_reader.poll().await {
+                    Some(DataChannelEvent::OnOpen) => {
+                        if !sent {
+                            let _ = dc_for_reader.send_text(&ping).await;
+                            sent = true;
+                        }
+                    }
+                    Some(DataChannelEvent::OnMessage(msg)) => {
+                        let s = String::from_utf8_lossy(&msg.data).into_owned();
+                        let _ = got_tx.send(s).await;
+                        break;
+                    }
+                    Some(DataChannelEvent::OnClose) | None => break,
+                    _ => continue,
+                }
+            }
+        });
+
+        let reply_text = tokio::time::timeout(Duration::from_secs(15), got_rx.recv())
+            .await
+            .map_err(|_| anyhow::anyhow!("timed out waiting for pong reply"))?
+            .ok_or_else(|| anyhow::anyhow!("data channel closed before reply"))?;
+
+        let reply: Value = serde_json::from_str(&reply_text)
+            .map_err(|e| anyhow::anyhow!("reply not valid JSON ({e}): {reply_text}"))?;
+        assert_eq!(reply["jsonrpc"], "2.0", "reply must be JSON-RPC 2.0");
+        assert_eq!(reply["id"], serde_json::json!(1), "id must echo the request id");
+        assert_eq!(
+            reply["result"]["ok"].as_bool(),
+            Some(true),
+            "result.ok must be true: {reply:?}"
+        );
+        assert!(
+            reply["result"]["ts"].as_u64().is_some(),
+            "result.ts must be a u64: {reply:?}"
+        );
+
+        // Cleanup.
+        let _ = dc.close().await;
+        let _ = pwa.pc.close().await;
+        let _ = app
+            .oneshot(empty_request(Method::DELETE, &format!("/signal/{id}")))
+            .await;
+        let _ = reader.await;
+        let _ = pwa_ice_relay.await;
+        let _ = home_to_pwa_relay.await;
+        Ok(())
     }
 }

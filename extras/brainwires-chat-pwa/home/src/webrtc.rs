@@ -20,6 +20,7 @@ use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
 use bytes::BytesMut;
+use serde_json::Value;
 use tokio::sync::broadcast;
 use webrtc::data_channel::{
     DataChannel as WrtcDataChannel, DataChannelEvent, RTCDataChannelInit,
@@ -27,9 +28,12 @@ use webrtc::data_channel::{
 use webrtc::peer_connection::{
     MediaEngine, PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler,
     RTCConfigurationBuilder, RTCIceConnectionState, RTCIceServer, RTCPeerConnectionIceEvent,
-    RTCPeerConnectionState, RTCSignalingState, Registry, register_default_interceptors,
+    RTCPeerConnectionState, RTCSessionDescription, RTCSignalingState, Registry,
+    register_default_interceptors,
 };
 use webrtc::media_stream::track_remote::TrackRemote;
+
+use crate::a2a;
 
 /// The canonical data-channel label used by the dial-home protocol.
 pub const A2A_CHANNEL_LABEL: &str = "a2a";
@@ -280,12 +284,121 @@ pub fn spawn_ice_relay(from: &HomePeer, into: Arc<dyn PeerConnection>) -> tokio:
     })
 }
 
+/// Build a fresh answerer peer (no SDP applied yet). Caller subscribes to its
+/// event stream BEFORE calling [`apply_offer_and_create_answer`] so that no
+/// ICE candidates are missed.
+pub async fn build_answerer() -> Result<HomePeer> {
+    build_peer(vec![]).await
+}
+
+/// Apply an offer SDP to an answerer peer and produce the answer SDP.
+///
+/// Sequence (matches the WebRTC spec):
+///   1. `set_remote_description(offer)`.
+///   2. `create_answer()`.
+///   3. `set_local_description(answer)` — *this kicks off ICE gathering*.
+///
+/// Local ICE candidates surface via the peer's event broadcast immediately
+/// after step 3. The caller must already be subscribed.
+pub async fn apply_offer_and_create_answer(
+    peer: &HomePeer,
+    offer_sdp: String,
+) -> Result<String> {
+    let offer = RTCSessionDescription::offer(offer_sdp)
+        .map_err(|e| anyhow!("RTCSessionDescription::offer: {e}"))?;
+    peer.pc
+        .set_remote_description(offer)
+        .await
+        .map_err(|e| anyhow!("answerer.set_remote_description(offer): {e}"))?;
+    let answer = peer
+        .pc
+        .create_answer(None)
+        .await
+        .map_err(|e| anyhow!("answerer.create_answer: {e}"))?;
+    let answer_sdp = answer.sdp.clone();
+    peer.pc
+        .set_local_description(answer)
+        .await
+        .map_err(|e| anyhow!("answerer.set_local_description(answer): {e}"))?;
+    Ok(answer_sdp)
+}
+
+/// Wait for the offerer to expose the `"a2a"` data channel, then drive a
+/// message loop that echoes JSON-RPC `ping` frames as `pong` replies.
+///
+/// Returns the resolved data channel as soon as it shows up so the caller
+/// can stash it on the per-session state. The actual ping/pong loop is
+/// spawned onto the runtime — its handle is `tokio::spawn`'d and dropped,
+/// so it lives until the data channel closes.
+///
+/// Anything that isn't a JSON-RPC `ping` is logged and dropped. M4 replaces
+/// the dispatcher with the real A2A bridge.
+pub async fn run_a2a_loop(peer: &HomePeer) -> Result<Arc<dyn WrtcDataChannel>> {
+    let mut rx = peer.subscribe();
+    let dc = loop {
+        match rx.recv().await {
+            Ok(PeerEvent::DataChannel(dc)) => {
+                let label = dc.label().await.unwrap_or_default();
+                if label == A2A_CHANNEL_LABEL {
+                    break dc;
+                }
+            }
+            Ok(_) => continue,
+            Err(broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(_) => return Err(anyhow!("peer event stream ended before data channel arrived")),
+        }
+    };
+
+    // Spawn the message-pump task. Lives until the data channel closes.
+    let pump_dc = dc.clone();
+    tokio::spawn(async move {
+        loop {
+            match pump_dc.poll().await {
+                Some(DataChannelEvent::OnMessage(msg)) => {
+                    let text = String::from_utf8_lossy(&msg.data).into_owned();
+                    if let Some(reply) = dispatch_jsonrpc(&text) {
+                        let s = reply.to_string();
+                        if let Err(e) = pump_dc.send_text(&s).await {
+                            tracing::warn!(error = %e, "a2a: send_text failed");
+                            break;
+                        }
+                    }
+                }
+                Some(DataChannelEvent::OnClose) | None => break,
+                _ => continue,
+            }
+        }
+    });
+
+    Ok(dc)
+}
+
+/// Dispatch one inbound text frame. Returns the reply value to send back,
+/// or `None` if the frame is unsupported/malformed.
+fn dispatch_jsonrpc(text: &str) -> Option<Value> {
+    let v: Value = match serde_json::from_str(text) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::debug!(error = %e, frame = %text, "a2a: dropping non-JSON frame");
+            return None;
+        }
+    };
+    let method = v.get("method").and_then(|m| m.as_str()).unwrap_or("");
+    let id = v.get("id").cloned().unwrap_or(Value::Null);
+    match method {
+        "ping" => Some(a2a::handle_jsonrpc_ping(id)),
+        other => {
+            tracing::debug!(method = %other, "a2a: dropping unsupported method (M4 will route this)");
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::time::Duration;
     use tokio::sync::mpsc;
-    use webrtc::peer_connection::RTCSessionDescription;
 
     /// Spin up two peers in-process, do the offer/answer dance manually,
     /// open the `"a2a"` data channel, and round-trip a single ping/pong
