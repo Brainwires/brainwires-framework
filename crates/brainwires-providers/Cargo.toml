@@ -43,6 +43,10 @@ candle-transformers = { version = "0.10", default-features = false, optional = t
 tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"], optional = true }
 safetensors = { version = "0.7", default-features = false, features = ["std"], optional = true }
 
+# Image preprocessing for the multimodal vision tower (local-llm-vision feature).
+# Default features off; enable common web formats only.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
+
 # Analytics (optional) — used on both native and wasm if `telemetry` is on.
 brainwires-telemetry = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
@@ -124,6 +128,13 @@ local-llm-candle = [
     "dep:tokenizers",
     "dep:hf-hub",
     "dep:safetensors",
+]
+# Multimodal vision tower scaffolding (Gemma 3/4 SigLIP path). Pulls in the
+# `image` crate for decode + resize, and requires `local-llm-candle` for the
+# Candle Tensor/Device types used to ship the preprocessed image to the model.
+local-llm-vision = [
+    "local-llm-candle",
+    "dep:image",
 ]
 bedrock = ["native", "dep:aws-sigv4", "dep:aws-credential-types", "dep:aws-smithy-runtime-api", "dep:http"]
 vertex-ai = ["native", "dep:gcp_auth"]

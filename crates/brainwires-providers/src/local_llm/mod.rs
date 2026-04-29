@@ -19,6 +19,9 @@ mod provider;
 #[cfg(feature = "local-llm-candle")]
 pub mod candle_provider;
 
+#[cfg(feature = "local-llm-vision")]
+pub mod vision;
+
 pub use config::*;
 pub use model_registry::*;
 pub use provider::*;
