@@ -73,6 +73,13 @@ function wireServiceWorkerMessages() {
                 stateEvents.dispatchEvent(new CustomEvent('chat_chunk', { detail: msg }));
                 appEvents.dispatchEvent(new CustomEvent('chat-chunk', { detail: msg }));
                 break;
+            case 'chat_tool_use':
+                // MCP plumbing (Follow-up 2): SW broadcasts a fully
+                // reassembled tool invocation; the picker / execution
+                // loop / bubble rendering land in the next commit.
+                stateEvents.dispatchEvent(new CustomEvent('chat_tool_use', { detail: msg }));
+                appEvents.dispatchEvent(new CustomEvent('chat-tool-use', { detail: msg }));
+                break;
             case 'chat_done':
                 stateEvents.dispatchEvent(new CustomEvent('chat_done', { detail: msg }));
                 appEvents.dispatchEvent(new CustomEvent('chat-done', { detail: msg }));

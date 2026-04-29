@@ -86,6 +86,20 @@ export function buildRequest({ model, messages, params = {} }) {
     if (typeof params.top_p === 'number') body.top_p = params.top_p;
     if (typeof params.max_tokens === 'number') body.max_tokens = params.max_tokens;
     else if (typeof params.maxTokens === 'number') body.max_tokens = params.maxTokens;
+    // MCP tool definitions (resolved from the per-conversation picker).
+    // OpenAI chat-completions wants `tools: [{type:'function', function:{name, description, parameters}}]`.
+    if (Array.isArray(params.tools) && params.tools.length) {
+        body.tools = params.tools
+            .filter((t) => t && typeof t.name === 'string')
+            .map((t) => ({
+                type: 'function',
+                function: {
+                    name: t.name,
+                    description: typeof t.description === 'string' ? t.description : '',
+                    parameters: t.input_schema || { type: 'object', properties: {} },
+                },
+            }));
+    }
 
     return {
         url: ENDPOINT,
@@ -100,10 +114,18 @@ export function buildRequest({ model, messages, params = {} }) {
 }
 
 /**
+ * `acc` is a caller-owned accumulator (one per stream). OpenAI emits the
+ * tool-call `id` and `function.name` only in the FIRST delta for a given
+ * `tool_calls[].index`; subsequent deltas carry `function.arguments`
+ * fragments. We reassemble those across events and emit a `tool_uses`
+ * array on `finish_reason: 'tool_calls'`. Old call sites that pass no
+ * `acc` get a fresh ephemeral object — text-only streams are unaffected.
+ *
  * @param {{event?: string, data?: string, done?: boolean}} ev
- * @returns {{delta?: string, usage?: object, finished?: boolean} | null}
+ * @param {object} [acc] caller-owned accumulator, mutated across calls
+ * @returns {{delta?: string, usage?: object, finished?: boolean, tool_use?: {id: string, name: string, input: object}, tool_uses?: Array<{id: string, name: string, input: object}>} | null}
  */
-export function parseChunk(ev) {
+export function parseChunk(ev, acc = {}) {
     if (!ev) return null;
     if (ev.done) return { finished: true }; // [DONE] sentinel from streaming.js
     if (!ev.data || ev.data === '') return null;
@@ -116,11 +138,49 @@ export function parseChunk(ev) {
         if (payload.usage) return { usage: payload.usage };
         return null;
     }
+    // Accumulate tool_call deltas across events.
+    const toolCallDeltas = c0.delta && Array.isArray(c0.delta.tool_calls) ? c0.delta.tool_calls : null;
+    if (toolCallDeltas) {
+        if (!acc.toolCalls) acc.toolCalls = {};
+        for (const tc of toolCallDeltas) {
+            if (!tc || typeof tc.index !== 'number') continue;
+            if (!acc.toolCalls[tc.index]) {
+                acc.toolCalls[tc.index] = { id: '', name: '', argsJson: '' };
+            }
+            const slot = acc.toolCalls[tc.index];
+            if (typeof tc.id === 'string' && tc.id) slot.id = tc.id;
+            const fn = tc.function || {};
+            if (typeof fn.name === 'string' && fn.name) slot.name = fn.name;
+            if (typeof fn.arguments === 'string') slot.argsJson += fn.arguments;
+        }
+    }
+
     const delta = (c0.delta && typeof c0.delta.content === 'string') ? c0.delta.content : '';
     const finishReason = c0.finish_reason || c0.finishReason;
     const out = {};
     if (delta) out.delta = delta;
     if (finishReason) out.finished = true;
     if (payload.usage) out.usage = payload.usage;
+
+    // Drain accumulated tool_calls when the assistant signals tool_calls completion.
+    if (finishReason === 'tool_calls' && acc.toolCalls) {
+        const indices = Object.keys(acc.toolCalls)
+            .map((k) => Number(k))
+            .filter((n) => Number.isFinite(n))
+            .sort((a, b) => a - b);
+        const toolUses = [];
+        for (const i of indices) {
+            const slot = acc.toolCalls[i];
+            let input = {};
+            if (slot.argsJson && slot.argsJson.length) {
+                try { input = JSON.parse(slot.argsJson); } catch (_) { input = {}; }
+            }
+            toolUses.push({ id: slot.id, name: slot.name, input });
+        }
+        acc.toolCalls = {};
+        if (toolUses.length === 1) out.tool_use = toolUses[0];
+        else if (toolUses.length > 1) out.tool_uses = toolUses;
+    }
+
     return Object.keys(out).length ? out : null;
 }

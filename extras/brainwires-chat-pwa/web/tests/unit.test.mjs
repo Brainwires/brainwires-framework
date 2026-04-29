@@ -253,6 +253,70 @@ describe('providers/anthropic', () => {
         };
         assert.deepEqual(anthropic.parseChunk(ev), { finished: true });
     });
+
+    test('buildRequest: serializes params.tools to top-level Anthropic tools[]', () => {
+        const req = anthropic.buildRequest({
+            model: 'claude-opus-4-7',
+            messages: [{ role: 'user', content: 'hi' }],
+            params: {
+                tools: [
+                    {
+                        name: 'fs_read',
+                        description: 'Read a file',
+                        input_schema: { type: 'object', properties: { path: { type: 'string' } } },
+                    },
+                ],
+            },
+        });
+        const body = JSON.parse(req.body);
+        assert.ok(Array.isArray(body.tools), 'body.tools should be an array');
+        assert.equal(body.tools.length, 1);
+        assert.equal(body.tools[0].name, 'fs_read');
+        assert.equal(body.tools[0].description, 'Read a file');
+        assert.deepEqual(body.tools[0].input_schema, { type: 'object', properties: { path: { type: 'string' } } });
+    });
+
+    test('parseChunk: reassembles tool_use across content_block_start/delta/stop with shared acc', () => {
+        const acc = {};
+        const start = anthropic.parseChunk({
+            event: 'content_block_start',
+            data: JSON.stringify({
+                type: 'content_block_start',
+                index: 1,
+                content_block: { type: 'tool_use', id: 'toolu_abc', name: 'fs_read', input: {} },
+            }),
+            done: false,
+        }, acc);
+        assert.equal(start, null);
+        const d1 = anthropic.parseChunk({
+            event: 'content_block_delta',
+            data: JSON.stringify({
+                type: 'content_block_delta',
+                index: 1,
+                delta: { type: 'input_json_delta', partial_json: '{"pa' },
+            }),
+            done: false,
+        }, acc);
+        assert.equal(d1, null);
+        const d2 = anthropic.parseChunk({
+            event: 'content_block_delta',
+            data: JSON.stringify({
+                type: 'content_block_delta',
+                index: 1,
+                delta: { type: 'input_json_delta', partial_json: 'th":"/etc/hosts"}' },
+            }),
+            done: false,
+        }, acc);
+        assert.equal(d2, null);
+        const stop = anthropic.parseChunk({
+            event: 'content_block_stop',
+            data: JSON.stringify({ type: 'content_block_stop', index: 1 }),
+            done: false,
+        }, acc);
+        assert.deepEqual(stop, {
+            tool_use: { id: 'toolu_abc', name: 'fs_read', input: { path: '/etc/hosts' } },
+        });
+    });
 });
 
 describe('providers/openai', () => {
@@ -289,6 +353,82 @@ describe('providers/openai', () => {
 
     test('parseChunk: [DONE] sentinel returns finished', () => {
         assert.deepEqual(openai.parseChunk({ done: true, data: '[DONE]', event: 'message' }), { finished: true });
+    });
+
+    test('buildRequest: serializes params.tools to OpenAI function shape', () => {
+        const req = openai.buildRequest({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: 'hi' }],
+            params: {
+                tools: [
+                    {
+                        name: 'fs_read',
+                        description: 'Read a file',
+                        input_schema: { type: 'object', properties: { path: { type: 'string' } } },
+                    },
+                ],
+            },
+        });
+        const body = JSON.parse(req.body);
+        assert.ok(Array.isArray(body.tools), 'body.tools should be an array');
+        assert.equal(body.tools.length, 1);
+        assert.equal(body.tools[0].type, 'function');
+        assert.equal(body.tools[0].function.name, 'fs_read');
+        assert.equal(body.tools[0].function.description, 'Read a file');
+        assert.deepEqual(body.tools[0].function.parameters, {
+            type: 'object',
+            properties: { path: { type: 'string' } },
+        });
+    });
+
+    test('parseChunk: reassembles tool_uses across delta tool_calls then finish_reason=tool_calls', () => {
+        const acc = {};
+        // First delta: index, id, function.name, opening of arguments JSON.
+        const d1 = openai.parseChunk({
+            event: 'message',
+            data: JSON.stringify({
+                choices: [{
+                    index: 0,
+                    delta: {
+                        tool_calls: [{
+                            index: 0,
+                            id: 'call_xyz',
+                            type: 'function',
+                            function: { name: 'fs_read', arguments: '{"pa' },
+                        }],
+                    },
+                }],
+            }),
+            done: false,
+        }, acc);
+        assert.equal(d1, null);
+        // Second delta: only an arguments fragment.
+        const d2 = openai.parseChunk({
+            event: 'message',
+            data: JSON.stringify({
+                choices: [{
+                    index: 0,
+                    delta: { tool_calls: [{ index: 0, function: { arguments: 'th":"/x"}' } }] },
+                }],
+            }),
+            done: false,
+        }, acc);
+        assert.equal(d2, null);
+        // Finalization: finish_reason=tool_calls.
+        const fin = openai.parseChunk({
+            event: 'message',
+            data: JSON.stringify({
+                choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+            }),
+            done: false,
+        }, acc);
+        assert.ok(fin, 'finalization should return a non-null event');
+        assert.equal(fin.finished, true);
+        assert.deepEqual(fin.tool_use, {
+            id: 'call_xyz',
+            name: 'fs_read',
+            input: { path: '/x' },
+        });
     });
 });
 

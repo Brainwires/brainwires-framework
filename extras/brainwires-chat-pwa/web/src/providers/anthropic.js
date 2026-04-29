@@ -104,6 +104,17 @@ export function buildRequest({ model, messages, params = {} }) {
     if (sys) body.system = sys;
     if (typeof params.temperature === 'number') body.temperature = params.temperature;
     if (typeof params.top_p === 'number') body.top_p = params.top_p;
+    // MCP tool definitions (resolved from the per-conversation picker).
+    // Anthropic accepts top-level `tools: [{name, description, input_schema}]`.
+    if (Array.isArray(params.tools) && params.tools.length) {
+        body.tools = params.tools
+            .filter((t) => t && typeof t.name === 'string')
+            .map((t) => ({
+                name: t.name,
+                description: typeof t.description === 'string' ? t.description : '',
+                input_schema: t.input_schema || { type: 'object', properties: {} },
+            }));
+    }
 
     return {
         url: ENDPOINT,
@@ -125,14 +136,22 @@ export function buildRequest({ model, messages, params = {} }) {
  *
  * The streaming.js shape is `{ type: 'event', event, data, done }`.
  * Anthropic's relevant events:
+ *   - `content_block_start` with `content_block.type === 'tool_use'` → start tool_use
  *   - `content_block_delta` with `delta.type === 'text_delta'` → text
+ *   - `content_block_delta` with `delta.type === 'input_json_delta'` → tool input fragment
+ *   - `content_block_stop` → finalize tool_use (if one was open at that index)
  *   - `message_delta` with `usage` → token counts
  *   - `message_stop` → end of message
  *
+ * `acc` is a caller-owned accumulator (one per stream) used to reassemble
+ * tool_use deltas across events. Old call sites that pass nothing get a
+ * fresh ephemeral object — text-only streams are unaffected.
+ *
  * @param {{event?: string, data?: string, done?: boolean}} ev
- * @returns {{delta?: string, usage?: object, finished?: boolean} | null}
+ * @param {object} [acc] caller-owned accumulator, mutated across calls
+ * @returns {{delta?: string, usage?: object, finished?: boolean, tool_use?: {id: string, name: string, input: object}} | null}
  */
-export function parseChunk(ev) {
+export function parseChunk(ev, acc = {}) {
     if (!ev) return null;
     if (ev.done) return { finished: true };
     if (!ev.data || ev.data === '') return null;
@@ -140,10 +159,40 @@ export function parseChunk(ev) {
     try { payload = JSON.parse(ev.data); } catch (_) { return null; }
     const t = payload.type || ev.event;
 
+    if (t === 'content_block_start') {
+        const cb = payload.content_block || {};
+        if (cb.type === 'tool_use' && typeof payload.index === 'number') {
+            if (!acc.toolUses) acc.toolUses = {};
+            acc.toolUses[payload.index] = {
+                id: cb.id || '',
+                name: cb.name || '',
+                inputJson: '',
+            };
+        }
+        return null;
+    }
     if (t === 'content_block_delta') {
         const d = payload.delta || {};
         if (d.type === 'text_delta' && typeof d.text === 'string') {
             return { delta: d.text };
+        }
+        if (d.type === 'input_json_delta' && typeof d.partial_json === 'string'
+            && acc.toolUses && typeof payload.index === 'number'
+            && acc.toolUses[payload.index]) {
+            acc.toolUses[payload.index].inputJson += d.partial_json;
+        }
+        return null;
+    }
+    if (t === 'content_block_stop') {
+        if (acc.toolUses && typeof payload.index === 'number'
+            && acc.toolUses[payload.index]) {
+            const tu = acc.toolUses[payload.index];
+            delete acc.toolUses[payload.index];
+            let input = {};
+            if (tu.inputJson && tu.inputJson.length) {
+                try { input = JSON.parse(tu.inputJson); } catch (_) { input = {}; }
+            }
+            return { tool_use: { id: tu.id, name: tu.name, input } };
         }
         return null;
     }
@@ -155,6 +204,6 @@ export function parseChunk(ev) {
     if (t === 'message_stop') {
         return { finished: true };
     }
-    // message_start / content_block_start / ping / etc. — ignore.
+    // message_start / ping / etc. — ignore.
     return null;
 }

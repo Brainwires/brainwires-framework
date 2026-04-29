@@ -28,6 +28,17 @@ import {
     appendMessageChunk,
     putMessage,
 } from './src/db.js';
+import * as anthropicProvider from './src/providers/anthropic.js';
+import * as openaiProvider from './src/providers/openai.js';
+
+// Per-provider tool_use parsers — invoked alongside the raw passthrough
+// so the SW can broadcast `chat_tool_use` events on stream events that
+// reassemble into a complete {id, name, input} invocation. Local /
+// ndjson providers (ollama, gemini text path) do not yet emit tool_use.
+const TOOL_USE_PARSERS = {
+    anthropic: anthropicProvider.parseChunk,
+    openai: openaiProvider.parseChunk,
+};
 
 // ── Cache versioning ───────────────────────────────────────────
 const CACHE_NAME = 'bw-chat-cache-v1';
@@ -711,7 +722,11 @@ async function decryptApiKey(apiKeyEncrypted, sessionKey) {
  * whichever comes first. Final flush on stream end / abort / error.
  */
 async function handleChatStart(msg, event) {
-    const { conversationId, messageId, requestPayload, apiKeyEncrypted, sessionKey } = msg;
+    const { conversationId, messageId, provider, requestPayload, apiKeyEncrypted, sessionKey } = msg;
+    const toolUseParser = (provider && TOOL_USE_PARSERS[provider]) || null;
+    // Per-stream accumulator for provider-specific tool_use reassembly.
+    // Pure data; mutated by the parser across events.
+    const toolAcc = {};
 
     if (!conversationId || !messageId || !requestPayload) {
         replyTo(event, { type: 'chat_error', conversationId, messageId, error: 'missing required fields' });
@@ -847,6 +862,35 @@ async function handleChatStart(msg, event) {
                 delta,
                 raw: format === 'sse' ? { event: ev.event, data: ev.data } : ev,
             }).catch((e) => { console.warn("[bw] swallowed:", e); });
+
+            // MCP tool_use plumbing: when this provider has a parser
+            // and reassembles a complete tool_use across deltas, emit
+            // it on the same broadcast channel. UI execution loop /
+            // bubble rendering land in the next commit.
+            if (toolUseParser && format === 'sse') {
+                let parsed = null;
+                try { parsed = toolUseParser(ev, toolAcc); } catch (_) { parsed = null; }
+                if (parsed) {
+                    if (parsed.tool_use) {
+                        broadcast({
+                            type: 'chat_tool_use',
+                            conversationId,
+                            messageId,
+                            tool_use: parsed.tool_use,
+                        }).catch((e) => { console.warn("[bw] swallowed:", e); });
+                    }
+                    if (Array.isArray(parsed.tool_uses)) {
+                        for (const tu of parsed.tool_uses) {
+                            broadcast({
+                                type: 'chat_tool_use',
+                                conversationId,
+                                messageId,
+                                tool_use: tu,
+                            }).catch((e) => { console.warn("[bw] swallowed:", e); });
+                        }
+                    }
+                }
+            }
 
             await maybeFlush();
         }

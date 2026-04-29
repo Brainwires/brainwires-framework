@@ -60,6 +60,12 @@ import * as local from './local.js';
  * @property {string} [delta]        appended assistant text
  * @property {object} [usage]        provider-shaped token-count object
  * @property {boolean} [finished]    end-of-message marker
+ * @property {{id: string, name: string, input: object}} [tool_use]
+ *           reassembled MCP tool_use invocation (Anthropic content_block_stop,
+ *           single-call OpenAI finish_reason=tool_calls)
+ * @property {Array<{id: string, name: string, input: object}>} [tool_uses]
+ *           multiple parallel tool_use invocations (OpenAI only, when more
+ *           than one tool_call was streamed in the same finish_reason batch)
  */
 
 /**
@@ -71,7 +77,7 @@ import * as local from './local.js';
  * @property {string[]} models
  * @property {string} defaultModel
  * @property {(args: {model: string, messages: Array<{role: string, content: any}>, params: object}) => RequestEnvelope} buildRequest
- * @property {(ev: {event?: string, data?: string, done?: boolean}) => (ChunkEvent | null)} parseChunk
+ * @property {(ev: {event?: string, data?: string, done?: boolean}, acc?: object) => (ChunkEvent | null)} parseChunk
  */
 
 /**
@@ -199,10 +205,11 @@ export async function startChat(args) {
  * Helper: take an SSE event dict and the provider id, return the
  * provider's parseChunk result (or null). Used by tests and any UI
  * code that wants to render raw broadcasts directly without round-
- * tripping through `appendMessageChunk`.
+ * tripping through `appendMessageChunk`. `acc` is forwarded so callers
+ * that want tool_use reassembly can supply a per-stream accumulator.
  */
-export function parseProviderChunk(providerId, ev) {
+export function parseProviderChunk(providerId, ev, acc) {
     const p = getProvider(providerId);
     if (!p || typeof p.parseChunk !== 'function') return null;
-    try { return p.parseChunk(ev); } catch (_) { return null; }
+    try { return p.parseChunk(ev, acc); } catch (_) { return null; }
 }
