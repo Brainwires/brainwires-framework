@@ -27,6 +27,7 @@ use uuid::Uuid;
 use webrtc::data_channel::DataChannel as WrtcDataChannel;
 use webrtc::peer_connection::{PeerConnection, RTCIceCandidateInit};
 
+use crate::a2a::A2aBridge;
 use crate::webrtc::{
     PeerEvent, apply_offer_and_create_answer, build_answerer, run_a2a_loop,
 };
@@ -128,11 +129,18 @@ impl SessionState {
 }
 
 /// Shared application state passed to every handler via `State<AppState>`.
+///
+/// `bridge` is the A2A → agent dispatcher used by the WebRTC data-channel
+/// loop (M4). It's optional so tests that don't exercise the agent path
+/// can construct an [`AppState`] without spinning up a `ChatAgent`. The
+/// data-channel loop falls back to the M3 ping/pong-only echo when the
+/// bridge is `None`.
 #[derive(Clone)]
 pub struct AppState {
     pub sessions: Arc<DashMap<String, Arc<SessionState>>>,
     pub long_poll_timeout: Duration,
     pub session_ttl: Duration,
+    pub bridge: Option<Arc<A2aBridge>>,
 }
 
 impl AppState {
@@ -141,7 +149,16 @@ impl AppState {
             sessions: Arc::new(DashMap::new()),
             long_poll_timeout,
             session_ttl,
+            bridge: None,
         }
+    }
+
+    /// Attach an [`A2aBridge`]. Panics if one is already set — the daemon
+    /// builder calls this exactly once.
+    pub fn with_bridge(mut self, bridge: Arc<A2aBridge>) -> Self {
+        assert!(self.bridge.is_none(), "A2aBridge already set on AppState");
+        self.bridge = Some(bridge);
+        self
     }
 
     /// Drop sessions older than `session_ttl`.
@@ -248,8 +265,9 @@ async fn post_offer(
     // for the session lifetime), but the HomePeer wrapper itself is what
     // exposes `subscribe()`, so we keep ownership of it inside the task.
     let session_state = s.clone();
+    let bridge_for_loop = state.bridge.clone();
     tokio::spawn(async move {
-        match run_a2a_loop(&peer).await {
+        match run_a2a_loop(&peer, bridge_for_loop).await {
             Ok(dc) => {
                 *session_state.data_channel.write().await = Some(dc);
             }

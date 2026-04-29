@@ -33,7 +33,8 @@ use webrtc::peer_connection::{
 };
 use webrtc::media_stream::track_remote::TrackRemote;
 
-use crate::a2a;
+use crate::a2a::{self, A2aBridge};
+use brainwires_a2a::{JsonRpcRequest, JsonRpcResponse};
 
 /// The canonical data-channel label used by the dial-home protocol.
 pub const A2A_CHANNEL_LABEL: &str = "a2a";
@@ -324,16 +325,21 @@ pub async fn apply_offer_and_create_answer(
 }
 
 /// Wait for the offerer to expose the `"a2a"` data channel, then drive a
-/// message loop that echoes JSON-RPC `ping` frames as `pong` replies.
+/// message loop that routes every inbound JSON-RPC frame through the
+/// supplied [`A2aBridge`].
 ///
 /// Returns the resolved data channel as soon as it shows up so the caller
-/// can stash it on the per-session state. The actual ping/pong loop is
+/// can stash it on the per-session state. The actual message-pump loop is
 /// spawned onto the runtime — its handle is `tokio::spawn`'d and dropped,
 /// so it lives until the data channel closes.
 ///
-/// Anything that isn't a JSON-RPC `ping` is logged and dropped. M4 replaces
-/// the dispatcher with the real A2A bridge.
-pub async fn run_a2a_loop(peer: &HomePeer) -> Result<Arc<dyn WrtcDataChannel>> {
+/// If `bridge` is `None`, only the legacy `ping` method is answered (the
+/// M3 smoke-test path). This is the fallback for tests that construct an
+/// [`AppState`] without a bridge attached.
+pub async fn run_a2a_loop(
+    peer: &HomePeer,
+    bridge: Option<Arc<A2aBridge>>,
+) -> Result<Arc<dyn WrtcDataChannel>> {
     let mut rx = peer.subscribe();
     let dc = loop {
         match rx.recv().await {
@@ -356,9 +362,8 @@ pub async fn run_a2a_loop(peer: &HomePeer) -> Result<Arc<dyn WrtcDataChannel>> {
             match pump_dc.poll().await {
                 Some(DataChannelEvent::OnMessage(msg)) => {
                     let text = String::from_utf8_lossy(&msg.data).into_owned();
-                    if let Some(reply) = dispatch_jsonrpc(&text) {
-                        let s = reply.to_string();
-                        if let Err(e) = pump_dc.send_text(&s).await {
+                    if let Some(reply) = dispatch_jsonrpc(&text, bridge.as_deref()).await {
+                        if let Err(e) = pump_dc.send_text(&reply).await {
                             tracing::warn!(error = %e, "a2a: send_text failed");
                             break;
                         }
@@ -373,9 +378,30 @@ pub async fn run_a2a_loop(peer: &HomePeer) -> Result<Arc<dyn WrtcDataChannel>> {
     Ok(dc)
 }
 
-/// Dispatch one inbound text frame. Returns the reply value to send back,
-/// or `None` if the frame is unsupported/malformed.
-fn dispatch_jsonrpc(text: &str) -> Option<Value> {
+/// Dispatch one inbound text frame and serialize the reply.
+///
+/// Tries to parse `text` as a typed [`JsonRpcRequest`] and route it through
+/// the [`A2aBridge`] (if one is attached). Falls back to the M3 raw-JSON
+/// `ping` path so the smoke-test integration test in `signaling::m3_handshake`
+/// keeps passing even when the daemon was built without an agent.
+async fn dispatch_jsonrpc(text: &str, bridge: Option<&A2aBridge>) -> Option<String> {
+    if let Some(bridge) = bridge {
+        // Typed path. If the frame is a valid JSON-RPC envelope, hand it to
+        // the bridge — even errors (method-not-found, invalid-params, ...)
+        // come back as well-formed JsonRpcResponse frames.
+        match serde_json::from_str::<JsonRpcRequest>(text) {
+            Ok(req) => {
+                let resp: JsonRpcResponse = bridge.dispatch(req).await;
+                return serde_json::to_string(&resp).ok();
+            }
+            Err(e) => {
+                tracing::debug!(error = %e, frame = %text, "a2a: bridge couldn't parse frame, falling back");
+            }
+        }
+    }
+
+    // Untyped fallback. This is what the M3 smoke-test exercises (raw
+    // `{ jsonrpc, id, method: "ping" }` without a typed envelope check).
     let v: Value = match serde_json::from_str(text) {
         Ok(v) => v,
         Err(e) => {
@@ -386,9 +412,9 @@ fn dispatch_jsonrpc(text: &str) -> Option<Value> {
     let method = v.get("method").and_then(|m| m.as_str()).unwrap_or("");
     let id = v.get("id").cloned().unwrap_or(Value::Null);
     match method {
-        "ping" => Some(a2a::handle_jsonrpc_ping(id)),
+        "ping" => Some(a2a::handle_jsonrpc_ping(id).to_string()),
         other => {
-            tracing::debug!(method = %other, "a2a: dropping unsupported method (M4 will route this)");
+            tracing::debug!(method = %other, "a2a: no bridge attached and method != ping; dropping");
             None
         }
     }

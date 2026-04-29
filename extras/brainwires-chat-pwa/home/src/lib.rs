@@ -18,8 +18,10 @@ pub mod webrtc;
 use anyhow::{Context, Result};
 use axum::Router;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
+use crate::a2a::A2aBridge;
 use crate::signaling::{AppState, DEFAULT_LONG_POLL, DEFAULT_SESSION_TTL};
 
 /// Default loopback bind. The daemon expects to live behind a Cloudflare
@@ -43,6 +45,7 @@ pub struct HomeServerBuilder {
     bind: Option<SocketAddr>,
     long_poll_timeout: Duration,
     session_ttl: Duration,
+    bridge: Option<Arc<A2aBridge>>,
 }
 
 impl HomeServer {
@@ -52,6 +55,7 @@ impl HomeServer {
             bind: None,
             long_poll_timeout: DEFAULT_LONG_POLL,
             session_ttl: DEFAULT_SESSION_TTL,
+            bridge: None,
         }
     }
 
@@ -115,12 +119,31 @@ impl HomeServerBuilder {
         self
     }
 
+    /// Attach the [`A2aBridge`] that the WebRTC data-channel loop will
+    /// route inbound JSON-RPC frames through (M4).
+    ///
+    /// Production wiring (real provider, API keys, system prompt, ...)
+    /// happens before construction: callers build a [`brainwires_agents::ChatAgent`]
+    /// however they like, wrap it in an [`A2aBridge`], then hand it here.
+    /// Tests use [`crate::a2a::test_support::echo_chat_agent`] to skip the
+    /// network entirely.
+    ///
+    /// If unset, the daemon still answers `ping` for the M3 smoke-test path
+    /// but rejects every other inbound method.
+    pub fn with_agent(mut self, bridge: Arc<A2aBridge>) -> Self {
+        self.bridge = Some(bridge);
+        self
+    }
+
     /// Materialize the builder into a [`HomeServer`].
     pub fn build(self) -> Result<HomeServer> {
         let bind = self
             .bind
             .unwrap_or_else(|| DEFAULT_BIND.parse().expect("DEFAULT_BIND parses"));
-        let state = AppState::new(self.long_poll_timeout, self.session_ttl);
+        let mut state = AppState::new(self.long_poll_timeout, self.session_ttl);
+        if let Some(bridge) = self.bridge {
+            state = state.with_bridge(bridge);
+        }
         Ok(HomeServer { bind, state })
     }
 }
