@@ -28,6 +28,7 @@ import * as openai from './openai.js';
 import * as google from './google.js';
 import * as ollama from './ollama.js';
 import * as local from './local.js';
+import * as home from '../home-provider.js';
 
 // ── Provider-shape typedefs ────────────────────────────────────
 //
@@ -104,9 +105,10 @@ register(openai);
 register(google);
 register(ollama);
 register(local);
+register(home);
 
 /**
- * @returns {Array<{id: string, runtime: 'cloud'|'local', defaultModel: string, models: string[], displayName?: string}>}
+ * @returns {Array<{id: string, runtime: 'cloud'|'local'|'home', defaultModel: string, models: string[], displayName?: string}>}
  */
 export function listProviders() {
     return Array.from(REGISTRY.values()).map((p) => ({
@@ -127,8 +129,9 @@ export function getProvider(id) {
 }
 
 /**
- * Single entry point for UI. Routes to the SW (cloud) or WASM (local)
- * depending on the provider's `runtime`.
+ * Single entry point for UI. Routes to the SW (cloud), the local-WASM
+ * worker (runtime: 'local'), or the home-daemon WebRTC transport
+ * (runtime: 'home') depending on the provider's `runtime`.
  *
  * @param {object} args
  * @param {string} args.provider         provider id, e.g. 'anthropic'
@@ -149,8 +152,10 @@ export async function startChat(args) {
     const p = getProvider(provider);
     if (!p) return { ok: false, error: `startChat: unknown provider '${provider}'` };
 
-    if (p.runtime === 'local') {
-        // Local providers handle their own dispatching against state.events.
+    if (p.runtime === 'local' || p.runtime === 'home') {
+        // EventProviders (local-WASM + home-daemon) own their transport
+        // and dispatch chat_chunk/chat_done/chat_error directly on
+        // state.events. We just await the round-trip and surface errors.
         try {
             await p.startChat({ conversationId, messageId, messages, params });
             return { ok: true };

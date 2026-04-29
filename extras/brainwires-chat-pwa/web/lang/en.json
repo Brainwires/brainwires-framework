@@ -27,6 +27,7 @@
     "chat.provider": "Provider",
     "chat.modelLoading": "Loading model…",
     "chat.modelNotReady": "Local model not loaded — visit Settings to download Gemma 4 E2B.",
+    "chat.homeNotPaired": "Home agent not paired — pair from Settings → Home agent.",
     "chat.delete": "Delete",
     "chat.rename": "Rename",
     "chat.renamePrompt": "New title:",

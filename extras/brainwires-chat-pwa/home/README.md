@@ -25,8 +25,9 @@ branch.
 | M5        | Browser-side dial-home transport (`web/src/home-*`)                     | landed     |
 | M6        | CORS configuration + tunnel-pointing docs                                | landed     |
 | M7        | Cloudflare Calls TURN credential minting (cellular symmetric-NAT path)  | landed     |
-| **M8**    | Pairing flow (`/pair/claim`, `/pair/confirm`, QR + 6-digit confirm)     | this commit |
-| M9–M12    | `home-provider.js`, reconnect/resume, multimodal chunking, polish       | —          |
+| M8        | Pairing flow (`/pair/claim`, `/pair/confirm`, QR + 6-digit confirm)     | landed     |
+| **M9**    | `home-provider.js` adapter — "Home agent" appears as a chat provider   | this commit |
+| M10–M12   | reconnect/resume, multimodal chunking, polish                           | —          |
 
 ## Architecture
 
@@ -139,6 +140,26 @@ on every successful pairing — the PWA includes it as
 `CF-Access-Client-Id` / `CF-Access-Client-Secret` headers on signaling
 requests. CF Access is **optional**; without it the daemon validates only
 the `Authorization: Bearer <device_token>` (the primary auth gate).
+
+## Using the home agent from the chat PWA (M9)
+
+Once paired (M8), the chat UI lists **"Home agent"** as a provider alongside
+the cloud (Anthropic / OpenAI / Google) and local (Gemma 4 E2B) options.
+Tap the provider chip in the composer to cycle to it; messages then route
+over the WebRTC data channel through the daemon's A2A bridge into
+`brainwires-agents::ChatAgent`.
+
+The PWA-side code is in
+[`web/src/home-provider.js`](../web/src/home-provider.js). It implements
+the `EventProvider` interface: a single `message/send` round-trip per
+turn, with the reply dispatched as a `chat_chunk` + `chat_done` pair on
+`state.events` — the same channel cloud / local providers use, so the
+chat UI is provider-agnostic.
+
+M9 ships **non-streaming** (one chunk per turn) so the round trip can be
+end-to-end-validated in isolation. Incremental streaming via
+`message/stream` (daemon-side `Provider::stream_chat` plumbing + a
+PWA-side `home-stream.js` adapter) is a follow-up — tracked under M10.
 
 ## Data-channel protocol — A2A JSON-RPC over SCTP
 

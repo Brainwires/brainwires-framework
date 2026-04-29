@@ -27,6 +27,7 @@ import {
 } from './db.js';
 import { listProviders, startChat } from './providers/index.js';
 import * as localProvider from './providers/local.js';
+import * as homeProvider from './home-provider.js';
 import { isDownloaded } from './model-store.js';
 import { el, clear, toast, isMobile, genId, escapeHtml } from './utils.js';
 import { t } from './i18n.js';
@@ -73,6 +74,26 @@ let _activeProviderId = null;
 // out of executeToolUsesAndContinue between iterations.
 let _toolIterations = 0;
 let _aborted = false;
+// Cached "is the home agent paired and reachable?" flag. The bundle
+// lives in IDB and may be encrypted with the session key, so we resolve
+// it asynchronously and cache the answer so the synchronous picker code
+// (cycleProvider / updateProviderChip) doesn't have to await on every
+// click. Refreshed on view init and via refreshHomeAvailability() after
+// pairing / unlock events.
+let _homeAvailable = false;
+
+async function refreshHomeAvailability() {
+    try { _homeAvailable = await homeProvider.isAvailable(); }
+    catch (_) { _homeAvailable = false; }
+}
+
+// Filter out the home provider when the user isn't paired (or the
+// session is locked and the bundle is encrypted). All other runtimes
+// pass through unchanged.
+function listAvailableProviders() {
+    const all = listProviders();
+    return all.filter((p) => p.runtime !== 'home' || _homeAvailable);
+}
 
 // DOM cache
 const _ui = {
@@ -929,7 +950,8 @@ async function regenerateAt(messageId) {
 
 async function refreshActiveProvider() {
     const stored = await getSetting('chat.activeProvider');
-    const providers = listProviders();
+    await refreshHomeAvailability();
+    const providers = listAvailableProviders();
     if (!providers.length) return;
     if (stored && providers.find((p) => p.id === stored)) {
         _activeProviderId = stored;
@@ -942,7 +964,10 @@ async function refreshActiveProvider() {
 }
 
 async function cycleProvider() {
-    const providers = listProviders();
+    // Re-check pairing each cycle so a fresh pair shows up without a
+    // page reload (and an unpair drops the option mid-session).
+    await refreshHomeAvailability();
+    const providers = listAvailableProviders();
     if (!providers.length) return;
     const idx = providers.findIndex((p) => p.id === _activeProviderId);
     const next = providers[(idx + 1) % providers.length];
@@ -998,6 +1023,16 @@ async function canUseProvider(id) {
             // Lazy-load — runProvider will block on this otherwise.
             try { await localProvider.loadLocalModel(p.defaultModel); }
             catch (e) { toast(e && e.message ? e.message : String(e), 'error'); return false; }
+        }
+        return true;
+    }
+    if (p.runtime === 'home') {
+        // Pairing presence was already verified via listAvailableProviders;
+        // double-check here so the picker can't get stale.
+        const ok = await homeProvider.isAvailable();
+        if (!ok) {
+            toast(t('chat.homeNotPaired'), 'error');
+            return false;
         }
         return true;
     }

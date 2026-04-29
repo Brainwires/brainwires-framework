@@ -1833,6 +1833,246 @@ describe('home-pairing.savePairingBundle / loadPairingBundle', async () => {
     });
 });
 
+// ── home-provider (M9) ─────────────────────────────────────────
+
+describe('home-provider.buildSendMessageRequest', async () => {
+    const { buildSendMessageRequest } = await import('../src/home-provider.js');
+
+    test('emits the A2A 0.3 wire shape (camelCase + ROLE_USER)', () => {
+        const req = buildSendMessageRequest([
+            { role: 'user', content: 'hello' },
+            { role: 'assistant', content: 'hi' },
+            { role: 'user', content: 'how are you?' },
+        ], {});
+        assert.ok(req.message, 'must have message field');
+        assert.equal(typeof req.message.messageId, 'string');
+        assert.ok(req.message.messageId.length > 0);
+        assert.equal(req.message.role, 'ROLE_USER');
+        assert.deepEqual(req.message.parts, [{ text: 'how are you?' }]);
+    });
+
+    test('flattens parts[] content (drops non-text parts)', () => {
+        const req = buildSendMessageRequest([
+            { role: 'user', content: [
+                { type: 'text', text: 'see this:' },
+                { type: 'image', src: '...' },
+                { type: 'text', text: 'pls' },
+            ] },
+        ], {});
+        assert.equal(req.message.parts[0].text, 'see this:\npls');
+    });
+
+    test('throws when no user turn is present', () => {
+        assert.throws(
+            () => buildSendMessageRequest([{ role: 'assistant', content: 'hi' }], {}),
+            /no user message/,
+        );
+    });
+
+    test('throws when last user turn has empty text', () => {
+        assert.throws(
+            () => buildSendMessageRequest([{ role: 'user', content: '' }], {}),
+            /no text content/,
+        );
+    });
+
+    test('throws when messages is not an array', () => {
+        assert.throws(
+            () => buildSendMessageRequest(null, {}),
+            /must be an array/,
+        );
+    });
+});
+
+describe('home-provider.extractReplyText', async () => {
+    const { extractReplyText } = await import('../src/home-provider.js');
+
+    test('reads text from a bare A2A Message result (a2a.rs current shape)', () => {
+        const result = {
+            messageId: 'abc',
+            role: 'ROLE_AGENT',
+            parts: [{ text: 'hello there' }],
+        };
+        assert.equal(extractReplyText(result), 'hello there');
+    });
+
+    test('reads text from a wrapped { message: ... } result (forward-compat)', () => {
+        const result = {
+            message: {
+                messageId: 'abc',
+                role: 'ROLE_AGENT',
+                parts: [{ text: 'wrapped' }],
+            },
+        };
+        assert.equal(extractReplyText(result), 'wrapped');
+    });
+
+    test('joins multiple text parts with newlines', () => {
+        const result = {
+            role: 'ROLE_AGENT',
+            parts: [{ text: 'line one' }, { text: 'line two' }],
+        };
+        assert.equal(extractReplyText(result), 'line one\nline two');
+    });
+
+    test('returns empty string for invalid input', () => {
+        assert.equal(extractReplyText(null), '');
+        assert.equal(extractReplyText({}), '');
+        assert.equal(extractReplyText({ parts: [] }), '');
+    });
+});
+
+describe('home-provider provider registration', async () => {
+    const home = await import('../src/home-provider.js');
+    const providers = await import('../src/providers/index.js');
+
+    test('exposes the EventProvider shape', () => {
+        assert.equal(home.id, 'home');
+        assert.equal(home.runtime, 'home');
+        assert.equal(home.displayName, 'Home agent');
+        assert.equal(typeof home.startChat, 'function');
+        assert.ok(Array.isArray(home.models));
+        assert.ok(home.models.length > 0);
+    });
+
+    test('listed in the provider registry under id "home"', () => {
+        const got = providers.getProvider('home');
+        assert.ok(got, 'getProvider("home") must return the module');
+        assert.equal(got.runtime, 'home');
+        const ids = providers.listProviders().map((p) => p.id);
+        assert.ok(ids.includes('home'), `listProviders should include 'home'; got: ${ids.join(',')}`);
+    });
+});
+
+describe('home-provider.startChat event dispatch', async () => {
+    const home = await import('../src/home-provider.js');
+    const stateMod = await import('../src/state.js');
+
+    function captureEvents() {
+        const captured = [];
+        const types = ['chat_chunk', 'chat_done', 'chat_error'];
+        const handlers = types.map((type) => {
+            const h = (ev) => captured.push({ type, detail: ev.detail });
+            stateMod.events.addEventListener(type, h);
+            return { type, h };
+        });
+        return {
+            captured,
+            unsubscribe() {
+                for (const { type, h } of handlers) {
+                    stateMod.events.removeEventListener(type, h);
+                }
+            },
+        };
+    }
+
+    test('dispatches chat_chunk + chat_done on a successful round-trip', async () => {
+        home._resetForTests();
+        const cap = captureEvents();
+        try {
+            const fakeTransport = {
+                async request(method, params, _opts) {
+                    assert.equal(method, 'message/send');
+                    assert.equal(params.message.role, 'ROLE_USER');
+                    assert.equal(params.message.parts[0].text, 'ping');
+                    return {
+                        messageId: 'srv-1',
+                        role: 'ROLE_AGENT',
+                        parts: [{ text: 'pong' }],
+                    };
+                },
+            };
+            const out = await home.startChat({
+                conversationId: 'c1',
+                messageId: 'm1',
+                messages: [{ role: 'user', content: 'ping' }],
+                params: {},
+                _transport: fakeTransport,
+            });
+            assert.ok(out.tokensReceived > 0);
+
+            const chunkEv = cap.captured.find((e) => e.type === 'chat_chunk');
+            assert.ok(chunkEv, 'chat_chunk should fire');
+            assert.equal(chunkEv.detail.delta, 'pong');
+            assert.equal(chunkEv.detail.conversationId, 'c1');
+            assert.equal(chunkEv.detail.messageId, 'm1');
+
+            const doneEv = cap.captured.find((e) => e.type === 'chat_done');
+            assert.ok(doneEv, 'chat_done should fire');
+            assert.equal(doneEv.detail.conversationId, 'c1');
+
+            assert.equal(cap.captured.find((e) => e.type === 'chat_error'), undefined);
+        } finally {
+            cap.unsubscribe();
+        }
+    });
+
+    test('dispatches chat_error and rejects when transport.request rejects', async () => {
+        home._resetForTests();
+        const cap = captureEvents();
+        try {
+            const failingTransport = {
+                async request() { throw new Error('boom'); },
+            };
+            await assert.rejects(
+                home.startChat({
+                    conversationId: 'c2',
+                    messageId: 'm2',
+                    messages: [{ role: 'user', content: 'ping' }],
+                    params: {},
+                    _transport: failingTransport,
+                }),
+                /boom/,
+            );
+
+            const errEv = cap.captured.find((e) => e.type === 'chat_error');
+            assert.ok(errEv, 'chat_error should fire');
+            assert.equal(errEv.detail.conversationId, 'c2');
+            assert.equal(errEv.detail.error, 'boom');
+            // No success events.
+            assert.equal(cap.captured.find((e) => e.type === 'chat_done'), undefined);
+            assert.equal(cap.captured.find((e) => e.type === 'chat_chunk'), undefined);
+        } finally {
+            cap.unsubscribe();
+        }
+    });
+});
+
+describe('home-provider.isAvailable (paired-only gating)', async () => {
+    let dbReady = false;
+    try {
+        await import('fake-indexeddb/auto');
+        dbReady = true;
+    } catch (_) { /* skip */ }
+
+    test('returns false when no bundle is stored', async (ctx) => {
+        if (!dbReady) return ctx.skip();
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+        const stateMod = await import('../src/state.js');
+        stateMod.setSessionKey(null);
+        const home = await import('../src/home-provider.js');
+        assert.equal(await home.isAvailable(), false);
+    });
+
+    test('returns true once a plaintext bundle is saved', async (ctx) => {
+        if (!dbReady) return ctx.skip();
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+        const stateMod = await import('../src/state.js');
+        stateMod.setSessionKey(null);
+        const pairing = await import('../src/home-pairing.js');
+        await pairing.savePairingBundle({
+            device_token: 'a'.repeat(64),
+            peer_pubkey: 'b'.repeat(64),
+            tunnel_url: 'https://home.example.com',
+            device_name: 'Phone',
+        });
+        const home = await import('../src/home-provider.js');
+        assert.equal(await home.isAvailable(), true);
+    });
+});
+
 // ── helpers ────────────────────────────────────────────────────
 
 function mkResponse(body) {
