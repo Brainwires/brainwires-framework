@@ -52,6 +52,13 @@ fn gte_small_config() -> Config {
 }
 
 /// Loaded embedder: BERT model on CPU + paired tokenizer.
+///
+/// Disposal: wasm-bindgen autogenerates a JS-side `free()` method on this
+/// struct. Calling `handle.free()` from JS drops the inner `Mutex` guarding
+/// the BERT model and tokenizer, releasing the wasm-side memory. The call
+/// is idempotent in the same sense as [`LocalModelHandle::free`] — JS
+/// callers can wrap it in `try`/`catch` to tolerate double-free during
+/// model swaps.
 #[wasm_bindgen]
 pub struct EmbeddingHandle {
     inner: Mutex<EmbedderInner>,

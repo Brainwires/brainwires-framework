@@ -54,7 +54,10 @@ pub struct VectorMeta {
     pub json: String,
 }
 
-/// A search result with distance and metadata.
+/// One hit returned by [`HnswIndex::search`]. Bundles the cosine distance
+/// to the query along with the stored metadata and original embedding so
+/// the caller can rerank, deduplicate, or surface text snippets without a
+/// second lookup.
 #[derive(Clone, Debug)]
 pub struct SearchResult {
     /// Cosine distance (0 = identical, 1 = orthogonal, 2 = opposite).
@@ -65,8 +68,12 @@ pub struct SearchResult {
     pub point: EmbeddingPoint,
 }
 
-/// In-browser HNSW vector index. Thread-safe (Mutex) for use from
-/// wasm-bindgen exports.
+/// In-browser HNSW vector index. Thread-safe via internal `Mutex`es so it
+/// can be held in a wasm-bindgen-exported handle and called from multiple
+/// JS entry points. Each instance corresponds to a single named collection
+/// (e.g. `conversations`, `documents`) of vectors of one fixed dimension;
+/// use a separate `HnswIndex` per collection. Persist to OPFS by
+/// round-tripping through [`HnswIndex::to_bytes`] / [`HnswIndex::from_bytes`].
 pub struct HnswIndex {
     name: String,
     dim: usize,
@@ -76,7 +83,10 @@ pub struct HnswIndex {
 }
 
 impl HnswIndex {
-    /// Create a new (empty) index for vectors of `dim` dimensions.
+    /// Create a new (empty) index named `name` for vectors of `dim`
+    /// dimensions. All subsequent inserts and queries must match `dim` or
+    /// they are rejected. The `name` is only used as the OPFS filename
+    /// when the caller chooses to persist via `to_bytes`.
     pub fn new(name: &str, dim: usize) -> Self {
         Self {
             name: name.to_string(),
@@ -92,7 +102,9 @@ impl HnswIndex {
         &self.name
     }
 
-    /// Number of vectors in the index.
+    /// Number of vectors currently stored. Reflects `insert` /
+    /// `insert_batch` activity directly; the HNSW graph backing
+    /// [`HnswIndex::search`] tracks this same count.
     pub fn len(&self) -> usize {
         self.points.lock().unwrap().len()
     }
@@ -102,9 +114,12 @@ impl HnswIndex {
         self.len() == 0
     }
 
-    /// Insert a vector + metadata. The HNSW graph is rebuilt after
-    /// insert (instant-distance doesn't support incremental insert).
-    /// For batch inserts, use `insert_batch` to avoid rebuilding per item.
+    /// Insert a single vector + JSON metadata blob. The HNSW graph is
+    /// rebuilt from scratch after the insert because `instant-distance`
+    /// has no incremental-insert API, which makes this O(n log n) per
+    /// call. Use [`HnswIndex::insert_batch`] when adding many vectors at
+    /// once to amortize the rebuild cost. Returns `Err` if `embedding.len()`
+    /// does not match the index dimension.
     pub fn insert(&self, embedding: Vec<f32>, meta_json: String) -> Result<(), String> {
         if embedding.len() != self.dim {
             return Err(format!("expected {} dims, got {}", self.dim, embedding.len()));
@@ -121,7 +136,11 @@ impl HnswIndex {
         Ok(())
     }
 
-    /// Insert multiple vectors at once, rebuilding the index once.
+    /// Insert many `(embedding, meta_json)` pairs at once. The HNSW graph
+    /// is rebuilt a single time after all items land, so this scales much
+    /// better than calling [`HnswIndex::insert`] in a loop. Use this for
+    /// initial bulk loads (e.g. importing a conversation history) and
+    /// when re-embedding a corpus after a model upgrade.
     pub fn insert_batch(&self, items: Vec<(Vec<f32>, String)>) -> Result<(), String> {
         {
             let mut pts = self.points.lock().unwrap();
@@ -138,7 +157,11 @@ impl HnswIndex {
         Ok(())
     }
 
-    /// Search for the `k` nearest neighbors of `query`.
+    /// Approximate k-nearest-neighbor search over the index using cosine
+    /// distance. Returns up to `k` [`SearchResult`]s in ascending distance
+    /// order. Errors if `query.len()` does not match the index dimension
+    /// or if the index has no vectors yet (the underlying HNSW graph is
+    /// not built until at least one insert lands).
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>, String> {
         if query.len() != self.dim {
             return Err(format!("expected {} dims, got {}", self.dim, query.len()));
@@ -162,7 +185,11 @@ impl HnswIndex {
         Ok(results)
     }
 
-    /// Serialize the entire index to bytes (for OPFS persistence).
+    /// Serialize the index (name, dim, points, metadata) to a `bincode`
+    /// blob suitable for writing to OPFS. The HNSW graph itself is *not*
+    /// serialized — it is rebuilt cheaply on load — so the wire format
+    /// stays small and forward-compatible across `instant-distance`
+    /// versions.
     pub fn to_bytes(&self) -> Result<Vec<u8>, String> {
         let pts = self.points.lock().unwrap();
         let vals = self.values.lock().unwrap();
@@ -175,7 +202,10 @@ impl HnswIndex {
         bincode::serialize(&data).map_err(|e| format!("serialize failed: {e}"))
     }
 
-    /// Deserialize an index from bytes (loaded from OPFS).
+    /// Reconstruct an index from a blob previously produced by
+    /// [`HnswIndex::to_bytes`]. The HNSW graph is rebuilt from the stored
+    /// points before the function returns, so the resulting index is
+    /// immediately searchable.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
         let data: SerializedIndex =
             bincode::deserialize(bytes).map_err(|e| format!("deserialize failed: {e}"))?;

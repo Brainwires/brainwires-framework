@@ -92,6 +92,13 @@ pub fn init() -> Result<(), JsValue> {
 /// `candle_provider.rs`, true per-token streaming requires interleaving
 /// sample/forward across a `yield`, which today emits one big `StreamChunk::Text`
 /// followed by `Usage` + `Done`. We forward whatever the framework emits as-is.
+///
+/// Disposal: wasm-bindgen autogenerates a JS-side `free()` method on this
+/// struct. Calling `handle.free()` from JS drops the underlying
+/// `Arc<CandleLlmProvider>` and releases the wasm-side memory; if it was
+/// the last `Arc` reference, the model weights are freed too. The call is
+/// idempotent — `local-worker.js` swallows the second-free error so model
+/// swaps stay safe even if a stale handle reference lingers.
 #[wasm_bindgen]
 pub struct LocalModelHandle {
     inner: Arc<CandleLlmProvider>,
