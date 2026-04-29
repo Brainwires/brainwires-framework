@@ -264,7 +264,9 @@ function buildContent(compact) {
             el('span', { class: 'bw-dl-title' }, deviceLabel),
         ));
     } else if (_state === 'error') {
-        const errMsg = (_lastDetail && _lastDetail.error) ? _lastDetail.error : t('error.generic');
+        let errMsg = (_lastDetail && _lastDetail.error) ? _lastDetail.error : t('error.generic');
+        if (/Failed to fetch/i.test(errMsg)) errMsg = t('download.error.network');
+        else if (/Cache/i.test(errMsg) && /put/i.test(errMsg)) errMsg = t('download.error.storage');
         wrap.appendChild(el('div', { class: 'bw-dl-row' },
             el('span', { class: 'bw-dl-title' }, t('download.error')),
             !compact && el('button', {

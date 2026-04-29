@@ -9,10 +9,11 @@ export default [
       'node_modules/**',
       'app.js',
       'app.js.map',
-      // Bundled worker output at the web root — NOT src/local-worker.js,
-      // which is the source we want to lint.
+      // Bundled worker output at the web root — NOT src/*.js sources.
       'local-worker.js',
       'local-worker.js.map',
+      'opfs-writer-worker.js',
+      'opfs-writer-worker.js.map',
       'sw.js',
       'sw.bundle.js',
       'build-info.js',

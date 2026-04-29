@@ -399,14 +399,265 @@ export async function downloadModel(modelId, opts = {}) {
     for (const other of activeDownloads.values()) {
         await other.promise.catch((e) => { console.warn("[bw] swallowed:", e); });
     }
-    if (!_hasCaches()) throw new Error('Cache Storage unavailable');
+    if (!_hasOpfs() && !_hasCaches()) throw new Error('Neither OPFS nor Cache Storage available');
 
-    // Prefer SW-delegated download for background resilience. Falls
-    // back to page-side download when SW isn't active (e.g. DEV_MODE).
-    if (typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller) {
-        return _downloadViaSW(modelId, opts);
+    // Priority 1: Dedicated Worker (zero-copy FileSystemSyncAccessHandle)
+    if (_hasOpfs() && typeof Worker !== 'undefined') {
+        console.log('[model-store] downloadModel: trying Dedicated Worker path for', modelId);
+        try {
+            return await _downloadViaWorker(modelId, opts);
+        } catch (e) {
+            if (e && e.name === 'AbortError') throw e;
+            console.warn('[model-store] downloadModel: worker path failed, falling back:', e.message);
+        }
     }
+
+    // Priority 2: SW-delegated download (background resilience)
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+        if (!navigator.serviceWorker.controller) {
+            console.log('[model-store] downloadModel: SW controller is null, waiting for activation...');
+            try {
+                await navigator.serviceWorker.ready;
+                console.log('[model-store] downloadModel: SW ready, controller =', !!navigator.serviceWorker.controller);
+                if (!navigator.serviceWorker.controller) {
+                    await new Promise((resolve) => {
+                        const onCtrl = () => resolve();
+                        navigator.serviceWorker.addEventListener('controllerchange', onCtrl, { once: true });
+                        setTimeout(() => {
+                            navigator.serviceWorker.removeEventListener('controllerchange', onCtrl);
+                            resolve();
+                        }, 5000);
+                    });
+                    console.log('[model-store] downloadModel: after wait, controller =', !!navigator.serviceWorker.controller);
+                }
+            } catch (_) { /* SW registration failed */ }
+        }
+        if (navigator.serviceWorker.controller) {
+            console.log('[model-store] downloadModel: using SW path for', modelId);
+            return _downloadViaSW(modelId, opts);
+        }
+    }
+
+    // Priority 3: Page-side OPFS (last resort, no cache.put)
+    console.log('[model-store] downloadModel: using direct (page-side) path for', modelId);
     return _downloadDirect(modelId, opts);
+}
+
+async function _downloadViaWorker(modelId, opts) {
+    console.log('[model-store] _downloadViaWorker: starting for', modelId);
+
+    const m = getKnownModel(modelId);
+    if (!m) throw new Error(`unknown model: ${modelId}`);
+
+    const controller = new AbortController();
+    if (opts.signal) {
+        if (opts.signal.aborted) controller.abort();
+        else opts.signal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+
+    const startedAt = Date.now();
+    const promise = (async () => {
+        const root = await navigator.storage.getDirectory();
+        const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: true });
+        const modelDir = await dlDir.getDirectoryHandle(modelId, { create: true });
+
+        let totalBytesTotal = 0;
+        let totalBytesDone = 0;
+        let lastEmit = 0;
+
+        const emitProgress = (file, fileBytesDone, fileBytesTotal, force = false) => {
+            const now = Date.now();
+            if (!force && now - lastEmit < PROGRESS_EMIT_MS) return;
+            lastEmit = now;
+            const elapsedSec = Math.max(0.001, (now - startedAt) / 1000);
+            const throughputBps = totalBytesDone / elapsedSec;
+            const remaining = Math.max(0, totalBytesTotal - totalBytesDone);
+            const etaSeconds = throughputBps > 0 ? remaining / throughputBps : null;
+            const detail = {
+                phase: 'download',
+                modelId,
+                file: file.filename,
+                fileKind: file.kind,
+                fileBytesDone,
+                fileBytesTotal,
+                totalBytesDone,
+                totalBytesTotal,
+                throughputBps,
+                etaSeconds,
+            };
+            try { if (typeof opts.onProgress === 'function') opts.onProgress(detail); } catch (_err) { console.warn("[bw] caught:", _err); }
+            events.dispatchEvent(new CustomEvent('model_progress', { detail }));
+        };
+
+        for (const f of m.files) {
+            const url = cacheKey(modelId, f.filename);
+
+            // Check for .verified marker — skip if already done
+            try {
+                await modelDir.getFileHandle(f.filename + '.verified', { create: false });
+                const existing = await (await modelDir.getFileHandle(f.filename, { create: false })).getFile();
+                if (existing.size > 0) {
+                    console.log(`[model-store] ${f.filename}: already verified (${existing.size} bytes), skipping`);
+                    totalBytesTotal += existing.size;
+                    totalBytesDone += existing.size;
+                    emitProgress(f, existing.size, existing.size, true);
+                    continue;
+                }
+            } catch (_) { /* no marker */ }
+
+            // Check Cache Storage for legacy data
+            if (_hasCaches()) {
+                try {
+                    const cache = await caches.open(CACHE_NAME);
+                    const existing = await cache.match(url);
+                    if (existing) {
+                        const len = Number(existing.headers.get('content-length')) || 0;
+                        if (len > 0) {
+                            console.log(`[model-store] ${f.filename}: found in Cache Storage (${len} bytes)`);
+                            totalBytesTotal += len;
+                            totalBytesDone += len;
+                            emitProgress(f, len, len, true);
+                            continue;
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            // Get existing OPFS file size for resume
+            let existingSize = 0;
+            try {
+                const fh = await modelDir.getFileHandle(f.filename, { create: false });
+                existingSize = (await fh.getFile()).size;
+            } catch (_) {}
+            console.log(`[model-store] ${f.filename}: starting worker download (existingSize=${existingSize})`);
+
+            // Use estimated total for progress until worker reports actual
+            const estimatedTotal = m.estimatedBytes
+                ? Math.max(existingSize, Math.round(m.estimatedBytes * (f.kind === 'weights' ? 0.99 : 0.01)))
+                : 0;
+            totalBytesTotal += estimatedTotal || existingSize;
+            totalBytesDone += existingSize;
+
+            // Spawn worker for this file
+            const worker = new Worker(
+                new URL('./opfs-writer-worker.js', import.meta.url),
+                { type: 'module' },
+            );
+
+            const abortHandler = () => worker.postMessage({ type: 'cancel' });
+            controller.signal.addEventListener('abort', abortHandler, { once: true });
+
+            const fetchHeaders = {};
+            if (opts.hfToken) fetchHeaders['Authorization'] = `Bearer ${opts.hfToken}`;
+
+            await new Promise((resolve, reject) => {
+                let prevBytesWritten = existingSize;
+                let actualTotalKnown = false;
+
+                worker.onmessage = (ev) => {
+                    const msg = ev.data;
+                    if (!msg || typeof msg !== 'object') return;
+
+                    if (msg.type === 'progress') {
+                        const delta = msg.bytesWritten - prevBytesWritten;
+                        prevBytesWritten = msg.bytesWritten;
+                        totalBytesDone += delta;
+                        if (!actualTotalKnown && msg.totalBytes > 0) {
+                            totalBytesTotal = totalBytesTotal - (estimatedTotal || existingSize) + msg.totalBytes;
+                            actualTotalKnown = true;
+                        }
+                        emitProgress(f, msg.bytesWritten, msg.totalBytes);
+                    } else if (msg.type === 'done') {
+                        const delta = msg.totalBytes - prevBytesWritten;
+                        if (delta > 0) totalBytesDone += delta;
+                        if (!actualTotalKnown) {
+                            totalBytesTotal = totalBytesTotal - (estimatedTotal || existingSize) + msg.totalBytes;
+                        }
+                        emitProgress(f, msg.totalBytes, msg.totalBytes, true);
+                        console.log(`[model-store] ${f.filename}: worker done (${msg.totalBytes} bytes)`);
+                        worker.terminate();
+                        resolve();
+                    } else if (msg.type === 'cancelled') {
+                        console.log(`[model-store] ${f.filename}: worker cancelled at ${msg.bytesWritten} bytes`);
+                        worker.terminate();
+                        reject(new DOMException('aborted', 'AbortError'));
+                    } else if (msg.type === 'error') {
+                        console.error(`[model-store] ${f.filename}: worker error:`, msg.error);
+                        worker.terminate();
+                        reject(new Error(msg.error));
+                    }
+                };
+
+                worker.onerror = (ev) => {
+                    console.error('[model-store] worker onerror:', ev.message);
+                    worker.terminate();
+                    reject(new Error(ev.message || 'Worker error'));
+                };
+
+                worker.postMessage({
+                    type: 'start',
+                    modelId,
+                    filename: f.filename,
+                    url,
+                    headers: fetchHeaders,
+                    offset: existingSize,
+                });
+            });
+
+            controller.signal.removeEventListener('abort', abortHandler);
+
+            // SHA-256 verification
+            if (f.sha256) {
+                const opfsHandle = await modelDir.getFileHandle(f.filename, { create: false });
+                const opfsFile = await opfsHandle.getFile();
+                const SIZE_LIMIT = 2 * 1024 * 1024 * 1024;
+                if (opfsFile.size <= SIZE_LIMIT) {
+                    console.log(`[model-store] ${f.filename}: verifying SHA-256 (${opfsFile.size} bytes)...`);
+                    events.dispatchEvent(new CustomEvent('model_progress', {
+                        detail: { phase: 'verifying', modelId, file: f.filename },
+                    }));
+                    const ab = await opfsFile.arrayBuffer();
+                    const hex = await sha256Hex(ab, {
+                        modelId,
+                        file: f,
+                        fileBytesTotal: ab.byteLength,
+                        totalBytesDoneBefore: totalBytesDone - ab.byteLength,
+                        totalBytesTotalSoFar: totalBytesTotal,
+                    });
+                    if (hex !== f.sha256) {
+                        console.error(`[model-store] ${f.filename}: SHA-256 mismatch! got=${hex} expected=${f.sha256}`);
+                        try { await modelDir.removeEntry(f.filename); } catch (_) {}
+                        throw new Error(`SHA-256 mismatch for ${f.filename}`);
+                    }
+                    console.log(`[model-store] ${f.filename}: SHA-256 verified OK`);
+                } else {
+                    console.log(`[model-store] ${f.filename}: skipping SHA-256 (${opfsFile.size} > 2 GB), size-check only`);
+                }
+            }
+
+            // Write .verified marker
+            try {
+                const marker = await modelDir.getFileHandle(f.filename + '.verified', { create: true });
+                const mw = await marker.createWritable();
+                await mw.write('ok');
+                await mw.close();
+                console.log(`[model-store] ${f.filename}: .verified marker written`);
+            } catch (markerErr) {
+                console.warn(`[model-store] ${f.filename}: failed to write .verified marker:`, markerErr.message);
+            }
+        }
+    })();
+
+    activeDownloads.set(modelId, { controller, startedAt, promise });
+    try {
+        await promise;
+        console.log('[model-store] _downloadViaWorker: all files complete for', modelId);
+        events.dispatchEvent(new CustomEvent('model_progress', {
+            detail: { phase: 'ready', modelId },
+        }));
+    } finally {
+        activeDownloads.delete(modelId);
+    }
 }
 
 async function _downloadViaSW(modelId, opts) {
@@ -496,9 +747,12 @@ async function _downloadViaSW(modelId, opts) {
 }
 
 async function _downloadDirect(modelId, opts) {
+    console.log('[model-store] _downloadDirect: starting page-side download for', modelId);
 
     const m = getKnownModel(modelId);
     if (!m) throw new Error(`unknown model: ${modelId}`);
+
+    const useOpfs = _hasOpfs();
 
     const controller = new AbortController();
     if (opts.signal) {
@@ -508,15 +762,14 @@ async function _downloadDirect(modelId, opts) {
 
     const startedAt = Date.now();
     const promise = (async () => {
-        const cache = await caches.open(CACHE_NAME);
+        let modelDir = null;
+        if (useOpfs) {
+            const root = await navigator.storage.getDirectory();
+            const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: true });
+            modelDir = await dlDir.getDirectoryHandle(modelId, { create: true });
+        }
 
-        // First pass: HEAD-style sizing to compute totalBytesTotal.
-        const fileTotals = new Array(m.files.length).fill(0);
         let totalBytesTotal = 0;
-        // We deliberately skip a HEAD request — HF's resolve URLs return
-        // Content-Length on GET, and a HEAD adds latency. We still emit
-        // progress events as soon as the first GET response arrives.
-
         let totalBytesDone = 0;
         let lastEmit = 0;
 
@@ -544,55 +797,78 @@ async function _downloadDirect(modelId, opts) {
             events.dispatchEvent(new CustomEvent('model_progress', { detail }));
         };
 
-        for (let i = 0; i < m.files.length; i++) {
-            const f = m.files[i];
+        for (const f of m.files) {
             const url = cacheKey(modelId, f.filename);
 
-            // Skip if already cached AND verified (or pin is null).
-            const existing = await cache.match(url);
-            if (existing) {
-                if (!f.sha256) {
-                    // No pin available — trust the cached bytes.
-                    const len = Number(existing.headers.get('content-length')) || 0;
-                    fileTotals[i] = len;
-                    totalBytesTotal += len;
-                    totalBytesDone += len;
-                    emitProgress(f, len, len, true);
-                    continue;
-                }
+            // Check for .verified marker in OPFS — already done
+            if (modelDir) {
                 try {
-                    const buf = await existing.clone().arrayBuffer();
-                    const len = buf.byteLength;
-                    const hex = await sha256Hex(buf, {
-                        modelId,
-                        file: f,
-                        fileBytesTotal: len,
-                        totalBytesDoneBefore: totalBytesDone,
-                        totalBytesTotalSoFar: totalBytesTotal + len,
-                    });
-                    if (hex === f.sha256) {
-                        fileTotals[i] = len;
-                        totalBytesTotal += len;
-                        totalBytesDone += len;
-                        emitProgress(f, len, len, true);
+                    await modelDir.getFileHandle(f.filename + '.verified', { create: false });
+                    const existing = await (await modelDir.getFileHandle(f.filename, { create: false })).getFile();
+                    if (existing.size > 0) {
+                        console.log(`[model-store] ${f.filename}: already verified in OPFS (${existing.size} bytes)`);
+                        totalBytesTotal += existing.size;
+                        totalBytesDone += existing.size;
+                        emitProgress(f, existing.size, existing.size, true);
                         continue;
                     }
-                    // Mismatch — re-download.
-                    await cache.delete(url);
-                } catch (_) {
-                    await cache.delete(url);
+                } catch (_) { /* no marker or no file */ }
+            }
+
+            // Check Cache Storage for legacy/already-cached data
+            if (_hasCaches()) {
+                const cache = await caches.open(CACHE_NAME);
+                const existing = await cache.match(url);
+                if (existing) {
+                    if (!f.sha256) {
+                        const len = Number(existing.headers.get('content-length')) || 0;
+                        if (len > 0) {
+                            console.log(`[model-store] ${f.filename}: found in Cache Storage, no pin (${len} bytes)`);
+                            totalBytesTotal += len;
+                            totalBytesDone += len;
+                            emitProgress(f, len, len, true);
+                            continue;
+                        }
+                    } else {
+                        try {
+                            const buf = await existing.clone().arrayBuffer();
+                            const len = buf.byteLength;
+                            const hex = await sha256Hex(buf, {
+                                modelId,
+                                file: f,
+                                fileBytesTotal: len,
+                                totalBytesDoneBefore: totalBytesDone,
+                                totalBytesTotalSoFar: totalBytesTotal + len,
+                            });
+                            if (hex === f.sha256) {
+                                console.log(`[model-store] ${f.filename}: Cache Storage verified OK (${len} bytes)`);
+                                totalBytesTotal += len;
+                                totalBytesDone += len;
+                                emitProgress(f, len, len, true);
+                                continue;
+                            }
+                            console.warn(`[model-store] ${f.filename}: Cache Storage SHA mismatch, re-downloading`);
+                            await cache.delete(url);
+                        } catch (_) {
+                            await cache.delete(url);
+                        }
+                    }
                 }
             }
 
-            const baseHeaders = {};
-            if (opts.hfToken) baseHeaders['Authorization'] = `Bearer ${opts.hfToken}`;
+            // OPFS required for actual downloads
+            if (!modelDir) throw new Error('OPFS unavailable — cannot download without service worker');
 
-            // Retry loop with Range-header resume. On network failure,
-            // we keep the chunks already received and resume from that
-            // byte offset. HuggingFace supports Range requests.
-            // Stream directly to Cache Storage — no RAM accumulation.
-            // Bytes flow: network → TransformStream (count + progress) → disk.
-            const fetchHeaders = { ...baseHeaders };
+            // Open OPFS file, check for partial download
+            const opfsHandle = await modelDir.getFileHandle(f.filename, { create: true });
+            let existingSize = 0;
+            try { existingSize = (await opfsHandle.getFile()).size; } catch (_) {}
+            console.log(`[model-store] ${f.filename}: OPFS partial = ${existingSize} bytes`);
+
+            // Fetch with Range header for resume
+            const fetchHeaders = {};
+            if (opts.hfToken) fetchHeaders['Authorization'] = `Bearer ${opts.hfToken}`;
+            if (existingSize > 0) fetchHeaders['Range'] = `bytes=${existingSize}-`;
 
             let resp;
             try {
@@ -601,51 +877,102 @@ async function _downloadDirect(modelId, opts) {
                 if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
                 throw e;
             }
+
             if (resp.status === 401 || resp.status === 403) {
                 throw new HfAuthRequiredError(`HF responded ${resp.status} for ${f.filename}`);
             }
-            if (!resp.ok) {
+
+            if (resp.status === 416) {
+                // Range not satisfiable — file already complete
+                const opfsFile = await opfsHandle.getFile();
+                console.log(`[model-store] ${f.filename}: 416 — already complete (${opfsFile.size} bytes)`);
+                totalBytesTotal += opfsFile.size;
+                totalBytesDone += opfsFile.size;
+                emitProgress(f, opfsFile.size, opfsFile.size, true);
+            } else if (resp.ok || resp.status === 206) {
+                const resuming = resp.status === 206;
+                if (resp.status === 200 && existingSize > 0) existingSize = 0;
+                const contentLength = Number(resp.headers.get('content-length')) || 0;
+                const fileBytesTotal = existingSize + contentLength;
+                let fileBytesDone = existingSize;
+                totalBytesTotal += fileBytesTotal;
+                totalBytesDone += fileBytesDone;
+                console.log(`[model-store] ${f.filename}: fetching (status=${resp.status}, resume=${resuming}, contentLength=${contentLength}, total=${fileBytesTotal})`);
+
+                // Stream to OPFS
+                let writable;
+                try {
+                    writable = await opfsHandle.createWritable({ keepExistingData: resuming && existingSize > 0 });
+                    if (resuming && existingSize > 0) await writable.seek(existingSize);
+                } catch (lockErr) {
+                    console.warn('[model-store] OPFS lock, resetting file:', lockErr.message);
+                    try { await modelDir.removeEntry(f.filename); } catch (_) {}
+                    const newHandle = await modelDir.getFileHandle(f.filename, { create: true });
+                    writable = await newHandle.createWritable();
+                    totalBytesTotal -= existingSize;
+                    totalBytesDone -= existingSize;
+                    fileBytesDone = 0;
+                }
+
+                const reader = resp.body.getReader();
+                try {
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        await writable.write(value);
+                        fileBytesDone += value.byteLength;
+                        totalBytesDone += value.byteLength;
+                        emitProgress(f, fileBytesDone, fileBytesTotal);
+                    }
+                    await writable.close();
+                    console.log(`[model-store] ${f.filename}: OPFS write complete (${fileBytesDone} bytes)`);
+                } catch (e) {
+                    try { await writable.close(); } catch (_) {}
+                    if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
+                    throw e;
+                }
+                emitProgress(f, fileBytesDone, fileBytesTotal, true);
+            } else {
                 throw new Error(`HF fetch failed (${resp.status}) for ${f.filename}`);
             }
 
-            const contentLength = Number(resp.headers.get('content-length')) || 0;
-            fileTotals[i] = contentLength;
-            totalBytesTotal += contentLength;
-            let fileBytesDone = 0;
-
-            const countingStream = new TransformStream({
-                transform(chunk, ctrl) {
-                    fileBytesDone += chunk.byteLength;
-                    totalBytesDone += chunk.byteLength;
-                    emitProgress(f, fileBytesDone, contentLength);
-                    ctrl.enqueue(chunk);
-                },
-            });
-
-            const countedBody = resp.body.pipeThrough(countingStream);
-            const cacheHeaders = new Headers();
-            cacheHeaders.set('content-type', resp.headers.get('content-type') || 'application/octet-stream');
-            if (contentLength) cacheHeaders.set('content-length', String(contentLength));
-
-            await cache.put(url, new Response(countedBody, { status: 200, headers: cacheHeaders }));
-            emitProgress(f, fileBytesDone, contentLength, true);
-
-            // Verify pin if available — read back from cache (no in-memory blob).
+            // SHA-256 verification
             if (f.sha256) {
-                const cached = await cache.match(url);
-                const ab = cached ? await cached.arrayBuffer() : null;
-                if (!ab) throw new Error(`cached file disappeared: ${f.filename}`);
-                const hex = await sha256Hex(ab, {
-                    modelId,
-                    file: f,
-                    fileBytesTotal: ab.byteLength,
-                    totalBytesDoneBefore: totalBytesDone - ab.byteLength,
-                    totalBytesTotalSoFar: totalBytesTotal,
-                });
-                if (hex !== f.sha256) {
-                    await cache.delete(url);
-                    throw new Error(`SHA-256 mismatch for ${f.filename}: got ${hex}, expected ${f.sha256}`);
+                const opfsFile = await opfsHandle.getFile();
+                const SIZE_LIMIT = 2 * 1024 * 1024 * 1024;
+                if (opfsFile.size <= SIZE_LIMIT) {
+                    console.log(`[model-store] ${f.filename}: verifying SHA-256 (${opfsFile.size} bytes)...`);
+                    events.dispatchEvent(new CustomEvent('model_progress', {
+                        detail: { phase: 'verifying', modelId, file: f.filename },
+                    }));
+                    const ab = await opfsFile.arrayBuffer();
+                    const hex = await sha256Hex(ab, {
+                        modelId,
+                        file: f,
+                        fileBytesTotal: ab.byteLength,
+                        totalBytesDoneBefore: totalBytesDone - ab.byteLength,
+                        totalBytesTotalSoFar: totalBytesTotal,
+                    });
+                    if (hex !== f.sha256) {
+                        console.error(`[model-store] ${f.filename}: SHA-256 mismatch! got=${hex} expected=${f.sha256}`);
+                        try { await modelDir.removeEntry(f.filename); } catch (_) {}
+                        throw new Error(`SHA-256 mismatch for ${f.filename}`);
+                    }
+                    console.log(`[model-store] ${f.filename}: SHA-256 verified OK`);
+                } else {
+                    console.log(`[model-store] ${f.filename}: skipping SHA-256 (${opfsFile.size} > 2 GB), size-check only`);
                 }
+            }
+
+            // Write .verified marker
+            try {
+                const marker = await modelDir.getFileHandle(f.filename + '.verified', { create: true });
+                const mw = await marker.createWritable();
+                await mw.write('ok');
+                await mw.close();
+                console.log(`[model-store] ${f.filename}: .verified marker written`);
+            } catch (markerErr) {
+                console.warn(`[model-store] ${f.filename}: failed to write .verified marker:`, markerErr.message);
             }
         }
     })();
@@ -653,6 +980,7 @@ async function _downloadDirect(modelId, opts) {
     activeDownloads.set(modelId, { controller, startedAt, promise });
     try {
         await promise;
+        console.log('[model-store] _downloadDirect: all files complete for', modelId);
         events.dispatchEvent(new CustomEvent('model_progress', {
             detail: { phase: 'ready', modelId },
         }));

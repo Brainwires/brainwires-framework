@@ -71,6 +71,20 @@ const workerConfig = {
     logLevel: 'info',
 };
 
+// ── esbuild config: OPFS writer worker bundle ──────────────────
+// Dedicated Worker for zero-copy OPFS writes via FileSystemSyncAccessHandle.
+const writerWorkerConfig = {
+    entryPoints: [join(__dirname, 'src', 'opfs-writer-worker.js')],
+    bundle: true,
+    outfile: join(__dirname, 'opfs-writer-worker.js'),
+    format: 'esm',
+    sourcemap: true,
+    target: ['es2022'],
+    absWorkingDir: __dirname,
+    platform: 'browser',
+    logLevel: 'info',
+};
+
 // ── esbuild config: service-worker bundle ───────────────────────
 // IIFE so the file can be registered as a classic worker on every
 // browser that ships ServiceWorker — type=module SWs are broadly
@@ -96,6 +110,7 @@ const STATIC_ASSETS = [
     'manifest.json',
     'app.js',
     'local-worker.js',
+    'opfs-writer-worker.js',
     'styles.css',
     'pkg/brainwires_chat_pwa.js',
     'pkg/brainwires_chat_pwa_bg.wasm',
@@ -155,6 +170,7 @@ async function buildAll() {
     const t0 = performance.now();
     await esbuild.build(appConfig);
     await esbuild.build(workerConfig);
+    await esbuild.build(writerWorkerConfig);
     await esbuild.build(swConfig);
     console.log(`  bundled in ${Math.round(performance.now() - t0)}ms`);
     patchServiceWorker();
@@ -165,14 +181,17 @@ async function buildAll() {
 if (isServe) {
     const ctx = await esbuild.context(appConfig);
     const workerCtx = await esbuild.context(workerConfig);
+    const writerCtx = await esbuild.context(writerWorkerConfig);
     const swCtx = await esbuild.context(swConfig);
     await ctx.rebuild();
     await workerCtx.rebuild();
+    await writerCtx.rebuild();
     await swCtx.rebuild();
     patchServiceWorker();
     generateBuildInfo();
     await ctx.watch();
     await workerCtx.watch();
+    await writerCtx.watch();
     await swCtx.watch();
     const server = await ctx.serve({
         host: '127.0.0.1',
@@ -183,14 +202,17 @@ if (isServe) {
 } else if (isWatch) {
     const ctx = await esbuild.context(appConfig);
     const workerCtx = await esbuild.context(workerConfig);
+    const writerCtx = await esbuild.context(writerWorkerConfig);
     const swCtx = await esbuild.context(swConfig);
     await ctx.rebuild();
     await workerCtx.rebuild();
+    await writerCtx.rebuild();
     await swCtx.rebuild();
     patchServiceWorker();
     generateBuildInfo();
     await ctx.watch();
     await workerCtx.watch();
+    await writerCtx.watch();
     await swCtx.watch();
     console.log('Watching for changes...');
 } else {

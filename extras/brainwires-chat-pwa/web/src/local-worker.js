@@ -112,18 +112,59 @@ async function getModelBytes(modelId) {
     if (!m) throw new Error(`unknown model: ${modelId}`);
     const out = {};
     for (const f of m.files) {
-        const opfsFile = await _getOpfsFile(modelId, f.filename);
-        if (opfsFile) {
-            const buf = await opfsFile.arrayBuffer();
-            out[f.kind] = new Uint8Array(buf);
-            continue;
+        let bytes = null;
+
+        // Priority 1: Read from OPFS via FileSystemSyncAccessHandle.
+        // File.arrayBuffer() throws NotReadableError on large OPFS files
+        // in Chrome. The sync API bypasses that code path entirely.
+        if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+            try {
+                const root = await navigator.storage.getDirectory();
+                const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
+                const modelDir = await dlDir.getDirectoryHandle(modelId, { create: false });
+                const fh = await modelDir.getFileHandle(f.filename, { create: false });
+                const syncHandle = await fh.createSyncAccessHandle();
+                try {
+                    const size = syncHandle.getSize();
+                    if (size > 0) {
+                        bytes = new Uint8Array(size);
+                        syncHandle.read(bytes, { at: 0 });
+                        console.log(`[local-worker] ${f.filename}: read ${size} bytes from OPFS (sync handle)`);
+                    }
+                } finally {
+                    syncHandle.close();
+                }
+            } catch (e) {
+                console.warn(`[local-worker] ${f.filename}: sync handle read failed:`, e.message);
+            }
         }
-        if (typeof caches === 'undefined') throw new Error(`model not downloaded: ${modelId} (${f.filename})`);
-        const cache = await caches.open(CACHE_NAME);
-        const hit = await cache.match(cacheKey(modelId, f.filename));
-        if (!hit) throw new Error(`model not downloaded: ${modelId} (${f.filename})`);
-        const buf = await hit.arrayBuffer();
-        out[f.kind] = new Uint8Array(buf);
+
+        // Priority 2: Read from OPFS via async File API (works for small files).
+        if (!bytes) {
+            const opfsFile = await _getOpfsFile(modelId, f.filename);
+            if (opfsFile) {
+                try {
+                    const ab = await opfsFile.arrayBuffer();
+                    bytes = new Uint8Array(ab);
+                    console.log(`[local-worker] ${f.filename}: read ${bytes.byteLength} bytes from OPFS (async)`);
+                } catch (e) {
+                    console.warn(`[local-worker] ${f.filename}: async OPFS read failed:`, e.message);
+                }
+            }
+        }
+
+        // Priority 3: Fall back to Cache Storage (legacy data).
+        if (!bytes) {
+            if (typeof caches === 'undefined') throw new Error(`model not downloaded: ${modelId} (${f.filename})`);
+            const cache = await caches.open(CACHE_NAME);
+            const hit = await cache.match(cacheKey(modelId, f.filename));
+            if (!hit) throw new Error(`model not downloaded: ${modelId} (${f.filename})`);
+            const ab = await hit.arrayBuffer();
+            bytes = new Uint8Array(ab);
+            console.log(`[local-worker] ${f.filename}: read ${bytes.byteLength} bytes from Cache Storage`);
+        }
+
+        out[f.kind] = bytes;
     }
     if (!out.weights) throw new Error(`model ${modelId} missing weights file`);
     if (!out.tokenizer) out.tokenizer = new Uint8Array(0);

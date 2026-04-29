@@ -4,6 +4,8 @@ app.js
 app.js.map
 /local-worker.js
 /local-worker.js.map
+/opfs-writer-worker.js
+/opfs-writer-worker.js.map
 sw.js
 sw.bundle.js
 build-info.js
