@@ -35,12 +35,15 @@
 
 #![cfg(target_arch = "wasm32")]
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use brainwires_core::message::{Message, StreamChunk};
 use brainwires_core::provider::{ChatOptions, Provider};
 use brainwires_providers::local_llm::CandleLlmProvider;
+use brainwires_providers::local_llm::candle_provider::default_gemma_e2b_config;
 use brainwires_providers::CandleDevice as Device;
+use brainwires_providers::{CandleDType as DType, CandleTensor as Tensor, CandleVarBuilder};
 use brainwires_providers::web_speech::{
     WebSpeechStt, WebSpeechSttOptions, WebSpeechTts, WebSpeechTtsOptions,
 };
@@ -167,6 +170,184 @@ async fn try_webgpu_device() -> Result<Device, String> {
         .await
         .map_err(|e| format!("{e}"))?;
     Ok(Device::Wgpu(gpu_device))
+}
+
+// ---------------------------------------------------------------------------
+// Chunked safetensors loading (avoids 10 GB single allocation)
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+struct StTensorInfo {
+    dtype: String,
+    shape: Vec<usize>,
+    data_offsets: (usize, usize),
+}
+
+fn st_dtype_to_candle(s: &str) -> Result<DType, String> {
+    match s {
+        "F32" => Ok(DType::F32),
+        "F16" => Ok(DType::F16),
+        "BF16" => Ok(DType::BF16),
+        "U8" => Ok(DType::U8),
+        "U32" => Ok(DType::U32),
+        "I16" => Ok(DType::I16),
+        "I32" => Ok(DType::I32),
+        "I64" => Ok(DType::I64),
+        "F64" => Ok(DType::F64),
+        other => Err(format!("unsupported safetensors dtype: {other}")),
+    }
+}
+
+fn call_read_fn(read_fn: &Function, offset: usize, length: usize) -> Result<Vec<u8>, JsValue> {
+    let result = read_fn.call2(
+        &JsValue::NULL,
+        &JsValue::from_f64(offset as f64),
+        &JsValue::from_f64(length as f64),
+    )?;
+    let array = Uint8Array::new(&result);
+    Ok(array.to_vec())
+}
+
+/// Build a [`LocalModelHandle`] by reading tensors one-at-a-time from OPFS.
+///
+/// Unlike [`init_local_model_gpu`] which requires the entire safetensors file
+/// as a single `Uint8Array` (impossible for 10 GB+ models), this function
+/// receives a synchronous JS read callback and loads each tensor individually.
+/// Peak WASM memory = the single largest tensor (~2 GB for the embedding),
+/// not the full model file.
+///
+/// `read_fn(offset: number, length: number) → Uint8Array` reads `length`
+/// bytes at the given byte offset from the OPFS file. The caller is expected
+/// to hold an open `FileSystemSyncAccessHandle` for the duration of this call.
+#[wasm_bindgen]
+pub async fn init_local_model_chunked(
+    read_fn: Function,
+    file_size: f64,
+    tokenizer_json: Vec<u8>,
+    model_id: String,
+) -> Result<LocalModelHandle, JsValue> {
+    let file_size = file_size as usize;
+    web_sys::console::log_1(
+        &format!("[wasm] init_local_model_chunked: file_size={file_size}, model={model_id}")
+            .into(),
+    );
+
+    // ── 1. Read safetensors header ─────────────────────────────────
+    let header_size_bytes = call_read_fn(&read_fn, 0, 8)?;
+    if header_size_bytes.len() < 8 {
+        return Err(JsValue::from_str("failed to read safetensors header size"));
+    }
+    let header_size =
+        u64::from_le_bytes(header_size_bytes[..8].try_into().unwrap()) as usize;
+    web_sys::console::log_1(
+        &format!("[wasm] safetensors header: {header_size} bytes").into(),
+    );
+
+    let header_bytes = call_read_fn(&read_fn, 8, header_size)?;
+    let header_str = std::str::from_utf8(&header_bytes)
+        .map_err(|e| JsValue::from_str(&format!("invalid header UTF-8: {e}")))?;
+
+    // ── 2. Parse tensor metadata ───────────────────────────────────
+    let raw: HashMap<String, serde_json::Value> = serde_json::from_str(header_str)
+        .map_err(|e| JsValue::from_str(&format!("invalid safetensors header: {e}")))?;
+
+    let mut tensor_meta: Vec<(String, StTensorInfo)> = Vec::new();
+    for (name, value) in &raw {
+        if name == "__metadata__" {
+            continue;
+        }
+        let info: StTensorInfo = serde_json::from_value(value.clone()).map_err(|e| {
+            JsValue::from_str(&format!("bad tensor info for {name}: {e}"))
+        })?;
+        tensor_meta.push((name.clone(), info));
+    }
+    // Sort by file offset so reads are sequential (better for OPFS).
+    tensor_meta.sort_by_key(|(_, info)| info.data_offsets.0);
+
+    web_sys::console::log_1(
+        &format!("[wasm] parsed {} tensor entries", tensor_meta.len()).into(),
+    );
+
+    let data_start = 8 + header_size;
+
+    // ── 3. Select device (WebGPU preferred) ────────────────────────
+    let device = match try_webgpu_device().await {
+        Ok(dev) => {
+            web_sys::console::log_1(
+                &"[wasm] chunked load: using WebGPU device".into(),
+            );
+            dev
+        }
+        Err(e) => {
+            web_sys::console::warn_1(
+                &format!("[wasm] WebGPU unavailable ({e}), CPU fallback").into(),
+            );
+            Device::Cpu
+        }
+    };
+
+    // ── 4. Load each tensor individually ───────────────────────────
+    let total = tensor_meta.len();
+    let mut tensors: HashMap<String, Tensor> = HashMap::with_capacity(total);
+
+    for (idx, (name, info)) in tensor_meta.iter().enumerate() {
+        let offset = data_start + info.data_offsets.0;
+        let length = info.data_offsets.1 - info.data_offsets.0;
+
+        let src_dtype = st_dtype_to_candle(&info.dtype).map_err(|e| {
+            JsValue::from_str(&format!("tensor {name}: {e}"))
+        })?;
+
+        let bytes = call_read_fn(&read_fn, offset, length)?;
+
+        let tensor =
+            Tensor::from_raw_buffer(&bytes, src_dtype, &info.shape, &device).map_err(
+                |e| JsValue::from_str(&format!("tensor {name}: {e}")),
+            )?;
+
+        // bytes are dropped here, freeing the WASM-side allocation
+        drop(bytes);
+
+        tensors.insert(name.clone(), tensor);
+
+        if idx % 20 == 0 || idx == total - 1 {
+            web_sys::console::log_1(
+                &format!(
+                    "[wasm] loaded tensor {}/{total}: {name} {:?} [{}] ({} bytes)",
+                    idx + 1,
+                    info.shape,
+                    info.dtype,
+                    length
+                )
+                .into(),
+            );
+        }
+    }
+
+    web_sys::console::log_1(
+        &format!("[wasm] all {total} tensors loaded, building model...").into(),
+    );
+
+    // ── 5. Build VarBuilder + model ────────────────────────────────
+    let vb = CandleVarBuilder::from_tensors(tensors, DType::F32, &device);
+    let cfg = default_gemma_e2b_config();
+    let provider =
+        CandleLlmProvider::from_vb_on_device(&model_id, vb, tokenizer_json, &device, &cfg)
+            .map_err(|e| {
+                JsValue::from_str(&format!("init_local_model_chunked failed: {e}"))
+            })?;
+
+    let device_type = match provider.device() {
+        Device::Cpu => "cpu",
+        _ => "webgpu",
+    };
+    web_sys::console::log_1(
+        &format!("[wasm] model ready on {device_type}").into(),
+    );
+
+    Ok(LocalModelHandle {
+        inner: Arc::new(provider),
+    })
 }
 
 /// Streaming chat parameters accepted from JS. Mirrors a useful subset of

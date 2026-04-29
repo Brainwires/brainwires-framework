@@ -197,15 +197,28 @@ async function handleLoad(msg) {
             return;
         }
 
-        // Tell the UI we've left the "verifying" phase and entered the
-        // synchronous wasm-init phase. Mirrors the event the main thread
-        // used to dispatch in Phase 1.
         self.postMessage({ type: 'load_progress', phase: 'loading', modelId });
 
         const mod = await getWasm();
 
-        // Prefer init_local_model_gpu (async, tries WebGPU → CPU fallback).
-        // Fall back to init_local_model (sync, CPU-only) for older builds.
+        // Drop any previously-loaded handle before replacing it; halves
+        // the peak heap footprint when switching models.
+        if (handle && typeof handle.free === 'function') {
+            try { handle.free(); } catch (_err) { console.debug("[bw] idempotent:", _err); }
+        }
+        handle = null;
+        loadedModelId = null;
+
+        // Try chunked loading from OPFS first — reads tensors one at a
+        // time so we never allocate a 10 GB buffer. Falls back to the
+        // old bulk-read path for legacy Cache Storage data.
+        if (typeof mod.init_local_model_chunked === 'function') {
+            const loaded = await tryChunkedLoad(mod, modelId, requestId);
+            if (loaded) return;
+            console.log('[local-worker] chunked load unavailable, falling back to bulk read');
+        }
+
+        // Legacy bulk-read path (small models or Cache Storage data).
         const initFn = typeof mod.init_local_model_gpu === 'function'
             ? mod.init_local_model_gpu
             : mod.init_local_model;
@@ -218,14 +231,6 @@ async function handleLoad(msg) {
             return;
         }
 
-        // Drop any previously-loaded handle before replacing it; halves
-        // the peak heap footprint when switching models.
-        if (handle && typeof handle.free === 'function') {
-            try { handle.free(); } catch (_err) { console.debug("[bw] idempotent:", _err); }
-        }
-        handle = null;
-        loadedModelId = null;
-
         let { weights, tokenizer } = await getModelBytes(modelId);
         try {
             handle = await initFn(weights, tokenizer, modelId);
@@ -235,7 +240,6 @@ async function handleLoad(msg) {
         }
         loadedModelId = modelId;
 
-        // Report which device the model landed on (webgpu or cpu).
         const deviceType = handle.device_type || 'cpu';
         self.postMessage({ type: 'load_progress', phase: 'ready', modelId, deviceType });
         self.postMessage({ requestId, type: 'load_done', modelId, deviceType });
@@ -243,6 +247,83 @@ async function handleLoad(msg) {
         const error = err && err.message ? err.message : String(err);
         console.error('local-worker: load failed', err);
         self.postMessage({ requestId, type: 'load_error', error });
+    }
+}
+
+async function tryChunkedLoad(mod, modelId, requestId) {
+    const m = KNOWN_MODELS[modelId];
+    if (!m) return false;
+    if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) {
+        return false;
+    }
+
+    const weightsFile = m.files.find((f) => f.kind === 'weights');
+    const tokenizerFile = m.files.find((f) => f.kind === 'tokenizer');
+    if (!weightsFile) return false;
+
+    let weightsSyncHandle = null;
+    try {
+        const root = await navigator.storage.getDirectory();
+        const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
+        const modelDir = await dlDir.getDirectoryHandle(modelId, { create: false });
+
+        // Open weights file via sync access handle
+        const weightsFh = await modelDir.getFileHandle(weightsFile.filename, { create: false });
+        weightsSyncHandle = await weightsFh.createSyncAccessHandle();
+        const fileSize = weightsSyncHandle.getSize();
+        if (fileSize === 0) {
+            weightsSyncHandle.close();
+            return false;
+        }
+        console.log(`[local-worker] chunked load: weights file ${fileSize} bytes`);
+
+        // Read tokenizer (small, ~32 MB — fine as a single allocation)
+        let tokenizerBytes = new Uint8Array(0);
+        if (tokenizerFile) {
+            try {
+                const tokFh = await modelDir.getFileHandle(tokenizerFile.filename, { create: false });
+                const tokSync = await tokFh.createSyncAccessHandle();
+                try {
+                    const tokSize = tokSync.getSize();
+                    if (tokSize > 0) {
+                        tokenizerBytes = new Uint8Array(tokSize);
+                        tokSync.read(tokenizerBytes, { at: 0 });
+                        console.log(`[local-worker] chunked load: tokenizer ${tokSize} bytes`);
+                    }
+                } finally {
+                    tokSync.close();
+                }
+            } catch (e) {
+                console.warn('[local-worker] chunked load: tokenizer read failed:', e.message);
+            }
+        }
+
+        // The read callback — WASM calls this to read tensor bytes from OPFS.
+        // Each call allocates a fresh Uint8Array, reads from the sync handle,
+        // and returns it. WASM copies the bytes into linear memory and the JS
+        // buffer becomes eligible for GC immediately.
+        const readFn = (offset, length) => {
+            const buf = new Uint8Array(length);
+            weightsSyncHandle.read(buf, { at: offset });
+            return buf;
+        };
+
+        handle = await mod.init_local_model_chunked(readFn, fileSize, tokenizerBytes, modelId);
+        loadedModelId = modelId;
+
+        weightsSyncHandle.close();
+        weightsSyncHandle = null;
+
+        const deviceType = handle.device_type || 'cpu';
+        self.postMessage({ type: 'load_progress', phase: 'ready', modelId, deviceType });
+        self.postMessage({ requestId, type: 'load_done', modelId, deviceType });
+        return true;
+    } catch (e) {
+        if (weightsSyncHandle) {
+            try { weightsSyncHandle.close(); } catch (_) {}
+        }
+        console.error('[local-worker] chunked load failed:', e);
+        throw e;
     }
 }
 

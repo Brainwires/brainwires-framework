@@ -99,20 +99,31 @@ impl CandleLlmProvider {
         device: &Device,
     ) -> Result<Self> {
         let device = device.clone();
+        let cfg = default_gemma_e2b_config();
+        let vb = VarBuilder::from_buffered_safetensors(weights, DType::F32, &device)
+            .map_err(|e| anyhow!("failed to map safetensors weights: {e}"))?;
+        Self::from_vb_on_device(model_id, vb, tokenizer_json, &device, &cfg)
+    }
+
+    /// Build a provider from a pre-constructed [`VarBuilder`].
+    ///
+    /// Used by the WASM chunked-loading path which builds the VarBuilder from
+    /// individually-loaded tensors to avoid allocating the entire safetensors
+    /// file in memory at once.
+    pub fn from_vb_on_device(
+        model_id: &str,
+        vb: VarBuilder<'_>,
+        tokenizer_json: Vec<u8>,
+        device: &Device,
+        cfg: &GemmaConfig,
+    ) -> Result<Self> {
+        let device = device.clone();
 
         let tokenizer = Tokenizer::from_bytes(&tokenizer_json)
             .map_err(|e| anyhow!("failed to parse tokenizer.json: {e}"))?;
         let eos_token_id = tokenizer.token_to_id("<eos>");
 
-        // TODO(gemma-4): replace with the official `config.json` shipped by
-        // `google/gemma-4-e2b` once the model is published. Consumers that
-        // need a different size should call `from_bytes_with_config` (added
-        // when the upstream config schema stabilises).
-        let cfg = default_gemma_e2b_config();
-
-        let vb = VarBuilder::from_buffered_safetensors(weights, DType::F32, &device)
-            .map_err(|e| anyhow!("failed to map safetensors weights: {e}"))?;
-        let model = GemmaModel::new(false, &cfg, vb)
+        let model = GemmaModel::new(false, cfg, vb)
             .map_err(|e| anyhow!("failed to build gemma model: {e}"))?;
 
         Ok(Self {
@@ -401,7 +412,7 @@ fn async_stream_helper<'a>(
 /// `candle_transformers::models::gemma3`. Used until the official
 /// `google/gemma-4-e2b/config.json` is published; see the TODO in
 /// [`CandleLlmProvider::from_bytes`].
-fn default_gemma_e2b_config() -> GemmaConfig {
+pub fn default_gemma_e2b_config() -> GemmaConfig {
     use candle_nn::Activation;
     GemmaConfig {
         attention_bias: false,

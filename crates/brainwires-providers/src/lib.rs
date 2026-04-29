@@ -158,6 +158,12 @@ pub use local_llm::*;
 // wasm crate) that need to construct a device and pass it to from_bytes_on_device.
 #[cfg(feature = "local-llm-candle")]
 pub use candle_core::Device as CandleDevice;
+#[cfg(feature = "local-llm-candle")]
+pub use candle_core::{DType as CandleDType, Tensor as CandleTensor};
+#[cfg(feature = "local-llm-candle")]
+pub use candle_nn::VarBuilder as CandleVarBuilder;
+#[cfg(feature = "local-llm-candle")]
+pub use candle_transformers::models::gemma3::Config as CandleGemmaConfig;
 #[cfg(feature = "candle-wgpu")]
 pub use candle_core::{DeviceLocation as CandleDeviceLocation, WgpuDevice};
 
