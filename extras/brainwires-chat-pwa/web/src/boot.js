@@ -29,6 +29,7 @@ import { loadTheme } from './theme.js';
 import * as uiChat from './ui-chat.js';
 import * as uiSettings from './ui-settings.js';
 import * as uiUnlock from './ui-unlock.js';
+import { maybeInstallDevToggle as maybeInstallHomeDevToggle } from './home-dev-toggle.js';
 
 const PASSPHRASE_SETTING = 'passphraseConfig';
 
@@ -174,6 +175,12 @@ async function boot() {
     getWasm().catch((err) => {
         console.warn('wasm warmup failed:', err && err.message ? err.message : err);
     });
+
+    // Hidden developer dial-home toggle (Phase 2 M5). No-op unless the
+    // ?home=<url> query param or `bw_dial_home_url` localStorage key
+    // is set. M9 will replace this with a real chat-UI integration.
+    try { maybeInstallHomeDevToggle(); }
+    catch (e) { console.warn('home-dev-toggle install failed:', e && e.message ? e.message : e); }
 
     // Probe whether the default local model is already cached.
     try {

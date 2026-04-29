@@ -1382,6 +1382,234 @@ describe('mcp-tool-loop', async () => {
     });
 });
 
+// ── home-signaling (HTTP signaling client for the home daemon) ─
+
+describe('home-signaling.SignalingClient', async () => {
+    const { SignalingClient } = await import('../src/home-signaling.js');
+
+    /** Build a fake fetch that records calls and returns the queued responses. */
+    function mkFakeFetch(responses) {
+        const calls = [];
+        const queue = [...responses];
+        const fakeFetch = async (url, init) => {
+            calls.push({ url, init });
+            const next = queue.shift();
+            if (typeof next === 'function') return next(url, init);
+            return next;
+        };
+        fakeFetch.calls = calls;
+        return fakeFetch;
+    }
+
+    function jsonResp(obj, status = 200) {
+        return new Response(JSON.stringify(obj), {
+            status, headers: { 'content-type': 'application/json' },
+        });
+    }
+
+    test('createSession POSTs to /signal/session and returns parsed body', async () => {
+        const fetchImpl = mkFakeFetch([
+            jsonResp({ session_id: 'abc', ice_servers: [] }),
+        ]);
+        const sc = new SignalingClient({ baseUrl: 'http://127.0.0.1:7878', fetchImpl });
+        const out = await sc.createSession();
+        assert.deepEqual(out, { session_id: 'abc', ice_servers: [] });
+        const c = fetchImpl.calls[0];
+        assert.equal(c.url, 'http://127.0.0.1:7878/signal/session');
+        assert.equal(c.init.method, 'POST');
+        assert.equal(c.init.headers['Content-Type'], 'application/json');
+    });
+
+    test('postOffer sends {sdp,type:"offer"} JSON body', async () => {
+        const fetchImpl = mkFakeFetch([
+            new Response(null, { status: 204 }),
+        ]);
+        const sc = new SignalingClient({ baseUrl: 'http://h.test', fetchImpl });
+        await sc.postOffer('sess1', 'v=0\r\n...sdp...');
+        const c = fetchImpl.calls[0];
+        assert.equal(c.url, 'http://h.test/signal/offer/sess1');
+        assert.equal(c.init.method, 'POST');
+        const body = JSON.parse(c.init.body);
+        assert.equal(body.sdp, 'v=0\r\n...sdp...');
+        assert.equal(body.type, 'offer');
+    });
+
+    test('pollAnswer returns null on 204, parsed JSON on 200', async () => {
+        const fetchImpl = mkFakeFetch([
+            new Response(null, { status: 204 }),
+            jsonResp({ sdp: 'v=0\r\n...answer...', type: 'answer' }),
+        ]);
+        const sc = new SignalingClient({ baseUrl: 'http://h.test', fetchImpl });
+        const miss = await sc.pollAnswer('sess1');
+        assert.equal(miss, null);
+        const hit = await sc.pollAnswer('sess1');
+        assert.equal(hit.type, 'answer');
+        assert.match(hit.sdp, /\.\.\.answer\.\.\./);
+    });
+
+    test('pollAnswer maps 404 to a "session expired" error', async () => {
+        const fetchImpl = mkFakeFetch([new Response('', { status: 404 })]);
+        const sc = new SignalingClient({ baseUrl: 'http://h.test', fetchImpl });
+        await assert.rejects(() => sc.pollAnswer('gone'), /session expired/);
+    });
+
+    test('postIce sends {candidate,sdp_mid,sdp_m_line_index} JSON body', async () => {
+        const fetchImpl = mkFakeFetch([new Response(null, { status: 204 })]);
+        const sc = new SignalingClient({ baseUrl: 'http://h.test', fetchImpl });
+        await sc.postIce('sess1', 'candidate:abc 1 udp ...', '0', 0);
+        const c = fetchImpl.calls[0];
+        assert.equal(c.url, 'http://h.test/signal/ice/sess1');
+        const body = JSON.parse(c.init.body);
+        assert.equal(body.candidate, 'candidate:abc 1 udp ...');
+        assert.equal(body.sdp_mid, '0');
+        assert.equal(body.sdp_m_line_index, 0);
+    });
+
+    test('pollIce returns candidates + cursor; 204 yields {candidates:[], cursor:since}', async () => {
+        const fetchImpl = mkFakeFetch([
+            jsonResp({ candidates: [{ candidate: 'c1', sdp_mid: '0', sdp_m_line_index: 0 }], cursor: 5 }),
+            new Response(null, { status: 204 }),
+        ]);
+        const sc = new SignalingClient({ baseUrl: 'http://h.test', fetchImpl });
+        const a = await sc.pollIce('sess1', 0);
+        assert.equal(a.candidates.length, 1);
+        assert.equal(a.cursor, 5);
+        const c = fetchImpl.calls[0];
+        assert.equal(c.url, 'http://h.test/signal/ice/sess1?since=0');
+        const b = await sc.pollIce('sess1', 5);
+        assert.deepEqual(b, { candidates: [], cursor: 5 });
+    });
+
+    test('fetchAgentCard returns parsed AgentCard JSON', async () => {
+        const card = { name: 'brainwires-home', version: '0.1.0', supportedInterfaces: [] };
+        const fetchImpl = mkFakeFetch([jsonResp(card)]);
+        const sc = new SignalingClient({ baseUrl: 'http://h.test', fetchImpl });
+        const out = await sc.fetchAgentCard();
+        assert.deepEqual(out, card);
+        assert.equal(fetchImpl.calls[0].url, 'http://h.test/.well-known/agent-card.json');
+    });
+
+    test('extraHeaders() return value is merged into every request', async () => {
+        const fetchImpl = mkFakeFetch([
+            jsonResp({ session_id: 'x', ice_servers: [] }),
+            new Response(null, { status: 204 }),
+        ]);
+        const sc = new SignalingClient({
+            baseUrl: 'http://h.test',
+            fetchImpl,
+            extraHeaders: () => ({
+                'Authorization': 'Bearer dev-token',
+                'CF-Access-Client-Id': 'cid',
+                'CF-Access-Client-Secret': 'csec',
+            }),
+        });
+        await sc.createSession();
+        await sc.postIce('s', 'cand', '0', 0);
+        for (const call of fetchImpl.calls) {
+            assert.equal(call.init.headers['Authorization'], 'Bearer dev-token');
+            assert.equal(call.init.headers['CF-Access-Client-Id'], 'cid');
+            assert.equal(call.init.headers['CF-Access-Client-Secret'], 'csec');
+        }
+    });
+
+    test('baseUrl trailing slashes are stripped', async () => {
+        const fetchImpl = mkFakeFetch([jsonResp({ session_id: 'x', ice_servers: [] })]);
+        const sc = new SignalingClient({ baseUrl: 'http://h.test/', fetchImpl });
+        await sc.createSession();
+        assert.equal(fetchImpl.calls[0].url, 'http://h.test/signal/session');
+    });
+
+    test('non-2xx surfaces uniform "signaling: <op> failed: <status>" error', async () => {
+        const fetchImpl = mkFakeFetch([new Response('boom', { status: 500 })]);
+        const sc = new SignalingClient({ baseUrl: 'http://h.test', fetchImpl });
+        await assert.rejects(() => sc.createSession(), /signaling: createSession failed: 500/);
+    });
+});
+
+// ── home-transport.JsonRpcDispatcher (id allocation + reply routing) ─
+
+describe('home-transport.JsonRpcDispatcher', async () => {
+    const { JsonRpcDispatcher } = await import('../src/home-transport.js');
+
+    test('request() allocates monotonic ids and produces a parseable frame', () => {
+        const d = new JsonRpcDispatcher();
+        const r1 = d.request('system/ping', {});
+        const r2 = d.request('message/send', { message: { role: 'user', parts: [] } });
+        assert.equal(r1.id, 1);
+        assert.equal(r2.id, 2);
+        const f1 = JSON.parse(r1.frame);
+        assert.equal(f1.jsonrpc, '2.0');
+        assert.equal(f1.id, 1);
+        assert.equal(f1.method, 'system/ping');
+        // Promises should be unsettled before dispatch().
+        let r1Settled = false;
+        r1.promise.then(() => { r1Settled = true; }, () => { r1Settled = true; });
+        // Don't await — just confirm we have two slots in the pending map.
+        assert.equal(d.pendingCount, 2);
+        // Suppress the unhandled-rejection from r2 for the timeout-cleanup test.
+        r2.promise.catch(() => {});
+        void r1Settled;
+    });
+
+    test('dispatch() resolves the matching request and drops it from pending', async () => {
+        const d = new JsonRpcDispatcher();
+        const r = d.request('system/ping', {}, { timeoutMs: 0 });
+        const matched = d.dispatch(JSON.stringify({ jsonrpc: '2.0', id: r.id, result: { ok: true, ts: 12345 } }));
+        assert.equal(matched, true);
+        const out = await r.promise;
+        assert.deepEqual(out, { ok: true, ts: 12345 });
+        assert.equal(d.pendingCount, 0);
+    });
+
+    test('dispatch() rejects on error reply and propagates code/data', async () => {
+        const d = new JsonRpcDispatcher();
+        const r = d.request('does/notexist', {}, { timeoutMs: 0 });
+        d.dispatch(JSON.stringify({
+            jsonrpc: '2.0', id: r.id,
+            error: { code: -32601, message: 'method not found', data: { hint: 'x' } },
+        }));
+        await assert.rejects(r.promise, (e) => {
+            assert.equal(e.message, 'method not found');
+            assert.equal(e.code, -32601);
+            assert.deepEqual(e.data, { hint: 'x' });
+            return true;
+        });
+    });
+
+    test('dispatch() drops unknown ids and notifications without error', () => {
+        const d = new JsonRpcDispatcher();
+        const r = d.request('system/ping', {}, { timeoutMs: 0 });
+        // Unrelated id — dropped.
+        assert.equal(d.dispatch(JSON.stringify({ jsonrpc: '2.0', id: 999, result: 'stray' })), false);
+        // Notification (no id) — also dropped.
+        assert.equal(d.dispatch(JSON.stringify({ jsonrpc: '2.0', method: 'event/foo' })), false);
+        // Garbage — dropped.
+        assert.equal(d.dispatch('{not json'), false);
+        // Original request still pending.
+        assert.equal(d.pendingCount, 1);
+        // Clean up so the test process doesn't keep a Promise around.
+        r.promise.catch(() => {});
+        d.rejectAll(new Error('teardown'));
+    });
+
+    test('rejectAll() rejects every pending request and clears the map', async () => {
+        const d = new JsonRpcDispatcher();
+        const r1 = d.request('a', {}, { timeoutMs: 0 });
+        const r2 = d.request('b', {}, { timeoutMs: 0 });
+        d.rejectAll(new Error('shutdown'));
+        await assert.rejects(r1.promise, /shutdown/);
+        await assert.rejects(r2.promise, /shutdown/);
+        assert.equal(d.pendingCount, 0);
+    });
+
+    test('timeout fires when no reply arrives in time', async () => {
+        const d = new JsonRpcDispatcher();
+        const r = d.request('slow/op', {}, { timeoutMs: 20 });
+        await assert.rejects(r.promise, /timed out after 20ms/);
+        assert.equal(d.pendingCount, 0);
+    });
+});
+
 // ── helpers ────────────────────────────────────────────────────
 
 function mkResponse(body) {
