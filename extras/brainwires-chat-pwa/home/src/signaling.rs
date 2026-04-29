@@ -28,7 +28,9 @@ use uuid::Uuid;
 use webrtc::data_channel::DataChannel as WrtcDataChannel;
 use webrtc::peer_connection::{PeerConnection, RTCIceCandidateInit};
 
+use crate::TurnConfig;
 use crate::a2a::A2aBridge;
+use crate::turn::{IceServerJson, mint_ice_servers};
 use crate::webrtc::{
     PeerEvent, apply_offer_and_create_answer, build_answerer, run_a2a_loop,
 };
@@ -47,6 +49,18 @@ pub const HOME_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// `Access-Control-Max-Age` value advertised by the CORS layer (10 min).
 pub const CORS_MAX_AGE: Duration = Duration::from_secs(600);
+
+/// Build the `reqwest::Client` the daemon uses for outbound HTTPS (today
+/// only Cloudflare TURN minting). 10 s connect/total timeout — TURN
+/// minting on the request path; we'd rather fall back to STUN-only than
+/// hold a `POST /signal/session` open for tens of seconds.
+pub fn default_http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(10))
+        .build()
+        .expect("default reqwest::Client builds")
+}
 
 /// Default allow-list when neither `--cors-origin` nor `--cors-permissive`
 /// is supplied. Matches the chat-PWA dev container (`HOST_PORT` defaults to
@@ -86,7 +100,7 @@ pub struct IceCandidate {
 #[derive(Debug, Serialize)]
 struct SessionCreatedResponse {
     session_id: String,
-    ice_servers: Vec<serde_json::Value>,
+    ice_servers: Vec<IceServerJson>,
 }
 
 #[derive(Debug, Serialize)]
@@ -156,6 +170,12 @@ pub struct AppState {
     pub long_poll_timeout: Duration,
     pub session_ttl: Duration,
     pub bridge: Option<Arc<A2aBridge>>,
+    /// TURN minting config. Default = STUN-only fallback.
+    pub turn: TurnConfig,
+    /// Shared `reqwest::Client` reused across TURN mint calls. Built once
+    /// at server start; never per-request. Held in an `Arc` so cloning
+    /// `AppState` (axum does this on every request) is cheap.
+    pub http: Arc<reqwest::Client>,
 }
 
 impl AppState {
@@ -165,6 +185,8 @@ impl AppState {
             long_poll_timeout,
             session_ttl,
             bridge: None,
+            turn: TurnConfig::default(),
+            http: Arc::new(default_http_client()),
         }
     }
 
@@ -173,6 +195,12 @@ impl AppState {
     pub fn with_bridge(mut self, bridge: Arc<A2aBridge>) -> Self {
         assert!(self.bridge.is_none(), "A2aBridge already set on AppState");
         self.bridge = Some(bridge);
+        self
+    }
+
+    /// Replace the TURN config. The daemon builder calls this once.
+    pub fn with_turn(mut self, turn: TurnConfig) -> Self {
+        self.turn = turn;
         self
     }
 
@@ -323,11 +351,16 @@ async fn create_session(State(state): State<AppState>) -> impl IntoResponse {
     let session_id = Uuid::new_v4().simple().to_string();
     let s = Arc::new(SessionState::new(session_id.clone()));
     state.sessions.insert(session_id.clone(), s);
+    // Mint per-session ICE servers. With Cloudflare TURN configured this
+    // hits the Calls API; otherwise it returns the two STUN fallbacks
+    // synchronously (no I/O). On TURN API failure we fall back to STUN-only
+    // — connection-establishment must not hard-depend on the TURN API.
+    let ice_servers = mint_ice_servers(&state.turn, state.http.as_ref()).await;
     (
         StatusCode::OK,
         Json(SessionCreatedResponse {
             session_id,
-            ice_servers: Vec::new(),
+            ice_servers,
         }),
     )
 }
@@ -637,7 +670,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_session_create_returns_id_and_empty_ice() {
+    async fn test_session_create_returns_id_and_default_ice_servers() {
         let app = router(test_state());
         let resp = app
             .oneshot(empty_request(Method::POST, "/signal/session"))
@@ -649,8 +682,29 @@ mod tests {
         // UUID v4 simple form is 32 hex chars.
         assert_eq!(id.len(), 32, "session_id should be 32 hex chars: {id}");
         assert!(id.chars().all(|c| c.is_ascii_hexdigit()));
+
+        // M7: STUN-only fallback when TURN isn't configured. The default
+        // builder doesn't set Cloudflare creds, so we expect exactly the two
+        // public STUN entries.
         let ice = v["ice_servers"].as_array().expect("ice_servers is array");
-        assert!(ice.is_empty(), "ice_servers must be empty in M2");
+        assert_eq!(ice.len(), 2, "STUN-only default should yield 2 entries: {ice:?}");
+        let urls: Vec<&str> = ice
+            .iter()
+            .filter_map(|s| s["urls"][0].as_str())
+            .collect();
+        assert!(
+            urls.iter().any(|u| u.contains("stun.cloudflare.com")),
+            "expected cloudflare STUN entry: {urls:?}"
+        );
+        assert!(
+            urls.iter().any(|u| u.contains("stun.l.google.com")),
+            "expected google STUN entry: {urls:?}"
+        );
+        // STUN entries must NOT carry credentials.
+        for s in ice {
+            assert!(s.get("username").is_none(), "STUN entry must not carry username");
+            assert!(s.get("credential").is_none(), "STUN entry must not carry credential");
+        }
     }
 
     /// Repurposed from the M2 stub-SDP test. Now that `post_offer` actually

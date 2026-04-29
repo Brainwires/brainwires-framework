@@ -23,8 +23,8 @@ branch.
 | M3        | Wire the WebRTC peer into the axum routes; JSON-RPC `ping` echo         | landed     |
 | M4        | A2A bridge — route inbound JSON-RPC into a real `TaskAgent`             | landed     |
 | M5        | Browser-side dial-home transport (`web/src/home-*`)                     | landed     |
-| **M6**    | CORS configuration + tunnel-pointing docs                                | this commit |
-| M7        | Cloudflare Calls TURN credential minting (cellular symmetric-NAT path)  | —          |
+| M6        | CORS configuration + tunnel-pointing docs                                | landed     |
+| **M7**    | Cloudflare Calls TURN credential minting (cellular symmetric-NAT path)  | this commit |
 | M8        | Pairing flow (`/pair/claim`, `/pair/confirm`, QR + 6-digit confirm)     | —          |
 | M9–M12    | `home-provider.js`, reconnect/resume, multimodal chunking, polish       | —          |
 
@@ -80,9 +80,10 @@ in axum `State`. A background task GCs sessions older than 30 minutes every
 timeout `/signal/answer` returns `204` (PWA retries) and `/signal/ice` returns
 the current snapshot.
 
-For M2, `ice_servers` is an empty array. M7 fills it with Cloudflare Calls
-TURN credentials (~10 minute lifetime, minted server-side; the PWA never
-holds the CF Calls API key).
+`ice_servers` always carries at least the two public STUN fallbacks
+(`stun.cloudflare.com:3478`, `stun.l.google.com:19302`). With Cloudflare
+Calls TURN configured, a freshly-minted ~10 min credential is prepended.
+See § TURN credentials below.
 
 ### Well-known (M2 — wired)
 
@@ -201,6 +202,61 @@ credentials mode — the PWA carries Bearer tokens (M8), not cookies.
 Why permissive is dev-only: any web page in any browser tab can preflight-
 poke a permissive daemon and discover its endpoints. Production should
 always pin to one origin via `--cors-origin`.
+
+### TURN credentials
+
+`POST /signal/session` returns an `ice_servers` array the PWA hands to
+`new RTCPeerConnection({ iceServers: ... })`. ICE then walks the list:
+direct → STUN-discovered server-reflexive → TURN-relayed.
+
+Why TURN matters: roughly 10–15% of mobile carriers deploy symmetric NAT,
+where each outbound destination gets its own external port mapping. STUN
+alone cannot punch through symmetric NAT — the PWA's port observed by
+the STUN server is not the port the home daemon's traffic would hit. A
+TURN relay solves this by giving both ends a stable rendezvous server.
+
+The home daemon mints a fresh, short-lived (~10 min) Cloudflare Calls
+TURN credential per session. **The PWA never holds the Calls API
+token** — it only sees the resulting `username`/`credential` pair, scoped
+to one session. Token rotation is a pure home-side operation.
+
+| Flag                                              | Env             | Default | Description |
+|---------------------------------------------------|-----------------|---------|-------------|
+| `--cf-turn-key-id <ID>`                           | `CF_TURN_KEY_ID`| —       | Cloudflare Calls TURN key id |
+| `--cf-turn-token <TOKEN>`                         | `CF_TURN_TOKEN` | —       | Cloudflare **Calls** API token (NOT a Tunnel token) |
+| `--turn-ttl <SECONDS>`                            | `TURN_TTL`      | `600`   | Credential lifetime; floored at 60 s |
+
+Both `--cf-turn-key-id` and `--cf-turn-token` must be set together. If
+only one is supplied, the daemon logs a warning and falls back to STUN-
+only — silently dropping a half-configured TURN would mask an obvious
+typo.
+
+Get a key:
+
+1. `dashboard.cloudflare.com → Calls → TURN keys → Create TURN key`.
+2. Copy the key id (numeric) and the API token. The token's only scope
+   is the Calls API; it cannot reach Tunnel, R2, or Workers.
+3. Pass them to the daemon:
+
+   ```sh
+   cargo run -p brainwires-home -- \
+       --bind 127.0.0.1:7878 \
+       --cors-origin https://chat.example.com \
+       --cf-turn-key-id 1a2b3c4d... \
+       --cf-turn-token cf-calls-token-abc...
+   ```
+
+**Default behaviour without TURN**: the daemon returns just the two
+public STUN servers. That's enough for ~85% of home networks, but expect
+"can't connect over LTE/5G" reports until TURN is wired up. The
+verification path is manual — load the PWA on a phone over cellular,
+issue a `ping`, watch for a `pong` reply over the data channel.
+
+**Failure mode**: if the Cloudflare API itself is unreachable mid-
+session (timeout / 5xx / DNS), the daemon logs a warning and returns
+STUN-only for that session rather than failing the request. Connection
+establishment must not hard-depend on the TURN API being up — most
+sessions don't actually need TURN to complete.
 
 ### Bind address
 

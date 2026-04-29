@@ -38,6 +38,10 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 hyper = { workspace = true }
 
+# Outbound HTTP — Cloudflare Calls TURN credential minting (M7).
+# `json` feature for the request/response (de)ser; we don't need streams here.
+reqwest = { workspace = true }
+
 # WebRTC — match the Brainwires fork pinned by the rest of the workspace.
 # Upstream webrtc-rs (0.13.x on crates.io) is not used here; the fork at
 # 0.20.0-alpha.1 is what `brainwires-network`'s `channels-webrtc` builds

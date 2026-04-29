@@ -13,6 +13,7 @@
 pub mod a2a;
 pub mod pairing;
 pub mod signaling;
+pub mod turn;
 pub mod webrtc;
 
 use anyhow::{Context, Result};
@@ -23,6 +24,39 @@ use std::time::Duration;
 
 use crate::a2a::A2aBridge;
 use crate::signaling::{AppState, CorsConfig, DEFAULT_LONG_POLL, DEFAULT_SESSION_TTL};
+use crate::turn::DEFAULT_TTL_SECS;
+
+/// Server-side TURN credential minting config.
+///
+/// When [`TurnConfig::turn_key_id`] **and** [`TurnConfig::api_token`] are both
+/// set, `POST /signal/session` mints a fresh short-lived ICE credential per
+/// session via the Cloudflare Calls API. Otherwise the daemon answers with
+/// STUN-only fallback (`stun.cloudflare.com:3478`, `stun.l.google.com:19302`).
+///
+/// The PWA never sees the API token. It only ever receives the minted
+/// `iceServers` list — so token rotation is a pure home-side operation.
+#[derive(Clone, Debug)]
+pub struct TurnConfig {
+    /// Cloudflare Calls TURN key id. Find it under
+    /// `dashboard.cloudflare.com → Calls → TURN keys`.
+    pub turn_key_id: Option<String>,
+    /// Cloudflare Calls API token (NOT a Cloudflare Tunnel token — different
+    /// product). Scoped to the Calls API only.
+    pub api_token: Option<String>,
+    /// Lifetime of minted credentials in seconds. Default 600 (10 minutes).
+    /// Floored at 60 s before being sent to Cloudflare.
+    pub credential_ttl_secs: u32,
+}
+
+impl Default for TurnConfig {
+    fn default() -> Self {
+        Self {
+            turn_key_id: None,
+            api_token: None,
+            credential_ttl_secs: DEFAULT_TTL_SECS,
+        }
+    }
+}
 
 /// Default loopback bind. The daemon expects to live behind a Cloudflare
 /// Tunnel (or equivalent reverse tunnel) — listening on a public interface
@@ -49,6 +83,7 @@ pub struct HomeServerBuilder {
     bridge: Option<Arc<A2aBridge>>,
     cors: CorsConfig,
     cors_explicit: bool,
+    turn: TurnConfig,
 }
 
 impl HomeServer {
@@ -61,6 +96,7 @@ impl HomeServer {
             bridge: None,
             cors: CorsConfig::default(),
             cors_explicit: false,
+            turn: TurnConfig::default(),
         }
     }
 
@@ -161,12 +197,42 @@ impl HomeServerBuilder {
         self
     }
 
+    /// Configure Cloudflare Calls TURN credential minting (M7).
+    ///
+    /// When set, `POST /signal/session` returns an `ice_servers` array that
+    /// includes a freshly-minted, short-lived TURN credential alongside the
+    /// public STUN fallbacks. Without this call, only STUN is returned —
+    /// which works for the ~85% of NAT topologies STUN can punch but fails
+    /// on cellular symmetric NAT.
+    ///
+    /// `turn_key_id` is the Cloudflare Calls TURN key id (visible in the
+    /// dashboard); `api_token` is a Cloudflare Calls API token (NOT a
+    /// Cloudflare Tunnel token — different product, different page).
+    pub fn with_cloudflare_turn(
+        mut self,
+        turn_key_id: impl Into<String>,
+        api_token: impl Into<String>,
+    ) -> Self {
+        self.turn.turn_key_id = Some(turn_key_id.into());
+        self.turn.api_token = Some(api_token.into());
+        self
+    }
+
+    /// Override the TURN credential TTL in seconds. Default 600 (10 min).
+    /// Floored at 60 s; anything shorter is more likely to expire mid-
+    /// handshake than to be useful.
+    pub fn with_turn_ttl(mut self, seconds: u32) -> Self {
+        self.turn.credential_ttl_secs = seconds;
+        self
+    }
+
     /// Materialize the builder into a [`HomeServer`].
     pub fn build(self) -> Result<HomeServer> {
         let bind = self
             .bind
             .unwrap_or_else(|| DEFAULT_BIND.parse().expect("DEFAULT_BIND parses"));
-        let mut state = AppState::new(self.long_poll_timeout, self.session_ttl);
+        let mut state = AppState::new(self.long_poll_timeout, self.session_ttl)
+            .with_turn(self.turn);
         if let Some(bridge) = self.bridge {
             state = state.with_bridge(bridge);
         }
