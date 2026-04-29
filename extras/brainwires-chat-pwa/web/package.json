@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "dompurify": "^3.4.1",
+    "highlight.js": "^11.11.1",
     "marked": "^12.0.2"
   }
 }

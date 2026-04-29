@@ -10,3 +10,8 @@ sw.js
 sw.bundle.js
 build-info.js
 .run/
+# Generated CSS-as-JS module (see build.mjs:generateHljsTheme).
+src/_hljs-theme.js
+# Leaked esbuild CSS artifacts from earlier build attempts.
+app.css
+app.css.map

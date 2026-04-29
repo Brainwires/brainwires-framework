@@ -30,6 +30,7 @@ import { isDownloaded } from './model-store.js';
 import { el, clear, toast, isMobile, genId, escapeHtml } from './utils.js';
 import { t } from './i18n.js';
 import { renderMarkdown } from './markdown.js';
+import { highlightWithin } from './code-highlight.js';
 import * as voice from './voice.js';
 import { isDownloadActive, activeModelId } from './ui-download-banner.js';
 import * as cryptoStore from '../crypto-store.js';
@@ -327,6 +328,7 @@ function buildBubble(m) {
     const cls = isUser ? 'bubble bubble-user' : 'bubble bubble-assistant';
     const contentNode = el('div', { class: 'bubble-content' });
     contentNode.innerHTML = renderMarkdown(m.content || '');
+    highlightWithin(contentNode);
 
     const actions = el('div', { class: 'bubble-actions' });
     actions.appendChild(el('button', {
@@ -492,7 +494,9 @@ function subscribeStreams() {
     stateEvents.addEventListener('chat_done', (e) => {
         const d = e.detail || {};
         if (!_streaming || _streaming.messageId !== d.messageId) return;
+        const node = _streaming.contentNode;
         finalizeStreaming();
+        highlightWithin(node);
     });
     stateEvents.addEventListener('chat_error', (e) => {
         const d = e.detail || {};
@@ -501,6 +505,7 @@ function subscribeStreams() {
         const node = _streaming.contentNode;
         const prev = _streaming.accum || '';
         node.innerHTML = renderMarkdown(prev) + `<em class="bubble-error"> — ${escapeHtml(err)}</em>`;
+        highlightWithin(node);
         _streaming.finalized = true;
         _streaming = null;
         toast(err, 'error');
