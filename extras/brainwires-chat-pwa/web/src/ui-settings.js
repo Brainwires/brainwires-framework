@@ -33,6 +33,7 @@ import {
 } from './state.js';
 import * as voice from './voice.js';
 import { mount as mountView } from './views.js';
+import { getTheme, setTheme } from './theme.js';
 
 const PASSPHRASE_SETTING = 'passphraseConfig'; // { salt: base64, verify: encrypted("ok") }
 const ENCRYPT_OPT_OUT_SETTING = 'encryptionOptOut';
@@ -49,6 +50,7 @@ export async function render(root) {
     root.appendChild(main);
 
     main.appendChild(await sectionPassphrase());
+    main.appendChild(await sectionTheme());
     main.appendChild(await sectionProviders());
     main.appendChild(await sectionLocalModel());
     main.appendChild(await sectionEmbeddingModels());
@@ -231,6 +233,34 @@ function b64Encode(bytes) {
     let s = '';
     for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
     return btoa(s);
+}
+
+// ── Theme ──────────────────────────────────────────────────────
+
+async function sectionTheme() {
+    const body = el('div', { class: 'settings-card' });
+    const current = getTheme();
+    const sel = el('select', { class: 'bw-input', attrs: { 'aria-label': t('settings.theme.label') } });
+    const options = [
+        ['system', t('settings.theme.system')],
+        ['light', t('settings.theme.light')],
+        ['dark', t('settings.theme.dark')],
+    ];
+    for (const [val, label] of options) {
+        const o = el('option', { attrs: { value: val } }, label);
+        if (val === current) o.setAttribute('selected', '');
+        sel.appendChild(o);
+    }
+    sel.addEventListener('change', async () => {
+        try {
+            await setTheme(sel.value);
+            toast(t('settings.saved'), 'success', 1200);
+        } catch (e) {
+            toast(e && e.message ? e.message : String(e), 'error');
+        }
+    });
+    body.appendChild(el('label', { class: 'bw-label' }, t('settings.theme.label'), sel));
+    return sectionWrap(t('settings.theme.title'), body);
 }
 
 // ── Cloud providers ────────────────────────────────────────────

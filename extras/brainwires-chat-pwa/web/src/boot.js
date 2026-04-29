@@ -25,6 +25,7 @@ import { getSetting } from './db.js';
 import * as views from './views.js';
 import { mountBanner } from './ui-download-banner.js';
 import { loadLocale } from './i18n.js';
+import { loadTheme } from './theme.js';
 import * as uiChat from './ui-chat.js';
 import * as uiSettings from './ui-settings.js';
 import * as uiUnlock from './ui-unlock.js';
@@ -132,6 +133,10 @@ async function boot() {
     if (swResult.status === 'rejected') {
         console.warn('SW registration error:', swResult.reason);
     }
+
+    // Apply the saved theme before any view paints. Falls through to
+    // 'system' (the pre-switcher behavior) if nothing is saved.
+    await loadTheme().catch((err) => console.warn('theme load failed:', err));
 
     wireServiceWorkerMessages();
     wireLocalProviderEvents();

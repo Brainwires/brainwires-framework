@@ -1,7 +1,12 @@
 /* brainwires-chat-pwa — mobile-first stylesheet
  *
- * Custom properties drive theming. Default scheme is dark; the same
- * properties get overridden under @media(prefers-color-scheme: light).
+ * Custom properties drive theming. Three modes:
+ *   - data-theme="dark"   → dark always (overrides system)
+ *   - data-theme="light"  → light always (overrides system)
+ *   - data-theme="system" or unset → dark by default, light via prefers-color-scheme
+ *
+ * The unset/`system` path keeps the pre-switcher behavior so cold-loads (before
+ * theme.js applies the saved choice) still pick the OS palette.
  */
 
 :root {
@@ -30,8 +35,25 @@
     --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
+/* Explicit light: applied whenever the user picks "light" outright. */
+:root[data-theme="light"] {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --surface-2: #eef0f4;
+    --text: #15181c;
+    --muted: #5b6470;
+    --accent: #2563eb;
+    --accent-fg: #ffffff;
+    --user-bubble-bg: #2563eb;
+    --user-bubble-fg: #ffffff;
+    --assistant-bubble-bg: #eef0f4;
+    --assistant-bubble-fg: #15181c;
+    --border: rgba(0, 0, 0, 0.10);
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
 @media (prefers-color-scheme: light) {
-    :root {
+    :root:not([data-theme="dark"]):not([data-theme="light"]) {
         --bg: #f7f8fa;
         --surface: #ffffff;
         --surface-2: #eef0f4;

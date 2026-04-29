@@ -161,6 +161,8 @@ export function setDecryptedSessionKey(key) {
 //   - 'model_deleted'  { modelId }
 //   - 'local-model-loaded' / 'local-model-unloaded'
 //   - 'sw-ready'     { registration }
+//   - 'theme-changed' { theme: 'light'|'dark'|'system' }
+//   - 'theme-system-changed' { systemPrefersLight: boolean }
 export const appEvents = new EventTarget();
 
 // Alias for code that prefers `state.events` over `state.appEvents`.

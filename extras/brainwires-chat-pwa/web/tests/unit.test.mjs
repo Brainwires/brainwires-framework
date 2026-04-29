@@ -563,6 +563,86 @@ describe('i18n', () => {
     });
 });
 
+// ── theme ─────────────────────────────────────────────────────
+
+describe('theme', async () => {
+    let dbReady = false;
+    try {
+        await import('fake-indexeddb/auto');
+        dbReady = true;
+    } catch (_) { /* fake-indexeddb missing — tests below will skip */ }
+
+    function makeStubs() {
+        const html = {
+            _attrs: {},
+            _style: {},
+            setAttribute(k, v) { this._attrs[k] = v; },
+            getAttribute(k) { return this._attrs[k] ?? null; },
+            get style() { return this._style; },
+        };
+        globalThis.document = { documentElement: html };
+        globalThis.matchMedia = () => ({
+            matches: false,
+            addEventListener() {},
+            removeEventListener() {},
+        });
+        return html;
+    }
+
+    test('setTheme persists, applies data-theme, and emits theme-changed', async (ctx) => {
+        if (!dbReady) return ctx.skip('fake-indexeddb not available');
+        const html = makeStubs();
+
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+
+        const theme = await import(`../src/theme.js?cb=${Date.now()}`);
+        const state = await import('../src/state.js');
+
+        let received = null;
+        state.appEvents.addEventListener('theme-changed',
+            (e) => { received = e.detail; }, { once: true });
+
+        await theme.setTheme('light');
+
+        assert.equal(theme.getTheme(), 'light');
+        assert.equal(html._attrs['data-theme'], 'light');
+        assert.equal(html._style.colorScheme, 'light');
+        assert.deepEqual(received, { theme: 'light' });
+        assert.equal(await db.getSetting('ui.theme'), 'light');
+    });
+
+    test('loadTheme reads the saved value and applies it', async (ctx) => {
+        if (!dbReady) return ctx.skip('fake-indexeddb not available');
+        const html = makeStubs();
+
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+        await db.setSetting('ui.theme', 'dark');
+
+        const theme = await import(`../src/theme.js?cb=${Date.now()}_2`);
+        await theme.loadTheme();
+
+        assert.equal(theme.getTheme(), 'dark');
+        assert.equal(html._attrs['data-theme'], 'dark');
+        assert.equal(html._style.colorScheme, 'dark');
+    });
+
+    test('invalid theme value falls back to system', async (ctx) => {
+        if (!dbReady) return ctx.skip('fake-indexeddb not available');
+        const html = makeStubs();
+
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+
+        const theme = await import(`../src/theme.js?cb=${Date.now()}_3`);
+        await theme.setTheme('bogus');
+        assert.equal(theme.getTheme(), 'system');
+        assert.equal(html._attrs['data-theme'], 'system');
+        assert.equal(html._style.colorScheme, 'dark light');
+    });
+});
+
 // ── views (no-DOM smoke) ──────────────────────────────────────
 //
 // Skipped: the router needs a real `document` to mount sections under.
