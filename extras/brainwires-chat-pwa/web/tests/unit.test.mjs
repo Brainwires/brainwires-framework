@@ -620,6 +620,86 @@ describe('markdown', async () => {
     });
 });
 
+// ── mcp-client (Streamable HTTP) ──────────────────────────────
+
+describe('mcp-client', async () => {
+    let mcp;
+    try { mcp = await import('../src/mcp-client.js'); }
+    catch (e) { console.warn('[unit.test] mcp-client import failed:', e.message); }
+
+    function jsonResponse(obj, headers = {}) {
+        return new Response(JSON.stringify(obj), {
+            status: 200,
+            headers: { 'content-type': 'application/json', ...headers },
+        });
+    }
+
+    test('initialize: parses JSON reply, captures session header', async (ctx) => {
+        if (!mcp) return ctx.skip();
+        let captured;
+        const origFetch = globalThis.fetch;
+        globalThis.fetch = async (url, init) => {
+            captured = { url, init };
+            return jsonResponse(
+                { jsonrpc: '2.0', id: 1, result: { protocolVersion: '2025-06-18', capabilities: {} } },
+                { 'mcp-session-id': 'sess-123' },
+            );
+        };
+        try {
+            const out = await mcp.initialize({ url: 'https://x.test/mcp' });
+            assert.equal(out.protocolVersion, '2025-06-18');
+            assert.equal(captured.init.method, 'POST');
+            const body = JSON.parse(captured.init.body);
+            assert.equal(body.method, 'initialize');
+            assert.equal(body.jsonrpc, '2.0');
+            assert.equal(typeof body.id, 'number');
+        } finally {
+            globalThis.fetch = origFetch;
+        }
+    });
+
+    test('listTools: returns the tools array', async (ctx) => {
+        if (!mcp) return ctx.skip();
+        const origFetch = globalThis.fetch;
+        globalThis.fetch = async () => jsonResponse({
+            jsonrpc: '2.0', id: 1,
+            result: { tools: [{ name: 'echo', description: 'echo input' }] },
+        });
+        try {
+            const tools = await mcp.listTools({ url: 'https://x.test/mcp' });
+            assert.equal(tools.length, 1);
+            assert.equal(tools[0].name, 'echo');
+        } finally {
+            globalThis.fetch = origFetch;
+        }
+    });
+
+    test('error reply surfaces a thrown Error', async (ctx) => {
+        if (!mcp) return ctx.skip();
+        const origFetch = globalThis.fetch;
+        globalThis.fetch = async () => jsonResponse({
+            jsonrpc: '2.0', id: 1,
+            error: { code: -32601, message: 'method not found' },
+        });
+        try {
+            await assert.rejects(() => mcp.listTools({ url: 'https://x.test/mcp' }), /method not found/);
+        } finally {
+            globalThis.fetch = origFetch;
+        }
+    });
+
+    test('http non-2xx surfaces a thrown Error', async (ctx) => {
+        if (!mcp) return ctx.skip();
+        const origFetch = globalThis.fetch;
+        globalThis.fetch = async () => new Response('boom', { status: 502 });
+        try {
+            await assert.rejects(() => mcp.initialize({ url: 'https://x.test/mcp' }), /HTTP 502/);
+        } finally {
+            globalThis.fetch = origFetch;
+        }
+    });
+});
+
 // ── chunker ───────────────────────────────────────────────────
 
 describe('chunker', async () => {

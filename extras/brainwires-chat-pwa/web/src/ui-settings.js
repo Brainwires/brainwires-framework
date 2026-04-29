@@ -35,6 +35,7 @@ import * as voice from './voice.js';
 import { mount as mountView } from './views.js';
 import { getTheme, setTheme } from './theme.js';
 import { render as renderRagPanel } from './ui-rag-panel.js';
+import { render as renderMcpPanel } from './ui-mcp-panel.js';
 
 const PASSPHRASE_SETTING = 'passphraseConfig'; // { salt: base64, verify: encrypted("ok") }
 const ENCRYPT_OPT_OUT_SETTING = 'encryptionOptOut';
@@ -56,6 +57,7 @@ export async function render(root) {
     main.appendChild(await sectionLocalModel());
     main.appendChild(await sectionEmbeddingModels());
     main.appendChild(await sectionRag());
+    main.appendChild(await sectionMcp());
     main.appendChild(await sectionVoice());
     main.appendChild(await sectionAbout());
 
@@ -573,6 +575,13 @@ async function sectionEmbeddingModels() {
 async function sectionRag() {
     const body = await renderRagPanel();
     return sectionWrap(t('settings.rag.title'), body);
+}
+
+// ── MCP servers ────────────────────────────────────────────────
+
+async function sectionMcp() {
+    const body = await renderMcpPanel();
+    return sectionWrap(t('settings.mcp.title'), body);
 }
 
 // ── Partial card refresh (swap one card, keep scroll + rest) ──

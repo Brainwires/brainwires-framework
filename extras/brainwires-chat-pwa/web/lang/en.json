@@ -101,6 +101,18 @@
     "settings.rag.phase.persist": "Saving chunks",
     "settings.rag.phase.save_index": "Saving index…",
 
+    "settings.mcp.title": "MCP servers",
+    "settings.mcp.empty": "No MCP servers configured. Add a Streamable-HTTP MCP endpoint URL above.",
+    "settings.mcp.add": "Add server",
+    "settings.mcp.added": "Server added",
+    "settings.mcp.delete": "Delete",
+    "settings.mcp.deleted": "Server deleted",
+    "settings.mcp.confirmDelete": "Remove this MCP server?",
+    "settings.mcp.name": "Display name",
+    "settings.mcp.token": "Auth token",
+    "settings.mcp.tools": "Tools",
+    "settings.mcp.testOk": "Connected — {count} tools",
+
     "settings.about.title": "About",
     "settings.about.version": "Version",
     "settings.about.build": "Build",
