@@ -10,8 +10,12 @@ sw.js
 sw.bundle.js
 build-info.js
 .run/
-# Generated CSS-as-JS module (see build.mjs:generateHljsTheme).
+# Generated CSS-as-JS modules (see build.mjs:generateHljsTheme + generateKatexAssets).
 src/_hljs-theme.js
+src/_katex-theme.js
+# KaTeX assets copied from node_modules at build time.
+fonts/katex/
+vendor/katex/
 # Leaked esbuild CSS artifacts from earlier build attempts.
 app.css
 app.css.map

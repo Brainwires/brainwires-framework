@@ -31,6 +31,18 @@ import { el, clear, toast, isMobile, genId, escapeHtml } from './utils.js';
 import { t } from './i18n.js';
 import { renderMarkdown } from './markdown.js';
 import { highlightWithin } from './code-highlight.js';
+
+// math.js (KaTeX + theme) is dynamically imported on first render so the
+// ~80 KB gz cost is paid only by sessions that actually contain math.
+let _mathMod = null;
+async function maybeRenderMath(node) {
+    if (!node || !node.textContent || node.textContent.indexOf('$') < 0) return;
+    if (!_mathMod) {
+        try { _mathMod = await import('./math.js'); }
+        catch (e) { console.warn('[bw] math import failed:', e && e.message ? e.message : e); return; }
+    }
+    _mathMod.renderMathWithin(node);
+}
 import * as voice from './voice.js';
 import { isDownloadActive, activeModelId } from './ui-download-banner.js';
 import * as cryptoStore from '../crypto-store.js';
@@ -329,6 +341,7 @@ function buildBubble(m) {
     const contentNode = el('div', { class: 'bubble-content' });
     contentNode.innerHTML = renderMarkdown(m.content || '');
     highlightWithin(contentNode);
+    maybeRenderMath(contentNode);
 
     const actions = el('div', { class: 'bubble-actions' });
     actions.appendChild(el('button', {
@@ -497,6 +510,7 @@ function subscribeStreams() {
         const node = _streaming.contentNode;
         finalizeStreaming();
         highlightWithin(node);
+        maybeRenderMath(node);
     });
     stateEvents.addEventListener('chat_error', (e) => {
         const d = e.detail || {};
@@ -506,6 +520,7 @@ function subscribeStreams() {
         const prev = _streaming.accum || '';
         node.innerHTML = renderMarkdown(prev) + `<em class="bubble-error"> — ${escapeHtml(err)}</em>`;
         highlightWithin(node);
+        maybeRenderMath(node);
         _streaming.finalized = true;
         _streaming = null;
         toast(err, 'error');

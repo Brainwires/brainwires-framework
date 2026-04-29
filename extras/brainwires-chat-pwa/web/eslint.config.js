@@ -17,6 +17,11 @@ export default [
       'sw.js',
       'sw.bundle.js',
       'build-info.js',
+      // Generated CSS-as-JS modules.
+      'src/_hljs-theme.js',
+      'src/_katex-theme.js',
+      // Third-party bundles served as static assets (KaTeX UMD).
+      'vendor/**',
     ],
   },
   js.configs.recommended,
