@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::a2a::A2aBridge;
+use crate::pairing::{CfAccessConfig, PairingState};
 use crate::signaling::{AppState, CorsConfig, DEFAULT_LONG_POLL, DEFAULT_SESSION_TTL};
 use crate::turn::DEFAULT_TTL_SECS;
 
@@ -68,6 +69,7 @@ pub struct HomeServer {
     bind: SocketAddr,
     state: AppState,
     cors: CorsConfig,
+    pairing: Option<PairingState>,
 }
 
 /// Builder for [`HomeServer`].
@@ -84,6 +86,7 @@ pub struct HomeServerBuilder {
     cors: CorsConfig,
     cors_explicit: bool,
     turn: TurnConfig,
+    pairing: Option<PairingState>,
 }
 
 impl HomeServer {
@@ -97,6 +100,7 @@ impl HomeServer {
             cors: CorsConfig::default(),
             cors_explicit: false,
             turn: TurnConfig::default(),
+            pairing: None,
         }
     }
 
@@ -116,7 +120,21 @@ impl HomeServer {
     /// Tests can drive this via `tower::ServiceExt::oneshot`. Production code
     /// goes through [`HomeServer::serve`], which binds and runs it.
     pub fn router(&self) -> Router {
-        signaling::router_with_cors(self.state.clone(), self.cors.clone())
+        let mut router = signaling::router_with_cors(self.state.clone(), self.cors.clone());
+        if let Some(p) = self.pairing.clone() {
+            // The signaling router already attached its CORS layer. Apply
+            // the same one to the pairing sub-router before merging — axum
+            // doesn't propagate layers across `merge` calls automatically.
+            let pair_router = pairing::router(p).layer(self.cors.clone().into_layer());
+            router = router.merge(pair_router);
+        }
+        router
+    }
+
+    /// Borrow the pairing state, if configured. Tests use this to mint
+    /// offers and inspect `devices.json` without going through the CLI.
+    pub fn pairing(&self) -> Option<&PairingState> {
+        self.pairing.as_ref()
     }
 
     /// Run the server until it errors or is dropped.
@@ -125,7 +143,11 @@ impl HomeServer {
     /// hands the listener to `axum::serve`. Returns when the server exits.
     pub async fn serve(self) -> Result<()> {
         let _gc = self.state.spawn_gc();
-        let app = signaling::router_with_cors(self.state.clone(), self.cors.clone());
+        let mut app = signaling::router_with_cors(self.state.clone(), self.cors.clone());
+        if let Some(p) = self.pairing.clone() {
+            let pair_router = pairing::router(p).layer(self.cors.clone().into_layer());
+            app = app.merge(pair_router);
+        }
         let listener = tokio::net::TcpListener::bind(self.bind)
             .await
             .with_context(|| format!("bind {}", self.bind))?;
@@ -226,6 +248,37 @@ impl HomeServerBuilder {
         self
     }
 
+    /// Attach a [`PairingState`] (M8). When set, the daemon serves
+    /// `POST /pair/claim` + `POST /pair/confirm` and persists confirmed
+    /// devices to the configured `devices.json` path.
+    pub fn with_pairing(mut self, pairing: PairingState) -> Self {
+        self.pairing = Some(pairing);
+        self
+    }
+
+    /// Configure pre-provisioned Cloudflare Access service-token creds
+    /// (M8). Returned to every PWA that successfully pairs so it can
+    /// include them as `CF-Access-Client-Id` / `CF-Access-Client-Secret`
+    /// on signaling requests through Cloudflare Access. Only takes effect
+    /// when [`HomeServerBuilder::with_pairing`] has also been called.
+    pub fn with_cf_access(mut self, client_id: String, client_secret: String) -> Self {
+        if let Some(p) = self.pairing.take() {
+            // Rebuild with the CF creds attached. The CF config lives on
+            // the PairingState itself (it's read on every confirm).
+            self.pairing = Some(PairingState::new(
+                p.devices_path().to_path_buf(),
+                Some(CfAccessConfig { client_id, client_secret }),
+                p.peer_pubkey().to_string(),
+            ));
+        } else {
+            tracing::warn!(
+                "with_cf_access called before with_pairing; ignoring CF creds — \
+                 attach pairing first",
+            );
+        }
+        self
+    }
+
     /// Materialize the builder into a [`HomeServer`].
     pub fn build(self) -> Result<HomeServer> {
         let bind = self
@@ -245,6 +298,7 @@ impl HomeServerBuilder {
             bind,
             state,
             cors: self.cors,
+            pairing: self.pairing,
         })
     }
 }

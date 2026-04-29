@@ -1610,6 +1610,229 @@ describe('home-transport.JsonRpcDispatcher', async () => {
     });
 });
 
+// ── home-pairing (M8 pairing flow) ────────────────────────────
+
+describe('home-pairing.parseQrPayload', async () => {
+    const { parseQrPayload } = await import('../src/home-pairing.js');
+
+    test('parses a well-formed bwhome:// URL', () => {
+        const out = parseQrPayload('bwhome://pair?u=https%3A%2F%2Fhome.example.com&t=abc&fp=deadbeef');
+        assert.equal(out.tunnelUrl, 'https://home.example.com');
+        assert.equal(out.oneTimeToken, 'abc');
+        assert.equal(out.peerFingerprint, 'deadbeef');
+    });
+
+    test('fp is optional', () => {
+        const out = parseQrPayload('bwhome://pair?u=http%3A%2F%2Flocalhost%3A7878&t=tok');
+        assert.equal(out.tunnelUrl, 'http://localhost:7878');
+        assert.equal(out.peerFingerprint, '');
+    });
+
+    test('throws on missing u', () => {
+        assert.throws(() => parseQrPayload('bwhome://pair?t=abc'), /missing u/);
+    });
+
+    test('throws on missing t', () => {
+        assert.throws(() => parseQrPayload('bwhome://pair?u=http%3A%2F%2Fa'), /missing t/);
+    });
+
+    test('throws on non-bwhome URL', () => {
+        assert.throws(() => parseQrPayload('https://example.com'), /not a bwhome/);
+    });
+
+    test('throws on non-http(s) tunnel URL', () => {
+        assert.throws(
+            () => parseQrPayload('bwhome://pair?u=javascript%3Aalert(1)&t=abc'),
+            /must be http/,
+        );
+    });
+
+    test('rejects empty input', () => {
+        assert.throws(() => parseQrPayload(''), /empty input/);
+        assert.throws(() => parseQrPayload(null), /empty input/);
+    });
+});
+
+describe('home-pairing.claim/confirm', async () => {
+    const pairing = await import('../src/home-pairing.js');
+
+    function jsonResp(obj, status = 200) {
+        return new Response(JSON.stringify(obj), {
+            status, headers: { 'content-type': 'application/json' },
+        });
+    }
+
+    test('claim POSTs the right shape and parses ok', async () => {
+        let captured;
+        const fetchImpl = async (url, init) => {
+            captured = { url, init };
+            return jsonResp({ ok: true });
+        };
+        const out = await pairing.claim({
+            tunnelUrl: 'http://h.test',
+            oneTimeToken: 'tok',
+            devicePubkey: 'pk-hex',
+            deviceName: 'phone',
+            fetchImpl,
+        });
+        assert.deepEqual(out, { ok: true });
+        assert.equal(captured.url, 'http://h.test/pair/claim');
+        assert.equal(captured.init.method, 'POST');
+        const body = JSON.parse(captured.init.body);
+        assert.equal(body.one_time_token, 'tok');
+        assert.equal(body.device_pubkey, 'pk-hex');
+        assert.equal(body.device_name, 'phone');
+        assert.equal(captured.init.headers['Content-Type'], 'application/json');
+    });
+
+    test('claim 404 surfaces a "token unknown or expired" error', async () => {
+        const fetchImpl = async () => new Response('', { status: 404 });
+        await assert.rejects(
+            pairing.claim({
+                tunnelUrl: 'http://h.test', oneTimeToken: 'x',
+                devicePubkey: 'pk', deviceName: 'n', fetchImpl,
+            }),
+            /token unknown or expired/,
+        );
+    });
+
+    test('confirm parses {device_token, peer_pubkey} bundle', async () => {
+        const fetchImpl = async () => jsonResp({
+            device_token: 'a'.repeat(64),
+            peer_pubkey: 'b'.repeat(64),
+        });
+        const bundle = await pairing.confirm({
+            tunnelUrl: 'http://h.test',
+            oneTimeToken: 'tok',
+            code: '123456',
+            fetchImpl,
+        });
+        assert.equal(bundle.device_token.length, 64);
+        assert.equal(bundle.peer_pubkey.length, 64);
+        assert.equal(bundle.cf_client_id, undefined);
+    });
+
+    test('confirm carries cf_* through when present', async () => {
+        const fetchImpl = async () => jsonResp({
+            device_token: 'a'.repeat(64),
+            peer_pubkey: 'b'.repeat(64),
+            cf_client_id: 'cid',
+            cf_client_secret: 'csec',
+        });
+        const bundle = await pairing.confirm({
+            tunnelUrl: 'http://h.test',
+            oneTimeToken: 'tok', code: '123456', fetchImpl,
+        });
+        assert.equal(bundle.cf_client_id, 'cid');
+        assert.equal(bundle.cf_client_secret, 'csec');
+    });
+
+    test('confirm 401 → wrong code error', async () => {
+        const fetchImpl = async () => new Response('', { status: 401 });
+        await assert.rejects(
+            pairing.confirm({
+                tunnelUrl: 'http://h.test', oneTimeToken: 'tok',
+                code: '000000', fetchImpl,
+            }),
+            /wrong 6-digit code/,
+        );
+    });
+
+    test('confirm rejects malformed bundle (missing peer_pubkey)', async () => {
+        const fetchImpl = async () => jsonResp({ device_token: 'a'.repeat(64) });
+        await assert.rejects(
+            pairing.confirm({
+                tunnelUrl: 'http://h.test', oneTimeToken: 'tok',
+                code: '111111', fetchImpl,
+            }),
+            /missing device_token \/ peer_pubkey/,
+        );
+    });
+});
+
+describe('home-pairing.savePairingBundle / loadPairingBundle', async () => {
+    let dbReady = false;
+    try {
+        await import('fake-indexeddb/auto');
+        dbReady = true;
+    } catch (_) { /* skip silently */ }
+
+    test('plaintext round-trip when no session key is set', async (ctx) => {
+        if (!dbReady) return ctx.skip();
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+        const stateMod = await import('../src/state.js');
+        stateMod.setSessionKey(null);
+        const pairing = await import('../src/home-pairing.js');
+
+        const bundle = {
+            device_token: 'a'.repeat(64),
+            peer_pubkey: 'b'.repeat(64),
+            tunnel_url: 'https://home.example.com',
+            device_name: 'Phone',
+        };
+        await pairing.savePairingBundle(bundle);
+        const out = await pairing.loadPairingBundle();
+        assert.deepEqual(out, bundle);
+    });
+
+    test('encrypted round-trip when session key is set', async (ctx) => {
+        if (!dbReady) return ctx.skip();
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+        const stateMod = await import('../src/state.js');
+        const cs = await import('../crypto-store.js');
+
+        const salt = cs.generateSalt();
+        const key = await cs.deriveKey('sess-pw', salt);
+        stateMod.setSessionKey(key);
+
+        const pairing = await import('../src/home-pairing.js');
+        const bundle = {
+            device_token: 'c'.repeat(64),
+            peer_pubkey: 'd'.repeat(64),
+            tunnel_url: 'https://home.example.com',
+            device_name: 'Laptop',
+        };
+        await pairing.savePairingBundle(bundle);
+
+        // Stored row is the encrypted shape — the plaintext field must
+        // not be present.
+        const row = await db.getSetting('home_pairing_bundle');
+        assert.ok(row.encrypted, 'should be encrypted shape');
+        assert.equal(row.plaintext, undefined);
+
+        const out = await pairing.loadPairingBundle();
+        assert.deepEqual(out, bundle);
+
+        // Lock the session — load should now return null without throwing.
+        stateMod.setSessionKey(null);
+        const locked = await pairing.loadPairingBundle();
+        assert.equal(locked, null);
+
+        // Restore so we don't leak state between tests.
+        stateMod.setSessionKey(null);
+    });
+
+    test('clearPairingBundle removes the record', async (ctx) => {
+        if (!dbReady) return ctx.skip();
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+        const stateMod = await import('../src/state.js');
+        stateMod.setSessionKey(null);
+        const pairing = await import('../src/home-pairing.js');
+        await pairing.savePairingBundle({
+            device_token: 'e'.repeat(64),
+            peer_pubkey: 'f'.repeat(64),
+            tunnel_url: 'https://h.test',
+            device_name: 'X',
+        });
+        await pairing.clearPairingBundle();
+        const out = await pairing.loadPairingBundle();
+        assert.equal(out, null);
+    });
+});
+
 // ── helpers ────────────────────────────────────────────────────
 
 function mkResponse(body) {

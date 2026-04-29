@@ -60,6 +60,12 @@ dashmap = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 
+# Pairing flow (M8): random tokens / device ids, hex encoding for opaque
+# device_token strings, sha2 for fingerprint hashing of the peer_pubkey.
+rand = { workspace = true }
+hex = { workspace = true }
+sha2 = { workspace = true }
+
 # CLI
 clap = { version = "4", features = ["derive", "env"] }
 

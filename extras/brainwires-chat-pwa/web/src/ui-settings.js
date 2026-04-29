@@ -36,6 +36,7 @@ import { mount as mountView } from './views.js';
 import { getTheme, setTheme } from './theme.js';
 import { render as renderRagPanel } from './ui-rag-panel.js';
 import { render as renderMcpPanel } from './ui-mcp-panel.js';
+import { renderHomePairingCard } from './ui-home-pairing.js';
 
 const PASSPHRASE_SETTING = 'passphraseConfig'; // { salt: base64, verify: encrypted("ok") }
 const ENCRYPT_OPT_OUT_SETTING = 'encryptionOptOut';
@@ -53,6 +54,7 @@ export async function render(root) {
 
     main.appendChild(await sectionPassphrase());
     main.appendChild(await sectionTheme());
+    main.appendChild(await sectionHomeAgent());
     main.appendChild(await sectionProviders());
     main.appendChild(await sectionLocalModel());
     main.appendChild(await sectionEmbeddingModels());
@@ -265,6 +267,13 @@ async function sectionTheme() {
     });
     body.appendChild(el('label', { class: 'bw-label' }, t('settings.theme.label'), sel));
     return sectionWrap(t('settings.theme.title'), body);
+}
+
+// ── Home agent (M8 pairing) ────────────────────────────────────
+
+async function sectionHomeAgent() {
+    const body = await renderHomePairingCard();
+    return sectionWrap(t('settings.home.title'), body);
 }
 
 // ── Cloud providers ────────────────────────────────────────────

@@ -24,8 +24,8 @@ branch.
 | M4        | A2A bridge — route inbound JSON-RPC into a real `TaskAgent`             | landed     |
 | M5        | Browser-side dial-home transport (`web/src/home-*`)                     | landed     |
 | M6        | CORS configuration + tunnel-pointing docs                                | landed     |
-| **M7**    | Cloudflare Calls TURN credential minting (cellular symmetric-NAT path)  | this commit |
-| M8        | Pairing flow (`/pair/claim`, `/pair/confirm`, QR + 6-digit confirm)     | —          |
+| M7        | Cloudflare Calls TURN credential minting (cellular symmetric-NAT path)  | landed     |
+| **M8**    | Pairing flow (`/pair/claim`, `/pair/confirm`, QR + 6-digit confirm)     | this commit |
 | M9–M12    | `home-provider.js`, reconnect/resume, multimodal chunking, polish       | —          |
 
 ## Architecture
@@ -95,12 +95,50 @@ The card is built from `brainwires_a2a::AgentCard`, advertises `streaming:
 true`, `defaultInputModes: ["text"]`, and a single `JSONRPC`
 `supportedInterfaces` entry pinned to `A2A_PROTOCOL_VERSION` ("0.3").
 
-### Pairing (M8)
+### Pairing (M8 — wired)
 
-| Method | Path              | Body / response                                     |
-|--------|-------------------|-----------------------------------------------------|
-| POST   | `/pair/claim`     | `{ one_time_token, device_pubkey, device_name }` → `204` |
-| POST   | `/pair/confirm`   | `{ code }` → `{ cf_client_id, cf_client_secret, device_token, peer_pubkey }` |
+| Method | Path              | Body / response                                                                  |
+|--------|-------------------|----------------------------------------------------------------------------------|
+| POST   | `/pair/claim`     | `{ one_time_token, device_pubkey, device_name }` → `200 { ok: true }` / `404`   |
+| POST   | `/pair/confirm`   | `{ one_time_token, code }` → `200 { device_token, cf_client_id?, cf_client_secret?, peer_pubkey }` / `401` (wrong code) / `404` (expired/unknown) / `400` (no claim) |
+
+Pending offers expire after **5 minutes**. A wrong-code submit consumes the
+offer (single-shot) — the operator can run `brainwires-home pair` again to
+mint a fresh one. Confirmed device records are persisted to
+`~/.brainwires/home/devices.json` (atomic write, `0600` on Unix). The
+daemon's stable identity pubkey is generated on first start at
+`~/.brainwires/home/identity.json` (`0600`); the same value is returned in
+every `peer_pubkey` so the PWA can pin it (TOFU).
+
+### CLI: `brainwires-home pair`
+
+```sh
+cargo run -p brainwires-home -- pair --tunnel-url https://home.example.com
+```
+
+Mints one offer, prints the `bwhome://pair?u=…&t=…&fp=…` URL plus a 6-digit
+confirm code, and waits up to 5 minutes for the PWA to claim + confirm.
+On success, prints the resulting `device_name` / `device_pubkey` /
+`granted_at` and exits.
+
+The QR URL is plain text — render it through any QR encoder (we don't
+ship one in the daemon). On most home machines the easiest path is
+`qrencode -t ANSIUTF8 'bwhome://...'` piped from the daemon's stdout.
+
+### CF Access (optional)
+
+If the operator runs the daemon behind Cloudflare Access, they can pre-
+provision a service-token pair and pass it via env / flags:
+
+```sh
+brainwires-home --cf-access-client-id <ID> --cf-access-client-secret <SECRET> ...
+```
+
+The same `(client_id, client_secret)` is returned alongside `device_token`
+on every successful pairing — the PWA includes it as
+`CF-Access-Client-Id` / `CF-Access-Client-Secret` headers on signaling
+requests. CF Access is **optional**; without it the daemon validates only
+the `Authorization: Bearer <device_token>` (the primary auth gate).
 
 ## Data-channel protocol — A2A JSON-RPC over SCTP
 
