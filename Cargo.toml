@@ -18,6 +18,7 @@ members = [
     "crates/brainwires-hardware",
     "crates/brainwires-training",
     "extras/brainwires-autonomy",
+    "extras/brainwires-chat-pwa/home",
     "extras/brainwires-chat-pwa/wasm",
     "extras/brainwires-wasm",
     "crates/brainwires-knowledge",
