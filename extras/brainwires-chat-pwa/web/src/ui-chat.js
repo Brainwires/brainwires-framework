@@ -31,6 +31,7 @@ import { el, clear, toast, isMobile, genId, escapeHtml } from './utils.js';
 import { t } from './i18n.js';
 import { renderMarkdown } from './markdown.js';
 import { highlightWithin } from './code-highlight.js';
+import { extractThinking, buildReasoningElement } from './reasoning-display.js';
 
 // math.js (KaTeX + theme) is dynamically imported on first render so the
 // ~80 KB gz cost is paid only by sessions that actually contain math.
@@ -338,10 +339,16 @@ function renderMessages() {
 function buildBubble(m) {
     const isUser = m.role === 'user';
     const cls = isUser ? 'bubble bubble-user' : 'bubble bubble-assistant';
+    const { thinking, body } = isUser
+        ? { thinking: null, body: m.content || '' }
+        : extractThinking(m.content || '');
     const contentNode = el('div', { class: 'bubble-content' });
-    contentNode.innerHTML = renderMarkdown(m.content || '');
-    highlightWithin(contentNode);
-    maybeRenderMath(contentNode);
+    if (thinking) contentNode.appendChild(buildReasoningElement(thinking));
+    const bodyNode = el('div', { class: 'bubble-body' });
+    bodyNode.innerHTML = renderMarkdown(body);
+    contentNode.appendChild(bodyNode);
+    highlightWithin(bodyNode);
+    maybeRenderMath(bodyNode);
 
     const actions = el('div', { class: 'bubble-actions' });
     actions.appendChild(el('button', {
@@ -420,10 +427,13 @@ async function runProvider(messages) {
     _messages.push(placeholder);
     const bubble = buildBubble(placeholder);
     _ui.listEl.appendChild(bubble);
+    const contentNode = bubble.querySelector('.bubble-content');
     _streaming = {
         messageId,
         bubble,
-        contentNode: bubble.querySelector('.bubble-content'),
+        contentNode,
+        bodyNode: contentNode.querySelector('.bubble-body'),
+        reasoningNode: null,
         accum: '',
         finalized: false,
         userMessages: messages,
@@ -485,10 +495,34 @@ async function runProvider(messages) {
     }
 }
 
+// Render `_streaming.accum` into the bubble, splitting an optional leading
+// `<thinking>...</thinking>` block into a collapsible reasoning <details>
+// above the body. Called from chunk / done / error handlers so all three
+// paths share the dual-pane logic.
+function renderStreamingFrame(streaming) {
+    if (!streaming) return;
+    const { thinking, body } = extractThinking(streaming.accum || '');
+    if (thinking) {
+        if (!streaming.reasoningNode) {
+            streaming.reasoningNode = buildReasoningElement(thinking);
+            streaming.contentNode.insertBefore(streaming.reasoningNode, streaming.bodyNode);
+        } else {
+            const bodyEl = streaming.reasoningNode.querySelector('.reasoning-body');
+            if (bodyEl) bodyEl.innerHTML = renderMarkdown(thinking);
+        }
+    } else if (streaming.reasoningNode) {
+        // Closing tag arrived after we already rendered partial reasoning;
+        // extraction now succeeds and the branch above runs. The non-thinking
+        // case here means the model never opened a thinking tag — leave the
+        // reasoning node alone if the user opened it.
+    }
+    streaming.bodyNode.innerHTML = renderMarkdown(body);
+}
+
 function streamingError(msg) {
     if (_streaming) {
-        const node = _streaming.contentNode;
-        node.innerHTML = `<em class="bubble-error">${escapeHtml(msg)}</em>`;
+        const bodyNode = _streaming.bodyNode || _streaming.contentNode;
+        bodyNode.innerHTML = `<em class="bubble-error">${escapeHtml(msg)}</em>`;
         _streaming.finalized = true;
         _streaming = null;
     }
@@ -501,26 +535,27 @@ function subscribeStreams() {
         if (!_streaming || _streaming.messageId !== d.messageId) return;
         if (typeof d.delta !== 'string') return;
         _streaming.accum += d.delta;
-        _streaming.contentNode.innerHTML = renderMarkdown(_streaming.accum);
+        renderStreamingFrame(_streaming);
         if (_autoScroll) scrollToBottom(false);
     });
     stateEvents.addEventListener('chat_done', (e) => {
         const d = e.detail || {};
         if (!_streaming || _streaming.messageId !== d.messageId) return;
-        const node = _streaming.contentNode;
+        renderStreamingFrame(_streaming);
+        const bodyNode = _streaming.bodyNode;
         finalizeStreaming();
-        highlightWithin(node);
-        maybeRenderMath(node);
+        highlightWithin(bodyNode);
+        maybeRenderMath(bodyNode);
     });
     stateEvents.addEventListener('chat_error', (e) => {
         const d = e.detail || {};
         if (!_streaming || _streaming.messageId !== d.messageId) return;
         const err = d.error || t('error.generic');
-        const node = _streaming.contentNode;
-        const prev = _streaming.accum || '';
-        node.innerHTML = renderMarkdown(prev) + `<em class="bubble-error"> — ${escapeHtml(err)}</em>`;
-        highlightWithin(node);
-        maybeRenderMath(node);
+        renderStreamingFrame(_streaming);
+        const bodyNode = _streaming.bodyNode;
+        bodyNode.insertAdjacentHTML('beforeend', `<em class="bubble-error"> — ${escapeHtml(err)}</em>`);
+        highlightWithin(bodyNode);
+        maybeRenderMath(bodyNode);
         _streaming.finalized = true;
         _streaming = null;
         toast(err, 'error');

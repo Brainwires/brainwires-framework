@@ -620,6 +620,55 @@ describe('markdown', async () => {
     });
 });
 
+// ── reasoning-display ─────────────────────────────────────────
+
+describe('reasoning-display', async () => {
+    let extractThinking;
+    try {
+        const i18n = await import('../src/i18n.js');
+        i18n._setDictForTests({ 'chat.copy': 'Copy', 'chat.reasoning': 'Reasoning' });
+        const mod = await import('../src/reasoning-display.js');
+        extractThinking = mod.extractThinking;
+    } catch (e) { console.warn('[unit.test] reasoning-display imports failed:', e.message); }
+
+    test('extracts a leading <thinking>...</thinking> block', (ctx) => {
+        if (!extractThinking) return ctx.skip();
+        const { thinking, body } = extractThinking('<thinking>I should check both branches.</thinking>\nThe answer is 42.');
+        assert.equal(thinking, 'I should check both branches.');
+        assert.equal(body, 'The answer is 42.');
+    });
+
+    test('returns null thinking when no block present', (ctx) => {
+        if (!extractThinking) return ctx.skip();
+        const { thinking, body } = extractThinking('Just a regular response.');
+        assert.equal(thinking, null);
+        assert.equal(body, 'Just a regular response.');
+    });
+
+    test('handles whitespace before opening tag', (ctx) => {
+        if (!extractThinking) return ctx.skip();
+        const { thinking, body } = extractThinking('  \n<thinking>step</thinking>x');
+        assert.equal(thinking, 'step');
+        assert.equal(body, 'x');
+    });
+
+    test('does not extract when tag is mid-message', (ctx) => {
+        if (!extractThinking) return ctx.skip();
+        const { thinking } = extractThinking('Hello <thinking>this came late</thinking>');
+        assert.equal(thinking, null);
+    });
+
+    test('partial open tag during streaming yields no extraction yet', (ctx) => {
+        if (!extractThinking) return ctx.skip();
+        const { thinking, body } = extractThinking('<thinking>partial...');
+        // Without a closing tag, the regex doesn't match; the partial body
+        // renders as plain text and snaps into a <details> when </thinking>
+        // arrives.
+        assert.equal(thinking, null);
+        assert.equal(body, '<thinking>partial...');
+    });
+});
+
 // ── theme ─────────────────────────────────────────────────────
 
 describe('theme', async () => {
