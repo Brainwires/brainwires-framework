@@ -6,6 +6,7 @@
 //! mints a new session. M3 wires the offer/answer that flows through these
 //! routes into a real `RTCPeerConnection`.
 
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
@@ -32,8 +33,25 @@ use crate::TurnConfig;
 use crate::a2a::A2aBridge;
 use crate::turn::{IceServerJson, mint_ice_servers};
 use crate::webrtc::{
-    PeerEvent, apply_offer_and_create_answer, build_answerer, run_a2a_loop,
+    PeerEvent, apply_offer_and_create_answer, build_answerer, run_a2a_loop_with_session,
 };
+
+/// Maximum number of reply frames retained in the per-session outbox ring
+/// buffer. Keeps a generous-but-bounded backlog for resume after a brief
+/// network blip; not a durable queue (M10).
+pub const OUTBOX_CAPACITY: usize = 64;
+
+/// One entry in the per-session outbox.
+///
+/// `id` is the JSON-RPC reply id (mirrored from the originating request).
+/// We keep it as `i64` so resume cursors compare cleanly even when the PWA
+/// has only seen one of many in-flight requests. Frames are stored as the
+/// already-serialized JSON text — no need to re-serialize on replay.
+#[derive(Debug, Clone)]
+pub struct OutboxEntry {
+    pub id: i64,
+    pub frame: String,
+}
 
 /// Default long-poll wait. The PWA retries on 204.
 pub const DEFAULT_LONG_POLL: Duration = Duration::from_secs(25);
@@ -138,6 +156,10 @@ pub struct SessionState {
     /// Count of PWA-originated ICE candidates we've forwarded into the peer.
     /// Logging only — the wire protocol doesn't expose this.
     pub peer_input_count: AtomicUsize,
+    /// M10 — bounded outbox of reply frames the daemon has emitted on the
+    /// data channel. The PWA's `system/resume` cursors against this on
+    /// reconnect. Capped at [`OUTBOX_CAPACITY`]; oldest entries roll off.
+    pub outbox: RwLock<VecDeque<OutboxEntry>>,
 }
 
 impl SessionState {
@@ -153,7 +175,47 @@ impl SessionState {
             peer: RwLock::new(None),
             data_channel: RwLock::new(None),
             peer_input_count: AtomicUsize::new(0),
+            outbox: RwLock::new(VecDeque::with_capacity(OUTBOX_CAPACITY)),
         }
+    }
+
+    /// Push a reply frame onto the outbox. Drops the oldest entry when at
+    /// capacity. Frames are expected in monotonic-id order (the dispatcher
+    /// minted ids are JSON-RPC request ids that the PWA allocated
+    /// monotonically — see `home-transport.js::JsonRpcDispatcher`).
+    pub async fn push_outbox(&self, id: i64, frame: String) {
+        let mut q = self.outbox.write().await;
+        if q.len() >= OUTBOX_CAPACITY {
+            q.pop_front();
+        }
+        q.push_back(OutboxEntry { id, frame });
+    }
+
+    /// Build the `system/resume` reply payload for a given cursor.
+    ///
+    /// Returns `(replayed_frames, dropped)`:
+    ///   - `replayed_frames` = every outbox entry with `id > last_seen_id`,
+    ///     in original order.
+    ///   - `dropped = true` when the cursor predates the oldest retained
+    ///     frame (i.e. the PWA missed at least one frame that's now gone).
+    ///     The PWA treats this as a hard reset and re-issues anything
+    ///     in-flight.
+    pub async fn resume_from(&self, last_seen_id: i64) -> (Vec<String>, bool) {
+        let q = self.outbox.read().await;
+        let oldest_id = q.front().map(|e| e.id);
+        let dropped = match oldest_id {
+            // If the oldest retained id is greater than `last_seen_id + 1`
+            // we've lost frames in between. Strict greater-than because the
+            // cursor is exclusive (we're returning frames with id > cursor).
+            Some(o) => o > last_seen_id.saturating_add(1),
+            None => false,
+        };
+        let frames = q
+            .iter()
+            .filter(|e| e.id > last_seen_id)
+            .map(|e| e.frame.clone())
+            .collect();
+        (frames, dropped)
     }
 }
 
@@ -374,6 +436,47 @@ async fn post_offer(
         return StatusCode::NOT_FOUND;
     };
 
+    // M10 — renegotiation path. If a peer already exists on this session
+    // (the PWA initiated an ICE restart), reuse it: just apply the new
+    // remote offer, mint a fresh answer, replace the stored answer, and
+    // wake any /signal/answer long-pollers. webrtc-rs handles the ICE
+    // ufrag/pwd swap transparently when set_remote_description is called
+    // with an offer that carries `a=ice-ufrag` / `a=ice-pwd` lines
+    // different from the prior negotiation.
+    if let Some(existing_pc) = s.peer.read().await.clone() {
+        use webrtc::peer_connection::RTCSessionDescription;
+        let new_offer = match RTCSessionDescription::offer(body.sdp.clone()) {
+            Ok(o) => o,
+            Err(e) => {
+                tracing::warn!(session = %session, error = %e, "renegotiation: parse offer");
+                return StatusCode::BAD_REQUEST;
+            }
+        };
+        if let Err(e) = existing_pc.set_remote_description(new_offer).await {
+            tracing::warn!(session = %session, error = %e, "renegotiation: set_remote_description(offer)");
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        }
+        let answer = match existing_pc.create_answer(None).await {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::warn!(session = %session, error = %e, "renegotiation: create_answer");
+                return StatusCode::INTERNAL_SERVER_ERROR;
+            }
+        };
+        let answer_sdp = answer.sdp.clone();
+        if let Err(e) = existing_pc.set_local_description(answer).await {
+            tracing::warn!(session = %session, error = %e, "renegotiation: set_local_description(answer)");
+            return StatusCode::INTERNAL_SERVER_ERROR;
+        }
+        *s.offer.write().await = Some(body);
+        *s.answer.write().await = Some(SdpDesc {
+            sdp: answer_sdp,
+            kind: "answer".to_string(),
+        });
+        s.answer_notify.notify_waiters();
+        return StatusCode::NO_CONTENT;
+    }
+
     // Stash the offer for diagnostic / replay purposes.
     *s.offer.write().await = Some(body.clone());
 
@@ -418,8 +521,9 @@ async fn post_offer(
     // exposes `subscribe()`, so we keep ownership of it inside the task.
     let session_state = s.clone();
     let bridge_for_loop = state.bridge.clone();
+    let session_for_loop = s.clone();
     tokio::spawn(async move {
-        match run_a2a_loop(&peer, bridge_for_loop).await {
+        match run_a2a_loop_with_session(&peer, bridge_for_loop, Some(session_for_loop)).await {
             Ok(dc) => {
                 *session_state.data_channel.write().await = Some(dc);
             }
@@ -1023,6 +1127,60 @@ mod tests {
                 assert_ne!(s, "https://random.example.com");
             }
         }
+    }
+
+    // ---------- M10 outbox / resume tests ----------
+
+    #[tokio::test]
+    async fn outbox_pushes_drop_oldest_at_capacity() {
+        let s = SessionState::new("test".to_string());
+        // Push 70 entries with monotonic ids; cap is 64.
+        for i in 1..=70 {
+            s.push_outbox(i, format!("frame-{i}")).await;
+        }
+        let q = s.outbox.read().await;
+        assert_eq!(q.len(), OUTBOX_CAPACITY);
+        // Oldest retained should be id=7 (70 - 64 + 1). Newest = 70.
+        assert_eq!(q.front().unwrap().id, 7);
+        assert_eq!(q.back().unwrap().id, 70);
+    }
+
+    #[tokio::test]
+    async fn system_resume_returns_subset() {
+        let s = SessionState::new("test".to_string());
+        for i in 1..=5 {
+            s.push_outbox(i, format!("frame-{i}")).await;
+        }
+        let (replayed, dropped) = s.resume_from(2).await;
+        assert!(!dropped, "no entries lost; dropped should be false");
+        let ids: Vec<&str> = replayed.iter().map(|f| f.as_str()).collect();
+        assert_eq!(ids, vec!["frame-3", "frame-4", "frame-5"]);
+    }
+
+    #[tokio::test]
+    async fn system_resume_dropped_flag_set() {
+        let s = SessionState::new("test".to_string());
+        for i in 1..=70 {
+            s.push_outbox(i, format!("frame-{i}")).await;
+        }
+        // Cursor is older than the retained window (oldest id is 7).
+        let (replayed, dropped) = s.resume_from(1).await;
+        assert!(dropped, "cursor predates the outbox tail; dropped must be true");
+        // Should still return the entire retained window.
+        assert_eq!(replayed.len(), OUTBOX_CAPACITY);
+        assert_eq!(replayed.first().unwrap(), "frame-7");
+        assert_eq!(replayed.last().unwrap(), "frame-70");
+    }
+
+    #[tokio::test]
+    async fn system_resume_caught_up_returns_empty() {
+        let s = SessionState::new("test".to_string());
+        for i in 1..=5 {
+            s.push_outbox(i, format!("frame-{i}")).await;
+        }
+        let (replayed, dropped) = s.resume_from(5).await;
+        assert!(replayed.is_empty(), "cursor at tip; nothing to replay");
+        assert!(!dropped);
     }
 
     #[tokio::test]

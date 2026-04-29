@@ -1608,6 +1608,409 @@ describe('home-transport.JsonRpcDispatcher', async () => {
         await assert.rejects(r.promise, /timed out after 20ms/);
         assert.equal(d.pendingCount, 0);
     });
+
+    // M10 — last-seen reply id tracking for the resume cursor.
+    test('lastSeenReplyId tracks high-water mark of numeric reply ids', () => {
+        const d = new JsonRpcDispatcher();
+        assert.equal(d.lastSeenReplyId, 0);
+        const r1 = d.request('a', {}, { timeoutMs: 0 });
+        const r2 = d.request('b', {}, { timeoutMs: 0 });
+        const r3 = d.request('c', {}, { timeoutMs: 0 });
+        d.dispatch(JSON.stringify({ jsonrpc: '2.0', id: r1.id, result: { ok: true } }));
+        assert.equal(d.lastSeenReplyId, 1);
+        // Out-of-order higher id bumps the cursor.
+        d.dispatch(JSON.stringify({ jsonrpc: '2.0', id: r3.id, result: { ok: true } }));
+        assert.equal(d.lastSeenReplyId, 3);
+        // Lower id (the now-orphaned r2) does NOT regress the cursor.
+        d.dispatch(JSON.stringify({ jsonrpc: '2.0', id: r2.id, result: { ok: true } }));
+        assert.equal(d.lastSeenReplyId, 3);
+        // Unknown id with higher value still bumps the cursor (replay frames).
+        d.dispatch(JSON.stringify({ jsonrpc: '2.0', id: 99, result: 'replay' }));
+        assert.equal(d.lastSeenReplyId, 99);
+    });
+});
+
+// ── home-transport HomeTransport (M10 reconnect / resume) ─────
+
+describe('home-transport.HomeTransport (M10)', async () => {
+    const { HomeTransport } = await import('../src/home-transport.js');
+
+    /** Fake clock with manual tick control. */
+    function mkClock() {
+        let now = 0;
+        let nextHandle = 1;
+        const intervals = new Map(); // handle -> { fn, every, next }
+        const timeouts = new Map();  // handle -> { fn, at }
+        const setInterval = (fn, every) => {
+            const h = nextHandle++;
+            intervals.set(h, { fn, every, next: now + every });
+            return h;
+        };
+        const clearInterval = (h) => { intervals.delete(h); };
+        const setTimeout = (fn, ms) => {
+            const h = nextHandle++;
+            timeouts.set(h, { fn, at: now + ms });
+            return h;
+        };
+        const clearTimeout = (h) => { timeouts.delete(h); };
+        const advance = async (ms) => {
+            const target = now + ms;
+            // Walk forward in chronological order so chained timers fire
+            // correctly. Each iteration finds the earliest pending event
+            // strictly greater than `now` and <= `target`; we then advance
+            // time to that point and fire it. Loop ends when no event
+            // remains in the window.
+            while (true) {
+                let nextAt = Infinity;
+                let nextFn = null;
+                let nextKey = null;
+                for (const [h, t] of timeouts) {
+                    if (t.at > now && t.at <= target && t.at < nextAt) {
+                        nextAt = t.at; nextFn = t.fn; nextKey = ['t', h];
+                    }
+                }
+                for (const [h, i] of intervals) {
+                    if (i.next > now && i.next <= target && i.next < nextAt) {
+                        nextAt = i.next; nextFn = i.fn; nextKey = ['i', h];
+                    }
+                }
+                if (!nextFn) break;
+                now = nextAt;
+                if (nextKey[0] === 't') {
+                    timeouts.delete(nextKey[1]);
+                } else {
+                    const i = intervals.get(nextKey[1]);
+                    if (i) i.next += i.every;
+                }
+                // Fire the callback but do NOT await its return — production
+                // setInterval/setTimeout are fire-and-forget. Any inner
+                // `await` chain settles via microtasks the test yields to
+                // explicitly between advance() calls.
+                try { nextFn(); } catch (_) { /* swallow — matches real timers */ }
+                // Yield so synchronous chains inside the callback resolve.
+                await Promise.resolve();
+            }
+            now = target;
+        };
+        return {
+            setInterval, clearInterval, setTimeout, clearTimeout,
+            now: () => now,
+            advance,
+            _timeouts: timeouts,
+            _intervals: intervals,
+        };
+    }
+
+    /** Fake signaling that records calls; createSession/postOffer/pollAnswer return queued values. */
+    function mkSignaling({ answers = [{ sdp: 'v=0\r\n...answer1', type: 'answer' }], iceServers = [] } = {}) {
+        const calls = [];
+        const answerQueue = [...answers];
+        return {
+            calls,
+            createSession: async () => {
+                calls.push({ kind: 'createSession' });
+                return { session_id: `sess-${calls.length}`, ice_servers: iceServers };
+            },
+            postOffer: async (sessionId, sdp) => {
+                calls.push({ kind: 'postOffer', sessionId, sdp });
+            },
+            pollAnswer: async (sessionId) => {
+                calls.push({ kind: 'pollAnswer', sessionId });
+                return answerQueue.shift() || { sdp: 'v=0\r\n...answerN', type: 'answer' };
+            },
+            postIce: async () => { calls.push({ kind: 'postIce' }); },
+            pollIce: async (sessionId, since, signal) => {
+                calls.push({ kind: 'pollIce' });
+                // Park forever until aborted so the pump doesn't busy-loop.
+                if (signal) {
+                    await new Promise((_resolve, reject) => {
+                        if (signal.aborted) reject(Object.assign(new Error('abort'), { name: 'AbortError' }));
+                        signal.addEventListener('abort', () => reject(Object.assign(new Error('abort'), { name: 'AbortError' })));
+                    });
+                }
+                return { candidates: [], cursor: since };
+            },
+            closeSession: async () => { calls.push({ kind: 'closeSession' }); },
+        };
+    }
+
+    /** Mock RTCPeerConnection that exposes hooks tests can drive. */
+    function mkPeerCtor() {
+        const instances = [];
+        const Ctor = function FakePC(_cfg) {
+            this._listeners = { iceconnectionstatechange: new Set() };
+            this.iceConnectionState = 'new';
+            this.localDescription = null;
+            this.remoteDescription = null;
+            this._dc = null;
+            this.onicecandidate = null;
+            this.oniceconnectionstatechange = null;
+            this.restartIceCalls = 0;
+            this.createOfferCalls = [];
+            this.createDataChannel = (label) => {
+                const dc = {
+                    label,
+                    onopen: null, onerror: null, onclose: null, onmessage: null,
+                    sentFrames: [],
+                    send: (frame) => { dc.sentFrames.push(frame); },
+                    close: () => { if (dc.onclose) dc.onclose(); },
+                };
+                this._dc = dc;
+                return dc;
+            };
+            this.addEventListener = (ev, fn) => {
+                if (!this._listeners[ev]) this._listeners[ev] = new Set();
+                this._listeners[ev].add(fn);
+            };
+            this.removeEventListener = (ev, fn) => {
+                if (this._listeners[ev]) this._listeners[ev].delete(fn);
+            };
+            this.setLocalDescription = async (d) => { this.localDescription = d; };
+            this.setRemoteDescription = async (d) => { this.remoteDescription = d; };
+            this.createOffer = async (opts) => { this.createOfferCalls.push(opts || null); return { type: 'offer', sdp: `v=0\r\n...offer-${this.createOfferCalls.length}` }; };
+            this.restartIce = () => { this.restartIceCalls += 1; };
+            this.addIceCandidate = async () => {};
+            this.close = () => {};
+            // Test helper: drive the iceConnectionState machine.
+            this._setIceState = (s) => {
+                this.iceConnectionState = s;
+                if (typeof this.oniceconnectionstatechange === 'function') this.oniceconnectionstatechange();
+                for (const fn of (this._listeners.iceconnectionstatechange || [])) {
+                    try { fn(); } catch (_) {}
+                }
+            };
+            // Test helper: simulate an inbound dc message.
+            this._inbound = (text) => {
+                if (this._dc && typeof this._dc.onmessage === 'function') {
+                    this._dc.onmessage({ data: text });
+                }
+            };
+            instances.push(this);
+        };
+        Ctor.instances = instances;
+        return Ctor;
+    }
+
+    /** Drive HomeTransport.connect() to the connected state on the mock peer. */
+    async function driveToConnected(transport, PCctor) {
+        const connectPromise = transport.connect();
+        // Yield until the FakePC has been constructed.
+        for (let i = 0; i < 10 && PCctor.instances.length === 0; i++) await Promise.resolve();
+        const pc = PCctor.instances[PCctor.instances.length - 1];
+        // Move ICE forward + open the data channel synchronously.
+        // The dc.onopen handler is set inside connect after createDataChannel,
+        // so wait one microtask before firing it.
+        for (let i = 0; i < 20 && (!pc._dc || typeof pc._dc.onopen !== 'function'); i++) await Promise.resolve();
+        pc._setIceState('connected');
+        pc._dc.onopen();
+        await connectPromise;
+        return pc;
+    }
+
+    test('heartbeat fires every interval and pings on schedule', async () => {
+        const clock = mkClock();
+        const PC = mkPeerCtor();
+        const signaling = mkSignaling();
+        const transport = new HomeTransport({
+            signaling,
+            rtcPeerConnection: PC,
+            heartbeatIntervalMs: 1000,
+            heartbeatTimeoutMs: 200,
+            _clock: clock,
+        });
+        const pc = await driveToConnected(transport, PC);
+
+        // Each tick awaits the system/ping reply, so we have to: (a) advance
+        // the clock to fire the interval (don't await it — it would deadlock
+        // until we reply), (b) reply to the ping, (c) yield microtasks to
+        // settle the tick's await chain.
+        const countPings = () => pc._dc.sentFrames.filter((f) => {
+            try { return JSON.parse(f).method === 'system/ping'; } catch (_) { return false; }
+        }).length;
+        const replyToOpenPings = () => {
+            for (const frame of pc._dc.sentFrames) {
+                let msg;
+                try { msg = JSON.parse(frame); } catch (_) { continue; }
+                if (msg.method !== 'system/ping') continue;
+                // Don't double-reply.
+                pc._inbound(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { ok: true, ts: clock.now() } }));
+            }
+        };
+
+        // Tick 1.
+        const advance1 = clock.advance(1000);
+        // Yield microtasks so the interval fires its callback (which sends the ping).
+        for (let i = 0; i < 5; i++) await Promise.resolve();
+        const pings1 = countPings();
+        assert.ok(pings1 >= 1, `expected at least one ping after 1s tick; got ${pings1}`);
+        // Reply so _heartbeatTick's await resolves and advance1 can complete.
+        replyToOpenPings();
+        await advance1;
+
+        // Tick 2.
+        const advance2 = clock.advance(1000);
+        for (let i = 0; i < 5; i++) await Promise.resolve();
+        const pings2 = countPings();
+        assert.ok(pings2 > pings1, `expected more pings after second tick; got ${pings2} (was ${pings1})`);
+        replyToOpenPings();
+        await advance2;
+
+        // Verify lastPongAt was bumped (diagnostic for connection-status pill).
+        assert.ok(transport.lastPongAt > 0, 'lastPongAt should reflect a successful pong');
+
+        await transport.close();
+    });
+
+    test('ICE-disconnected for >grace triggers restartIce + new offer', async () => {
+        const clock = mkClock();
+        const PC = mkPeerCtor();
+        const signaling = mkSignaling({
+            answers: [
+                { sdp: 'v=0\r\n...answer1', type: 'answer' },
+                { sdp: 'v=0\r\n...answer2', type: 'answer' },
+            ],
+        });
+        const transport = new HomeTransport({
+            signaling,
+            rtcPeerConnection: PC,
+            heartbeatIntervalMs: 1_000_000,  // suppress heartbeat noise
+            iceDisconnectGraceMs: 2000,
+            restartTimeoutMs: 30000,
+            _clock: clock,
+        });
+        const pc = await driveToConnected(transport, PC);
+        assert.equal(pc.createOfferCalls.length, 1, 'one offer for initial connect');
+        assert.equal(pc.restartIceCalls, 0);
+
+        // Drop ICE; nothing happens within the grace window.
+        pc._setIceState('disconnected');
+        await clock.advance(1000);
+        assert.equal(pc.restartIceCalls, 0, 'no restart inside grace');
+
+        // Past the grace window — restartIce + new iceRestart offer should fire.
+        await clock.advance(1500);
+        // The restart awaits postOffer → pollAnswer → setRemoteDescription →
+        // _waitIceConnected. Drive ICE back to connected so _waitIceConnected
+        // resolves, and reply to the system/resume the restart sends after.
+        pc._setIceState('connected');
+        // Yield for the chain inside _iceRestartOnce.
+        for (let i = 0; i < 30; i++) await Promise.resolve();
+        // Auto-reply to system/resume.
+        for (const frame of pc._dc.sentFrames) {
+            const msg = JSON.parse(frame);
+            if (msg.method === 'system/resume') {
+                pc._inbound(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { replayed: [], dropped: false } }));
+            }
+        }
+        for (let i = 0; i < 10; i++) await Promise.resolve();
+
+        assert.equal(pc.restartIceCalls, 1, 'restartIce called exactly once');
+        assert.equal(pc.createOfferCalls.length, 2, 'second offer for the restart');
+        assert.deepEqual(pc.createOfferCalls[1], { iceRestart: true });
+        // Ensure the same session_id was reused (no createSession on restart).
+        const createSessionCalls = signaling.calls.filter((c) => c.kind === 'createSession').length;
+        assert.equal(createSessionCalls, 1, 'restart must not open a new session');
+
+        await transport.close();
+    });
+
+    test('post-restart resume replays returned frames into the dispatcher', async () => {
+        const clock = mkClock();
+        const PC = mkPeerCtor();
+        const signaling = mkSignaling({
+            answers: [
+                { sdp: 'v=0\r\n...answer1', type: 'answer' },
+                { sdp: 'v=0\r\n...answer2', type: 'answer' },
+            ],
+        });
+        const resetCalls = [];
+        const transport = new HomeTransport({
+            signaling,
+            rtcPeerConnection: PC,
+            heartbeatIntervalMs: 1_000_000,
+            iceDisconnectGraceMs: 100,
+            _clock: clock,
+            onSessionReset: (info) => { resetCalls.push(info); },
+        });
+        const pc = await driveToConnected(transport, PC);
+
+        // Park a real outbound request so the replay can satisfy it.
+        const pending = transport.request('message/send', { foo: 'bar' }, { timeoutMs: 1_000_000 });
+        const sentReq = JSON.parse(pc._dc.sentFrames[pc._dc.sentFrames.length - 1]);
+        const pendingId = sentReq.id;
+
+        // Fake a network blip.
+        pc._setIceState('disconnected');
+        await clock.advance(200);
+
+        // The restart awaits ICE-connected; flip the state.
+        pc._setIceState('connected');
+        for (let i = 0; i < 30; i++) await Promise.resolve();
+
+        // The transport now sends `system/resume`. Reply with one replayed
+        // frame — the original pending message/send reply.
+        const resumeFrame = pc._dc.sentFrames.find((f) => {
+            try { return JSON.parse(f).method === 'system/resume'; } catch (_) { return false; }
+        });
+        assert.ok(resumeFrame, 'transport must send system/resume after restart');
+        const resumeReq = JSON.parse(resumeFrame);
+        const replayPayload = JSON.stringify({ jsonrpc: '2.0', id: pendingId, result: { ok: 'replayed' } });
+        pc._inbound(JSON.stringify({
+            jsonrpc: '2.0',
+            id: resumeReq.id,
+            result: { replayed: [replayPayload], dropped: false },
+        }));
+        // Settle the chain that re-feeds replayed frames.
+        for (let i = 0; i < 10; i++) await Promise.resolve();
+
+        const reply = await pending;
+        assert.deepEqual(reply, { ok: 'replayed' }, 'replayed frame must satisfy the original request');
+        assert.deepEqual(resetCalls, [], 'dropped:false → no reset event');
+
+        await transport.close();
+    });
+
+    test('resume with dropped:true triggers the onSessionReset hook', async () => {
+        const clock = mkClock();
+        const PC = mkPeerCtor();
+        const signaling = mkSignaling({
+            answers: [
+                { sdp: 'v=0\r\n...answer1', type: 'answer' },
+                { sdp: 'v=0\r\n...answer2', type: 'answer' },
+            ],
+        });
+        const resetCalls = [];
+        const transport = new HomeTransport({
+            signaling,
+            rtcPeerConnection: PC,
+            heartbeatIntervalMs: 1_000_000,
+            iceDisconnectGraceMs: 100,
+            _clock: clock,
+            onSessionReset: (info) => { resetCalls.push(info); },
+        });
+        const pc = await driveToConnected(transport, PC);
+
+        pc._setIceState('disconnected');
+        await clock.advance(200);
+        pc._setIceState('connected');
+        for (let i = 0; i < 30; i++) await Promise.resolve();
+
+        const resumeFrame = pc._dc.sentFrames.find((f) => {
+            try { return JSON.parse(f).method === 'system/resume'; } catch (_) { return false; }
+        });
+        const resumeReq = JSON.parse(resumeFrame);
+        pc._inbound(JSON.stringify({
+            jsonrpc: '2.0',
+            id: resumeReq.id,
+            result: { replayed: [], dropped: true },
+        }));
+        for (let i = 0; i < 10; i++) await Promise.resolve();
+
+        assert.equal(resetCalls.length, 1, 'one reset event');
+        assert.deepEqual(resetCalls[0], { dropped: true, newSession: false });
+
+        await transport.close();
+    });
 });
 
 // ── home-pairing (M8 pairing flow) ────────────────────────────

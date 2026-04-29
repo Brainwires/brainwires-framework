@@ -27,6 +27,9 @@ export const defaultModel = 'default';
 
 let _transport = null;       // connected HomeTransport (singleton across messages)
 let _connecting = null;      // in-flight connect() promise — coalesces concurrent calls
+// M10 — set by getTransport() so a startChat() in flight when the resume
+// protocol surfaces `dropped: true` can emit a chat_error to the UI.
+let _activeChatContext = null; // { conversationId, messageId } or null
 
 /**
  * Build the auth header set the SignalingClient should attach to every
@@ -76,7 +79,28 @@ async function getTransport(opts = {}) {
             baseUrl: bundle.tunnel_url,
             extraHeaders: () => authHeadersFromBundle(bundle),
         });
-        const transport = new HomeTransport({ signaling });
+        const transport = new HomeTransport({
+            signaling,
+            // M10 — when the post-restart resume protocol reports that the
+            // outbox cursor predates the daemon's window (or two restarts
+            // failed and we re-handshook into a brand-new session), the
+            // mid-stream message can't be recovered. Surface it on the
+            // active chat context as a chat_error so the UI can prompt
+            // the user to retry.
+            onSessionReset: ({ dropped, newSession }) => {
+                if (!_activeChatContext) return;
+                const reason = newSession
+                    ? 'home agent: session reset (please retry your last message)'
+                    : 'home agent: connection blip lost a message — please retry';
+                if (dropped) {
+                    dispatch('chat_error', {
+                        conversationId: _activeChatContext.conversationId,
+                        messageId: _activeChatContext.messageId,
+                        error: reason,
+                    });
+                }
+            },
+        });
         await transport.connect();
         _transport = transport;
         return transport;
@@ -234,8 +258,13 @@ export async function startChat({
 }) {
     let transport;
     try {
+        // M10 — track the active chat context so the transport's
+        // onSessionReset hook can surface mid-stream resume failures to
+        // the right conversation.
+        _activeChatContext = { conversationId, messageId };
         transport = injectedTransport || await getTransport({ _transportFactory });
     } catch (err) {
+        _activeChatContext = null;
         const errMsg = (err && err.message) || String(err);
         dispatch('chat_error', { conversationId, messageId, error: errMsg });
         throw err;
@@ -263,6 +292,8 @@ export async function startChat({
         const errMsg = (err && err.message) || String(err);
         dispatch('chat_error', { conversationId, messageId, error: errMsg });
         throw err;
+    } finally {
+        _activeChatContext = null;
     }
 }
 
@@ -300,4 +331,5 @@ export async function isAvailable() {
 export function _resetForTests() {
     _transport = null;
     _connecting = null;
+    _activeChatContext = null;
 }

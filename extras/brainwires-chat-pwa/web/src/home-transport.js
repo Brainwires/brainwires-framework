@@ -14,8 +14,20 @@
 //   'failed'     — ICE failed / dc closed unexpectedly
 //
 // Wire format on the channel: a single JSON-RPC envelope per text frame.
-// Length-prefixed binary framing is reserved for M11. ICE-restart and
-// the heartbeat ping are deferred to M10.
+// Length-prefixed binary framing is reserved for M11.
+//
+// M10 — reconnect/resume:
+//   - 15 s app-level `system/ping` heartbeat. Two consecutive timeouts
+//     surface a dead link and trigger ICE restart.
+//   - On `iceConnectionState === 'disconnected'` for >5 s the transport
+//     calls `pc.restartIce()`, fresh-offers against the same session_id,
+//     and re-trickles. Two failed restarts → tear the session down and
+//     re-handshake (which counts as a "new session" event).
+//   - Tracks last-seen JSON-RPC reply id; after a successful restart the
+//     transport calls `system/resume { last_seen_id }` and re-feeds any
+//     replayed frames into the dispatcher. `dropped: true` from the
+//     daemon is surfaced via the `onSessionReset` event hook so the
+//     chat UI can warn the user.
 
 // SignalingClient is the expected shape of opts.signaling — see ./home-signaling.js.
 // We don't import it here to avoid a circular-looking edge for tooling; the
@@ -33,7 +45,14 @@ export class JsonRpcDispatcher {
     constructor() {
         this._nextId = 1;
         this._pending = new Map(); // id -> { resolve, reject, timer }
+        // M10 — high-water mark of inbound numeric reply ids. Used as the
+        // `last_seen_id` cursor for `system/resume` after an ICE restart.
+        // Notifications and string-id replies don't update this.
+        this._lastSeenReplyId = 0;
     }
+
+    /** Last numeric JSON-RPC reply id observed (M10 resume cursor). */
+    get lastSeenReplyId() { return this._lastSeenReplyId; }
 
     /** Allocate a fresh id and park a Promise; returns { id, frame, promise }. */
     request(method, params, { timeoutMs = 30000 } = {}) {
@@ -64,6 +83,13 @@ export class JsonRpcDispatcher {
         if (!msg || typeof msg !== 'object') return false;
         // Only request/response replies have an id; notifications don't.
         if (msg.id == null) return false;
+        // M10 — bump the resume cursor for every observed numeric reply id,
+        // even one that doesn't match a pending slot (replay frames after
+        // an ICE restart count). String ids are out of band for the
+        // outbox protocol — leave them alone.
+        if (typeof msg.id === 'number' && msg.id > this._lastSeenReplyId) {
+            this._lastSeenReplyId = msg.id;
+        }
         const slot = this._pending.get(msg.id);
         if (!slot) return false;
         this._pending.delete(msg.id);
@@ -105,6 +131,12 @@ export class HomeTransport {
      *   signaling: import('./home-signaling.js').SignalingClient,
      *   iceServers?: RTCIceServer[],
      *   rtcPeerConnection?: typeof RTCPeerConnection,
+     *   heartbeatIntervalMs?: number,
+     *   heartbeatTimeoutMs?: number,
+     *   iceDisconnectGraceMs?: number,
+     *   restartTimeoutMs?: number,
+     *   onSessionReset?: (info: {dropped: boolean, newSession: boolean}) => void,
+     *   _clock?: { setInterval: typeof setInterval, clearInterval: typeof clearInterval, setTimeout: typeof setTimeout, clearTimeout: typeof clearTimeout, now: () => number },
      * }} opts
      */
     constructor(opts) {
@@ -114,6 +146,24 @@ export class HomeTransport {
         this._signaling = opts.signaling;
         this._iceServers = Array.isArray(opts.iceServers) ? opts.iceServers : null;
         this._RTC = opts.rtcPeerConnection || (typeof RTCPeerConnection !== 'undefined' ? RTCPeerConnection : null);
+
+        // M10 timing knobs — defaults match the plan; tests inject smaller
+        // values plus a fake clock.
+        this._heartbeatIntervalMs = typeof opts.heartbeatIntervalMs === 'number' ? opts.heartbeatIntervalMs : 15000;
+        this._heartbeatTimeoutMs = typeof opts.heartbeatTimeoutMs === 'number' ? opts.heartbeatTimeoutMs : 5000;
+        this._iceDisconnectGraceMs = typeof opts.iceDisconnectGraceMs === 'number' ? opts.iceDisconnectGraceMs : 5000;
+        this._restartTimeoutMs = typeof opts.restartTimeoutMs === 'number' ? opts.restartTimeoutMs : 30000;
+        this._onSessionReset = typeof opts.onSessionReset === 'function' ? opts.onSessionReset : null;
+
+        // Clock injection. In production we use the global timer functions;
+        // in tests we hand in a fake clock so the heartbeat / disconnect
+        // timing is deterministic without sleeping.
+        const c = opts._clock || {};
+        this._setInterval = c.setInterval || ((typeof setInterval === 'function') ? setInterval.bind(globalThis) : null);
+        this._clearInterval = c.clearInterval || ((typeof clearInterval === 'function') ? clearInterval.bind(globalThis) : null);
+        this._setTimeout = c.setTimeout || ((typeof setTimeout === 'function') ? setTimeout.bind(globalThis) : null);
+        this._clearTimeout = c.clearTimeout || ((typeof clearTimeout === 'function') ? clearTimeout.bind(globalThis) : null);
+        this._now = c.now || (() => Date.now());
 
         this._sessionId = null;
         this._pc = null;
@@ -125,10 +175,20 @@ export class HomeTransport {
         this._inboundIcePump = null;  // Promise for the running ICE pump task
         this._connectResolve = null;
         this._connectReject = null;
+
+        // M10 — heartbeat / ICE-restart bookkeeping.
+        this._heartbeatTimer = null;
+        this._missedPongs = 0;
+        this._lastPongAt = 0;
+        this._iceDisconnectTimer = null;
+        this._restartInFlight = null;     // Promise for an in-flight ICE restart
+        this._restartFailures = 0;
     }
 
     get sessionId() { return this._sessionId; }
     get state() { return this._state; }
+    /** Wall-clock ms timestamp of the last successful pong (M10 diagnostic). */
+    get lastPongAt() { return this._lastPongAt; }
 
     _setState(next) { this._state = next; }
 
@@ -194,13 +254,7 @@ export class HomeTransport {
                 ).catch((e) => console.warn('home-transport: postIce failed:', e && e.message ? e.message : e));
             };
 
-            pc.oniceconnectionstatechange = () => {
-                const s = pc.iceConnectionState;
-                if (s === 'failed') {
-                    this._setState('failed');
-                    this._dispatcher.rejectAll(new Error('ICE connection failed'));
-                }
-            };
+            pc.oniceconnectionstatechange = () => this._onIceConnectionStateChange();
 
             // 5. createOffer → setLocalDescription → POST /signal/offer.
             const offer = await pc.createOffer();
@@ -227,6 +281,9 @@ export class HomeTransport {
             // 8. Wait for the data channel to open.
             await dcOpen;
             this._setState('connected');
+
+            // 9. M10 — start the heartbeat now that the channel is up.
+            this._startHeartbeat();
         } catch (err) {
             this._setState('failed');
             // Best-effort cleanup of the signaling session and PC.
@@ -291,10 +348,265 @@ export class HomeTransport {
         return await promise;
     }
 
+    // ── M10: heartbeat ─────────────────────────────────────────
+
+    /**
+     * Start the 15 s `system/ping` heartbeat. Each tick fires a ping with
+     * a bounded timeout; two consecutive timeouts (or send errors) trigger
+     * an ICE restart. Idempotent — safe to call multiple times.
+     */
+    _startHeartbeat() {
+        this._stopHeartbeat();
+        if (!this._setInterval) return;
+        // Return the tick promise so a clock-aware test runner can await it.
+        // Production timer handles ignore the return value, so this is a no-op
+        // in the browser and a useful hook in unit tests.
+        this._heartbeatTimer = this._setInterval(() => this._heartbeatTick(), this._heartbeatIntervalMs);
+    }
+
+    _stopHeartbeat() {
+        if (this._heartbeatTimer && this._clearInterval) {
+            try { this._clearInterval(this._heartbeatTimer); } catch (_) {}
+        }
+        this._heartbeatTimer = null;
+    }
+
+    async _heartbeatTick() {
+        if (this._state !== 'connected') return;
+        try {
+            await this.request('system/ping', {}, { timeoutMs: this._heartbeatTimeoutMs });
+            this._missedPongs = 0;
+            this._lastPongAt = this._now();
+        } catch (_) {
+            this._missedPongs += 1;
+            if (this._missedPongs >= 2) {
+                console.warn('home-transport: heartbeat missed twice; triggering ICE restart');
+                this._missedPongs = 0;
+                // Fire-and-forget — the restart handles its own errors.
+                this._triggerIceRestart('heartbeat-timeout').catch((e) => {
+                    console.warn('home-transport: heartbeat-driven restart failed:', e && e.message ? e.message : e);
+                });
+            }
+        }
+    }
+
+    // ── M10: ICE-disconnect detection + restart ────────────────
+
+    _onIceConnectionStateChange() {
+        const pc = this._pc;
+        if (!pc) return;
+        const s = pc.iceConnectionState;
+        if (s === 'failed') {
+            // Hard failure — try a restart immediately rather than waiting
+            // out the disconnect grace window.
+            this._cancelIceDisconnectGrace();
+            if (!this._restartInFlight) {
+                this._triggerIceRestart('ice-failed').catch((e) => {
+                    console.warn('home-transport: ice-failed restart errored:', e && e.message ? e.message : e);
+                });
+            }
+            return;
+        }
+        if (s === 'disconnected') {
+            // Grace period — transient blips often recover within seconds
+            // without a full ICE restart.
+            this._scheduleIceDisconnectGrace();
+            return;
+        }
+        if (s === 'connected' || s === 'completed') {
+            this._cancelIceDisconnectGrace();
+        }
+    }
+
+    _scheduleIceDisconnectGrace() {
+        if (this._iceDisconnectTimer || !this._setTimeout) return;
+        this._iceDisconnectTimer = this._setTimeout(() => {
+            this._iceDisconnectTimer = null;
+            const pc = this._pc;
+            if (!pc) return;
+            // Only restart if we're STILL disconnected. Browsers can emit
+            // a disconnected→connected→disconnected flap on a wifi roam.
+            if (pc.iceConnectionState === 'disconnected') {
+                this._triggerIceRestart('ice-disconnected').catch((e) => {
+                    console.warn('home-transport: disconnect-driven restart errored:', e && e.message ? e.message : e);
+                });
+            }
+        }, this._iceDisconnectGraceMs);
+    }
+
+    _cancelIceDisconnectGrace() {
+        if (this._iceDisconnectTimer && this._clearTimeout) {
+            try { this._clearTimeout(this._iceDisconnectTimer); } catch (_) {}
+        }
+        this._iceDisconnectTimer = null;
+    }
+
+    /**
+     * Drive an ICE restart against the same signaling session. On success,
+     * sends `system/resume` and re-feeds replayed frames into the
+     * dispatcher. On second consecutive failure, tears down the session
+     * and reconnects fresh — surfaces a `newSession: true` reset event
+     * so the chat UI can warn the user.
+     *
+     * Coalesces concurrent calls — a second invocation while one is in
+     * flight returns the same Promise.
+     */
+    _triggerIceRestart(reason) {
+        if (this._restartInFlight) return this._restartInFlight;
+        this._restartInFlight = (async () => {
+            try {
+                await this._iceRestartOnce(reason);
+                this._restartFailures = 0;
+                await this._sendResumeRequest();
+            } catch (err) {
+                this._restartFailures += 1;
+                if (this._restartFailures < 2) {
+                    // Second attempt on the SAME session.
+                    try {
+                        await this._iceRestartOnce(`${reason}-retry`);
+                        this._restartFailures = 0;
+                        await this._sendResumeRequest();
+                        return;
+                    } catch (_err2) {
+                        this._restartFailures += 1;
+                        // Fall through to full re-handshake.
+                    }
+                }
+                // Two restart failures → full session tear-down + fresh handshake.
+                console.warn('home-transport: two ICE-restart failures; opening a new session');
+                await this._teardownAndReconnect();
+                this._restartFailures = 0;
+                if (this._onSessionReset) {
+                    try { this._onSessionReset({ dropped: true, newSession: true }); } catch (_) {}
+                }
+                throw err;
+            }
+        })();
+        const p = this._restartInFlight;
+        p.finally(() => { if (this._restartInFlight === p) this._restartInFlight = null; });
+        return p;
+    }
+
+    async _iceRestartOnce(reason) {
+        if (this._state !== 'connected' && this._state !== 'connecting') {
+            throw new Error(`HomeTransport._iceRestartOnce: bad state ${this._state}`);
+        }
+        const pc = this._pc;
+        if (!pc) throw new Error('HomeTransport._iceRestartOnce: no peer connection');
+        // restartIce() bumps the ICE ufrag/pwd on the next negotiation.
+        if (typeof pc.restartIce === 'function') {
+            try { pc.restartIce(); } catch (_) { /* fallthrough — createOffer({iceRestart:true}) is a backup */ }
+        }
+        const offer = await pc.createOffer({ iceRestart: true });
+        await pc.setLocalDescription(offer);
+        await this._signaling.postOffer(this._sessionId, offer.sdp);
+
+        // Pull the new answer. The home daemon synchronously renegotiates
+        // and stashes it before /signal/offer returns, so the first poll
+        // should fast-path; we still loop a few times for paranoia.
+        let answer = null;
+        for (let attempt = 0; attempt < 4 && !answer; attempt++) {
+            answer = await this._signaling.pollAnswer(this._sessionId);
+        }
+        if (!answer) throw new Error('ICE restart: no SDP answer received');
+        await pc.setRemoteDescription({ type: 'answer', sdp: answer.sdp });
+
+        // The existing inbound-ICE pump is still running against the same
+        // session — fresh candidates trickle through it. We don't need to
+        // restart the pump or reset the cursor (the daemon's outbound
+        // buffer is append-only; a stale cursor is harmless).
+
+        // Wait for the connection to actually recover.
+        await this._waitIceConnected();
+        console.info(`home-transport: ICE restart succeeded (reason=${reason})`);
+    }
+
+    /**
+     * Block until `pc.iceConnectionState` reaches `connected` or `completed`,
+     * or the restart timeout elapses.
+     */
+    async _waitIceConnected() {
+        const pc = this._pc;
+        if (!pc) throw new Error('no peer connection');
+        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') return;
+        const setT = this._setTimeout;
+        const clearT = this._clearTimeout;
+        return await new Promise((resolve, reject) => {
+            let timer = null;
+            const cleanup = () => {
+                if (timer && clearT) { try { clearT(timer); } catch (_) {} }
+                if (pc.removeEventListener) {
+                    try { pc.removeEventListener('iceconnectionstatechange', onChange); } catch (_) {}
+                }
+            };
+            const onChange = () => {
+                const s = pc.iceConnectionState;
+                if (s === 'connected' || s === 'completed') { cleanup(); resolve(); }
+                else if (s === 'failed' || s === 'closed') { cleanup(); reject(new Error(`ICE entered ${s} during restart`)); }
+            };
+            if (pc.addEventListener) {
+                pc.addEventListener('iceconnectionstatechange', onChange);
+            }
+            if (setT) {
+                timer = setT(() => { cleanup(); reject(new Error('ICE restart timed out')); }, this._restartTimeoutMs);
+            }
+        });
+    }
+
+    async _sendResumeRequest() {
+        let result;
+        try {
+            result = await this.request(
+                'system/resume',
+                { last_seen_id: this._dispatcher.lastSeenReplyId },
+                { timeoutMs: 10000 },
+            );
+        } catch (e) {
+            // Resume failure is non-fatal — the channel is back, just no
+            // backfill. Log and move on.
+            console.warn('home-transport: system/resume failed:', e && e.message ? e.message : e);
+            return;
+        }
+        const replayed = Array.isArray(result && result.replayed) ? result.replayed : [];
+        const dropped = !!(result && result.dropped);
+        for (const frame of replayed) {
+            if (typeof frame === 'string') {
+                try { this._dispatcher.dispatch(frame); } catch (_) { /* ignore */ }
+            }
+        }
+        if (dropped && this._onSessionReset) {
+            try { this._onSessionReset({ dropped: true, newSession: false }); } catch (_) {}
+        }
+    }
+
+    async _teardownAndReconnect() {
+        // Stop heartbeat + ICE pump while we rebuild.
+        this._stopHeartbeat();
+        this._cancelIceDisconnectGrace();
+        if (this._iceAbort) { try { this._iceAbort.abort(); } catch (_) {} this._iceAbort = null; }
+        try { if (this._dc) this._dc.close(); } catch (_) {}
+        try { if (this._pc) this._pc.close(); } catch (_) {}
+        if (this._sessionId) {
+            try { await this._signaling.closeSession(this._sessionId); } catch (_) {}
+        }
+        this._dc = null;
+        this._pc = null;
+        this._sessionId = null;
+        this._iceCursor = 0;
+        // Reset the dispatcher's resume cursor — the new session has a
+        // fresh outbox, so the old cursor is meaningless.
+        this._dispatcher = new JsonRpcDispatcher();
+        // Rerun the full handshake.
+        this._setState('idle');
+        await this.connect();
+    }
+
     /** Disconnect cleanly. Idempotent. */
     async close() {
         if (this._state === 'closed' || this._state === 'closing') return;
         this._setState('closing');
+        this._stopHeartbeat();
+        this._cancelIceDisconnectGrace();
         if (this._iceAbort) { try { this._iceAbort.abort(); } catch (_) {} }
         this._dispatcher.rejectAll(new Error('HomeTransport closed'));
         try { if (this._dc) this._dc.close(); } catch (_) {}

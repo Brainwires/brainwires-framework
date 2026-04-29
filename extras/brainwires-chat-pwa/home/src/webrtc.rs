@@ -34,6 +34,7 @@ use webrtc::peer_connection::{
 use webrtc::media_stream::track_remote::TrackRemote;
 
 use crate::a2a::{self, A2aBridge};
+use crate::signaling::SessionState;
 use brainwires_a2a::{JsonRpcRequest, JsonRpcResponse};
 
 /// The canonical data-channel label used by the dial-home protocol.
@@ -340,6 +341,20 @@ pub async fn run_a2a_loop(
     peer: &HomePeer,
     bridge: Option<Arc<A2aBridge>>,
 ) -> Result<Arc<dyn WrtcDataChannel>> {
+    run_a2a_loop_with_session(peer, bridge, None).await
+}
+
+/// Variant of [`run_a2a_loop`] that also pushes every reply frame onto the
+/// supplied [`SessionState`]'s outbox and answers the transport-level
+/// `system/resume` method directly without going through the bridge.
+///
+/// Wired by `signaling::post_offer` in M10. The plain [`run_a2a_loop`] is
+/// retained for tests and the legacy ping-only path.
+pub async fn run_a2a_loop_with_session(
+    peer: &HomePeer,
+    bridge: Option<Arc<A2aBridge>>,
+    session: Option<Arc<SessionState>>,
+) -> Result<Arc<dyn WrtcDataChannel>> {
     let mut rx = peer.subscribe();
     let dc = loop {
         match rx.recv().await {
@@ -362,7 +377,19 @@ pub async fn run_a2a_loop(
             match pump_dc.poll().await {
                 Some(DataChannelEvent::OnMessage(msg)) => {
                     let text = String::from_utf8_lossy(&msg.data).into_owned();
-                    if let Some(reply) = dispatch_jsonrpc(&text, bridge.as_deref()).await {
+                    if let Some(reply) =
+                        dispatch_jsonrpc(&text, bridge.as_deref(), session.as_deref()).await
+                    {
+                        // Push onto the outbox before sending so a successful
+                        // send is always reflected in the resume buffer. Worst
+                        // case: we buffer a frame the PWA already received,
+                        // which the resume-cursor filter then drops. Better
+                        // than the alternative (sent-but-not-buffered).
+                        if let Some(s) = session.as_deref() {
+                            if let Some(id) = parse_outbox_id(&reply) {
+                                s.push_outbox(id, reply.clone()).await;
+                            }
+                        }
                         if let Err(e) = pump_dc.send_text(&reply).await {
                             tracing::warn!(error = %e, "a2a: send_text failed");
                             break;
@@ -378,13 +405,42 @@ pub async fn run_a2a_loop(
     Ok(dc)
 }
 
+/// Extract a numeric JSON-RPC id from an outbound reply frame for outbox
+/// indexing. Replies with string ids are still buffered but only at the
+/// tail of the queue (caller-side `resume` only filters by numeric `>`,
+/// so string-id frames would never replay; we therefore skip them).
+fn parse_outbox_id(frame: &str) -> Option<i64> {
+    let v: Value = serde_json::from_str(frame).ok()?;
+    v.get("id").and_then(|i| i.as_i64())
+}
+
+/// Transport-level JSON-RPC method that asks the daemon to replay any
+/// reply frames the PWA missed during a brief disconnect. Handled here
+/// (not via the [`A2aBridge`]) because it's a pure transport concern —
+/// the agent never sees a `system/resume` call.
+pub const METHOD_SYSTEM_RESUME: &str = "system/resume";
+
 /// Dispatch one inbound text frame and serialize the reply.
 ///
-/// Tries to parse `text` as a typed [`JsonRpcRequest`] and route it through
-/// the [`A2aBridge`] (if one is attached). Falls back to the M3 raw-JSON
-/// `ping` path so the smoke-test integration test in `signaling::m3_handshake`
-/// keeps passing even when the daemon was built without an agent.
-async fn dispatch_jsonrpc(text: &str, bridge: Option<&A2aBridge>) -> Option<String> {
+/// Order of precedence:
+///   1. Transport-level methods handled here directly (M10: `system/resume`).
+///   2. Typed bridge dispatch when an [`A2aBridge`] is attached.
+///   3. Untyped fallback for the M3 smoke-test path (raw `ping`).
+async fn dispatch_jsonrpc(
+    text: &str,
+    bridge: Option<&A2aBridge>,
+    session: Option<&SessionState>,
+) -> Option<String> {
+    // M10 — transport-level methods. Peek at `method` before dispatching to
+    // the bridge so we don't round-trip system/* calls through the agent.
+    if let Ok(v) = serde_json::from_str::<Value>(text) {
+        if let Some(method) = v.get("method").and_then(|m| m.as_str()) {
+            if method == METHOD_SYSTEM_RESUME {
+                return handle_resume(&v, session).await;
+            }
+        }
+    }
+
     if let Some(bridge) = bridge {
         // Typed path. If the frame is a valid JSON-RPC envelope, hand it to
         // the bridge — even errors (method-not-found, invalid-params, ...)
@@ -419,6 +475,42 @@ async fn dispatch_jsonrpc(text: &str, bridge: Option<&A2aBridge>) -> Option<Stri
         }
     }
 }
+
+/// Build the `system/resume` reply for the given session state.
+///
+/// Reply shape: `{ jsonrpc, id, result: { replayed: [<frame strings>], dropped: <bool> } }`.
+/// When no session is in scope (legacy `run_a2a_loop` path) we return an
+/// empty replay so the PWA still gets a well-formed response.
+async fn handle_resume(req: &Value, session: Option<&SessionState>) -> Option<String> {
+    // Prefer numeric ids (the PWA's dispatcher always mints i64), but echo
+    // whatever form arrived to keep JsonRpcDispatcher routing happy.
+    let id_value = req.get("id").cloned().unwrap_or(Value::Null);
+    let last_seen_id = req
+        .get("params")
+        .and_then(|p| p.get("last_seen_id"))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+
+    let (replayed, dropped) = match session {
+        Some(s) => s.resume_from(last_seen_id).await,
+        None => (Vec::new(), false),
+    };
+
+    // Emit `replayed` as raw JSON so the PWA can re-feed each entry back
+    // into its dispatcher untouched. Each element is the original frame
+    // string; we wrap them as `Value::String(...)` here.
+    let replayed_json: Vec<Value> = replayed.into_iter().map(Value::String).collect();
+    let resp = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id_value,
+        "result": {
+            "replayed": replayed_json,
+            "dropped": dropped,
+        }
+    });
+    serde_json::to_string(&resp).ok()
+}
+
 
 #[cfg(test)]
 mod tests {
