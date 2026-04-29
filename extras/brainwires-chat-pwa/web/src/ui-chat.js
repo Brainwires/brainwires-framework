@@ -23,6 +23,7 @@ import {
     putMessage,
     setSetting,
     getSetting,
+    partsToText,
 } from './db.js';
 import { listProviders, startChat } from './providers/index.js';
 import * as localProvider from './providers/local.js';
@@ -339,9 +340,12 @@ function renderMessages() {
 function buildBubble(m) {
     const isUser = m.role === 'user';
     const cls = isUser ? 'bubble bubble-user' : 'bubble bubble-assistant';
+    // Flatten parts[] to text for the markdown/thinking pipeline. Image and
+    // tool_use rendering arrives in Step 4c.
+    const textContent = partsToText(m.content || '');
     const { thinking, body } = isUser
-        ? { thinking: null, body: m.content || '' }
-        : extractThinking(m.content || '');
+        ? { thinking: null, body: textContent }
+        : extractThinking(textContent);
     const contentNode = el('div', { class: 'bubble-content' });
     if (thinking) contentNode.appendChild(buildReasoningElement(thinking));
     const bodyNode = el('div', { class: 'bubble-body' });
@@ -354,13 +358,13 @@ function buildBubble(m) {
     actions.appendChild(el('button', {
         class: 'icon-btn',
         attrs: { type: 'button', 'aria-label': t('chat.copy') },
-        onClick: () => copyText(m.content || ''),
+        onClick: () => copyText(textContent),
     }, glyph('copy')));
     if (!isUser) {
         actions.appendChild(el('button', {
             class: 'icon-btn',
             attrs: { type: 'button', 'aria-label': t('chat.speak') },
-            onClick: async () => { try { await voice.speak(m.content || ''); } catch (_) {} },
+            onClick: async () => { try { await voice.speak(textContent); } catch (_) {} },
         }, glyph('speaker')));
         actions.appendChild(el('button', {
             class: 'icon-btn',

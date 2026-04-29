@@ -620,6 +620,71 @@ describe('markdown', async () => {
     });
 });
 
+// ── db parts[] helpers ────────────────────────────────────────
+
+describe('db parts[] helpers', async () => {
+    let dbReady = false;
+    try {
+        await import('fake-indexeddb/auto');
+        dbReady = true;
+    } catch (_) { /* skip silently */ }
+
+    test('normalizeContent wraps a string into [{type:text}]', async (ctx) => {
+        if (!dbReady) return ctx.skip();
+        const db = await import('../src/db.js');
+        assert.deepEqual(db.normalizeContent('hi'), [{ type: 'text', text: 'hi' }]);
+        assert.deepEqual(db.normalizeContent(''), []);
+        assert.deepEqual(db.normalizeContent(null), []);
+        assert.deepEqual(db.normalizeContent(undefined), []);
+        const parts = [{ type: 'text', text: 'a' }, { type: 'image', mediaType: 'image/png', data: 'AAAA' }];
+        assert.equal(db.normalizeContent(parts), parts); // identity for arrays
+    });
+
+    test('partsToText joins text parts and skips non-text', async (ctx) => {
+        if (!dbReady) return ctx.skip();
+        const db = await import('../src/db.js');
+        assert.equal(db.partsToText('plain'), 'plain');
+        assert.equal(db.partsToText([{ type: 'text', text: 'a' }, { type: 'image', data: 'x' }, { type: 'text', text: 'b' }]), 'ab');
+        assert.equal(db.partsToText([]), '');
+        assert.equal(db.partsToText(null), '');
+    });
+
+    test('appendMessageChunk on a parts[] row appends to the trailing text part', async (ctx) => {
+        if (!dbReady) return ctx.skip();
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+        await db.putMessage({
+            conversationId: 'c1',
+            messageId: 'm1',
+            role: 'assistant',
+            content: [{ type: 'text', text: 'hello ' }],
+            createdAt: Date.now(),
+        });
+        await db.appendMessageChunk('c1', 'm1', 'world');
+        const row = await db.getMessage('c1', 'm1');
+        assert.deepEqual(row.content, [{ type: 'text', text: 'hello world' }]);
+    });
+
+    test('new v2 stores accept inserts (smoke)', async (ctx) => {
+        if (!dbReady) return ctx.skip();
+        const db = await import('../src/db.js');
+        db._resetDbForTests();
+        await db.putRagDoc({ id: 'd1', conversationId: null, name: 'spec.pdf', type: 'pdf', bytes: 1234 });
+        const docs = await db.listRagDocs(null);
+        assert.equal(docs.length, 1);
+        assert.equal(docs[0].name, 'spec.pdf');
+        await db.putRagChunks([
+            { id: 'k1', docId: 'd1', conversationId: null, page: 1, text: 'chunk one', embeddingDim: 384 },
+            { id: 'k2', docId: 'd1', conversationId: null, page: 2, text: 'chunk two', embeddingDim: 384 },
+        ]);
+        const chunks = await db.listRagChunksByDoc('d1');
+        assert.equal(chunks.length, 2);
+        await db.deleteRagDoc('d1');
+        assert.equal((await db.listRagDocs(null)).length, 0);
+        assert.equal((await db.listRagChunksByDoc('d1')).length, 0);
+    });
+});
+
 // ── reasoning-display ─────────────────────────────────────────
 
 describe('reasoning-display', async () => {
