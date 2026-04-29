@@ -322,23 +322,33 @@ export async function deleteModel(modelId) {
             try { await cache.delete(cacheKey(modelId, f.filename)); } catch (_err) { console.warn("[bw] caught:", _err); }
         }
     }
-    // Clear OPFS files. Retry once after a delay if the lock is still held.
-    const clearOpfs = async () => {
-        if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) return;
-        const root = await navigator.storage.getDirectory();
-        const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
-        await dlDir.removeEntry(modelId, { recursive: true });
-    };
-    try {
-        await clearOpfs();
-    } catch (e) {
-        if (e && e.name === 'NoModificationAllowedError') {
-            console.warn('[bw] OPFS lock still held, retrying in 1s...');
-            await new Promise((r) => setTimeout(r, 1000));
-            try { await clearOpfs(); } catch (e2) { console.warn('[bw] OPFS delete retry failed:', e2); }
-        } else if (e && e.name !== 'NotFoundError') {
-            console.warn('[bw] OPFS delete failed:', e);
-        }
+    // Clear OPFS files. Try directory removal first; if a lock blocks it,
+    // fall back to removing individual files one by one.
+    if (_hasOpfs()) {
+        try {
+            const root = await navigator.storage.getDirectory();
+            const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
+            try {
+                await dlDir.removeEntry(modelId, { recursive: true });
+            } catch (dirErr) {
+                if (dirErr && dirErr.name === 'NoModificationAllowedError') {
+                    console.warn('[bw] directory locked, removing files individually...');
+                    try {
+                        const modelDir = await dlDir.getDirectoryHandle(modelId, { create: false });
+                        for await (const [name] of modelDir.entries()) {
+                            try { await modelDir.removeEntry(name); } catch (fe) {
+                                console.warn(`[bw] could not remove ${name}:`, fe.message);
+                            }
+                        }
+                        try { await dlDir.removeEntry(modelId); } catch (_) {}
+                    } catch (innerErr) {
+                        console.warn('[bw] file-by-file cleanup failed:', innerErr.message);
+                    }
+                } else if (dirErr.name !== 'NotFoundError') {
+                    console.warn('[bw] OPFS delete failed:', dirErr);
+                }
+            }
+        } catch (_) { /* OPFS dir doesn't exist */ }
     }
     events.dispatchEvent(new CustomEvent('model_deleted', { detail: { modelId } }));
 }
