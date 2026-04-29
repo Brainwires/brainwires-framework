@@ -37,6 +37,9 @@ import * as attachments from './attachments.js';
 import { buildStrip as buildAttachmentStrip } from './ui-attachments.js';
 import { isVisionModel, imageToBase64 } from './vision.js';
 import { retrieve as ragRetrieve, formatRetrievalAsSystem } from './rag.js';
+import { openPicker as openMcpPicker, resolveEnabledTools, findServerForTool } from './ui-mcp-picker.js';
+import * as mcp from './mcp-client.js';
+import { MAX_TOOL_ITERATIONS, extractToolUses, wrapToolResult } from './mcp-tool-loop.js';
 
 // math.js (KaTeX + theme) is dynamically imported on first render so the
 // ~80 KB gz cost is paid only by sessions that actually contain math.
@@ -63,6 +66,13 @@ let _messages = [];                // array of { messageId, role, content, ... }
 let _streaming = null;             // { messageId, bubble, contentNode, finalized }
 let _autoScroll = true;
 let _activeProviderId = null;
+// Per-turn tool-call counter and abort flag — survive across the
+// repeated runProvider() calls inside one user turn so the cap and
+// cancellation in mcp-tool-loop.js semantics translate to the live UI.
+// `_aborted` is reserved for a future Stop button; flipping it bails
+// out of executeToolUsesAndContinue between iterations.
+let _toolIterations = 0;
+let _aborted = false;
 
 // DOM cache
 const _ui = {
@@ -232,6 +242,16 @@ function buildLayout() {
     }, glyph('send'));
     _ui.sendBtn = sendBtn;
 
+    const toolsBtn = el('button', {
+        class: 'icon-btn tools-btn',
+        attrs: { type: 'button', 'aria-label': t('mcp.picker.title') },
+        onClick: () => {
+            if (!_conversationId) { toast(t('mcp.picker.noConversation'), 'error'); return; }
+            openMcpPicker(_conversationId);
+        },
+    }, glyph('tools'));
+    _ui.toolsBtn = toolsBtn;
+
     const providerChip = el('button', {
         class: 'provider-chip',
         attrs: { type: 'button', 'aria-label': t('chat.provider') },
@@ -250,6 +270,7 @@ function buildLayout() {
         el('div', { class: 'composer-row' },
             attachBtn,
             attachInput,
+            toolsBtn,
             micBtn,
             textarea,
             sendBtn,
@@ -404,6 +425,12 @@ function buildBubble(m) {
     const imageParts = Array.isArray(m.content)
         ? m.content.filter((p) => p && p.type === 'image' && typeof p.data === 'string')
         : [];
+    const toolUseParts = Array.isArray(m.content)
+        ? m.content.filter((p) => p && p.type === 'tool_use')
+        : [];
+    const toolResultParts = Array.isArray(m.content)
+        ? m.content.filter((p) => p && p.type === 'tool_result')
+        : [];
     const { thinking, body } = isUser
         ? { thinking: null, body: textContent }
         : extractThinking(textContent);
@@ -425,11 +452,21 @@ function buildBubble(m) {
         }
         contentNode.appendChild(gallery);
     }
+    // Tool result parts (user-role bubble only emits these in practice).
+    for (const r of toolResultParts) {
+        contentNode.appendChild(buildToolResultEl(r));
+    }
     const bodyNode = el('div', { class: 'bubble-body' });
     bodyNode.innerHTML = renderMarkdown(body);
     contentNode.appendChild(bodyNode);
     highlightWithin(bodyNode);
     maybeRenderMath(bodyNode);
+    // Tool use parts (assistant-role bubble) — keep these AFTER the body
+    // so the natural reading order matches the streamed sequence: model
+    // talks, then calls a tool.
+    for (const p of toolUseParts) {
+        contentNode.appendChild(buildToolUseEl(p));
+    }
 
     const actions = el('div', { class: 'bubble-actions' });
     actions.appendChild(el('button', {
@@ -455,6 +492,44 @@ function buildBubble(m) {
         actions,
     );
     return li;
+}
+
+// Render `{type:'tool_use', id, name, input}` as a collapsible block
+// styled consistently with the reasoning <details>.
+function buildToolUseEl(p) {
+    const details = el('details', { class: 'tool-call' });
+    const summary = el('summary', { class: 'tool-call-summary' },
+        el('span', { class: 'tool-call-label' }, t('mcp.tools.callLabel')),
+        el('code', { class: 'tool-call-name' }, p.name || ''),
+    );
+    details.appendChild(summary);
+    const pre = el('pre', { class: 'tool-call-input' });
+    const code = el('code', { class: 'language-json' });
+    code.textContent = JSON.stringify(p.input || {}, null, 2);
+    pre.appendChild(code);
+    details.appendChild(pre);
+    highlightWithin(details);
+    return details;
+}
+
+// Render `{type:'tool_result', toolUseId, content, is_error?}` similarly.
+function buildToolResultEl(p) {
+    const details = el('details', { class: 'tool-result' + (p.is_error ? ' tool-result-error' : '') });
+    const summary = el('summary', { class: 'tool-result-summary' },
+        el('span', { class: 'tool-result-label' },
+            p.is_error ? t('mcp.tools.errorLabel') : t('mcp.tools.resultLabel')),
+        el('code', { class: 'tool-result-id' }, p.toolUseId || ''),
+    );
+    details.appendChild(summary);
+    const pre = el('pre', { class: 'tool-result-content' });
+    const code = el('code', { class: 'language-json' });
+    code.textContent = typeof p.content === 'string'
+        ? p.content
+        : JSON.stringify(p.content == null ? '' : p.content, null, 2);
+    pre.appendChild(code);
+    details.appendChild(pre);
+    highlightWithin(details);
+    return details;
 }
 
 // ── Send + streaming ───────────────────────────────────────────
@@ -527,10 +602,25 @@ async function handleSend() {
     } catch (e) {
         console.warn('[bw] rag retrieve skipped:', e && e.message ? e.message : e);
     }
-    await runProvider(history);
+
+    // Resolve enabled MCP tools for this conversation. The picker stores
+    // per-conversation enable state; the loop and provider envelope share
+    // the same shape.
+    let tools = [];
+    try {
+        tools = await resolveEnabledTools(_conversationId);
+    } catch (e) {
+        console.warn('[bw] mcp tool resolve skipped:', e && e.message ? e.message : e);
+    }
+
+    // Reset per-turn loop state. The cap counter and abort flag persist
+    // across the (possibly multiple) runProvider invocations below.
+    _toolIterations = 0;
+    _aborted = false;
+    await runProvider(history, tools);
 }
 
-async function runProvider(messages) {
+async function runProvider(messages, tools) {
     const messageId = genId('msg');
     const placeholder = {
         conversationId: _conversationId,
@@ -551,8 +641,12 @@ async function runProvider(messages) {
         bodyNode: contentNode.querySelector('.bubble-body'),
         reasoningNode: null,
         accum: '',
+        // Live tool_use parts arrive via the chat_tool_use SW event;
+        // buildBubble re-renders the parts list when this changes.
+        toolUseParts: [],
         finalized: false,
         userMessages: messages,
+        tools: Array.isArray(tools) ? tools : [],
     };
     scrollToBottom(false);
     await putMessage(placeholder);
@@ -596,6 +690,15 @@ async function runProvider(messages) {
     }
     const modelOverride = await getSetting(`provider.${_activeProviderId}.model`);
     if (modelOverride) params.model = modelOverride;
+    if (Array.isArray(tools) && tools.length) {
+        // Strip the picker-only `_serverId` field — providers ignore
+        // unknown keys but keep the wire format minimal.
+        params.tools = tools.map((tool) => ({
+            name: tool.name,
+            description: tool.description,
+            input_schema: tool.input_schema,
+        }));
+    }
 
     const result = await startChat({
         provider: _activeProviderId,
@@ -654,14 +757,47 @@ function subscribeStreams() {
         renderStreamingFrame(_streaming);
         if (_autoScroll) scrollToBottom(false);
     });
+    stateEvents.addEventListener('chat_tool_use', (e) => {
+        const d = e.detail || {};
+        if (!_streaming || _streaming.messageId !== d.messageId) return;
+        const tu = d.tool_use;
+        if (!tu || typeof tu.name !== 'string') return;
+        _streaming.toolUseParts.push({
+            type: 'tool_use',
+            id: tu.id || '',
+            name: tu.name,
+            input: tu.input || {},
+        });
+        // Live-render: append a <details> to the bubble so the user sees
+        // each tool call as it is reassembled.
+        try {
+            _streaming.contentNode.appendChild(buildToolUseEl(_streaming.toolUseParts[_streaming.toolUseParts.length - 1]));
+        } catch (_) {}
+        if (_autoScroll) scrollToBottom(false);
+    });
     stateEvents.addEventListener('chat_done', (e) => {
         const d = e.detail || {};
         if (!_streaming || _streaming.messageId !== d.messageId) return;
         renderStreamingFrame(_streaming);
         const bodyNode = _streaming.bodyNode;
+        // Snapshot streaming context BEFORE finalize clears _streaming.
+        const ctx = {
+            messageId: _streaming.messageId,
+            tools: _streaming.tools,
+            toolUseParts: _streaming.toolUseParts.slice(),
+            text: _streaming.accum || '',
+        };
         finalizeStreaming();
         highlightWithin(bodyNode);
         maybeRenderMath(bodyNode);
+        // If the assistant emitted tool_use parts, drive the loop.
+        // Errors are surfaced via toast; iteration cap is enforced too.
+        if (ctx.toolUseParts.length > 0) {
+            executeToolUsesAndContinue(ctx).catch((err) => {
+                console.warn('[bw] tool loop failed:', err && err.message ? err.message : err);
+                toast(err && err.message ? err.message : String(err), 'error');
+            });
+        }
     });
     stateEvents.addEventListener('chat_error', (e) => {
         const d = e.detail || {};
@@ -676,6 +812,77 @@ function subscribeStreams() {
         _streaming = null;
         toast(err, 'error');
     });
+}
+
+// Run the tool calls produced by the just-finished assistant message,
+// post a synthetic user-role tool_result message, and resume the chat.
+// Capped at MAX_TOOL_ITERATIONS — past that we stop and toast.
+async function executeToolUsesAndContinue(ctx) {
+    if (_aborted) return;
+    if (_toolIterations >= MAX_TOOL_ITERATIONS) {
+        toast(t('mcp.tools.loopLimit'), 'error');
+        return;
+    }
+    _toolIterations += 1;
+
+    // Persist the assistant message with text + tool_use parts so the
+    // history we replay back to the provider matches what the user sees.
+    const assistantParts = [];
+    if (ctx.text) assistantParts.push({ type: 'text', text: ctx.text });
+    for (const p of ctx.toolUseParts) assistantParts.push(p);
+    const assistantIdx = _messages.findIndex((m) => m.messageId === ctx.messageId);
+    if (assistantIdx >= 0) {
+        _messages[assistantIdx].content = assistantParts;
+        try {
+            await putMessage({
+                conversationId: _conversationId,
+                messageId: ctx.messageId,
+                role: 'assistant',
+                content: assistantParts,
+                updatedAt: Date.now(),
+            });
+        } catch (_) {}
+    }
+
+    // Run each tool call; collect results.
+    const tuList = extractToolUses(assistantParts);
+    const resultParts = [];
+    for (const tu of tuList) {
+        if (_aborted) return;
+        try {
+            const server = await findServerForTool(_conversationId, tu.name);
+            if (!server) {
+                resultParts.push(wrapToolResult(tu, { ok: false, error: `tool '${tu.name}' has no enabled server` }));
+                continue;
+            }
+            const value = await mcp.callTool(server, tu.name, tu.input);
+            resultParts.push(wrapToolResult(tu, { ok: true, value }));
+        } catch (err) {
+            const msg = err && err.message ? err.message : String(err);
+            resultParts.push(wrapToolResult(tu, { ok: false, error: msg }));
+        }
+    }
+
+    // Persist + render a synthetic user-role tool-result message.
+    const resultMsg = {
+        conversationId: _conversationId,
+        messageId: genId('msg'),
+        role: 'user',
+        content: resultParts,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+    };
+    await putMessage(resultMsg);
+    _messages.push(resultMsg);
+    _ui.listEl.appendChild(buildBubble(resultMsg));
+    if (_autoScroll) scrollToBottom(false);
+
+    if (_aborted) return;
+
+    // Resume the chat with the extended history. Tools stay enabled so
+    // the model can chain calls — capped above.
+    const history = _messages.map((m) => ({ role: m.role, content: m.content }));
+    await runProvider(history, ctx.tools);
 }
 
 async function finalizeStreaming() {
@@ -710,7 +917,12 @@ async function regenerateAt(messageId) {
     _messages.splice(idx, 1);
     const node = _ui.listEl.querySelector(`[data-msg-id="${messageId}"]`);
     if (node) node.remove();
-    await runProvider(slice.map((m) => ({ role: m.role, content: m.content })));
+    let tools = [];
+    try { tools = await resolveEnabledTools(_conversationId); }
+    catch (_) {}
+    _toolIterations = 0;
+    _aborted = false;
+    await runProvider(slice.map((m) => ({ role: m.role, content: m.content })), tools);
 }
 
 // ── Provider handling ──────────────────────────────────────────
@@ -1057,6 +1269,8 @@ function glyph(name) {
         refresh: 'M4 12a8 8 0 0114-5l2-2v6h-6l3-3a6 6 0 10-1 9',
         dots: 'M5 12a1 1 0 102 0 1 1 0 10-2 0z M11 12a1 1 0 102 0 1 1 0 10-2 0z M17 12a1 1 0 102 0 1 1 0 10-2 0z',
         paperclip: 'M21 11l-9 9a5 5 0 01-7-7l9-9a3.5 3.5 0 015 5l-9 9a2 2 0 11-3-3l8-8',
+        // Wrench-and-screwdriver "tools" glyph for the MCP picker.
+        tools: 'M14.7 6.3a4 4 0 005.4 5.4L21 13l-7 7-1.3-.9a4 4 0 00-5.4-5.4L6 13l7-7zM3 21l6-6',
     };
     const d = paths[name] || paths.dots;
     const svg = document.createElementNS(svgNS, 'svg');

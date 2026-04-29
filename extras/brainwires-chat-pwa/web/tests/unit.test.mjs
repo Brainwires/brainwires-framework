@@ -276,6 +276,59 @@ describe('providers/anthropic', () => {
         assert.deepEqual(body.tools[0].input_schema, { type: 'object', properties: { path: { type: 'string' } } });
     });
 
+    test('mapMessages: assistant tool_use part → Anthropic tool_use content block', () => {
+        const req = anthropic.buildRequest({
+            model: 'claude-opus-4-7',
+            messages: [
+                { role: 'user', content: 'list /tmp' },
+                {
+                    role: 'assistant',
+                    content: [
+                        { type: 'text', text: 'reading dir' },
+                        { type: 'tool_use', id: 'toolu_a', name: 'fs_list', input: { path: '/tmp' } },
+                    ],
+                },
+            ],
+        });
+        const body = JSON.parse(req.body);
+        const blocks = body.messages[1].content;
+        assert.ok(Array.isArray(blocks), 'assistant content should be a content-block array');
+        assert.equal(blocks[0].type, 'text');
+        assert.equal(blocks[0].text, 'reading dir');
+        assert.equal(blocks[1].type, 'tool_use');
+        assert.equal(blocks[1].id, 'toolu_a');
+        assert.equal(blocks[1].name, 'fs_list');
+        assert.deepEqual(blocks[1].input, { path: '/tmp' });
+    });
+
+    test('mapMessages: user tool_result parts → Anthropic tool_result content blocks (string + object content + is_error)', () => {
+        const req = anthropic.buildRequest({
+            model: 'claude-opus-4-7',
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        { type: 'tool_result', toolUseId: 'toolu_a', content: 'plain string out' },
+                        { type: 'tool_result', toolUseId: 'toolu_b', content: { rows: [1, 2, 3] } },
+                        { type: 'tool_result', toolUseId: 'toolu_c', content: 'oops', is_error: true },
+                    ],
+                },
+            ],
+        });
+        const body = JSON.parse(req.body);
+        const blocks = body.messages[0].content;
+        assert.ok(Array.isArray(blocks));
+        assert.equal(blocks.length, 3);
+        assert.equal(blocks[0].type, 'tool_result');
+        assert.equal(blocks[0].tool_use_id, 'toolu_a');
+        assert.equal(blocks[0].content, 'plain string out');
+        assert.equal(blocks[0].is_error, undefined);
+        assert.equal(blocks[1].tool_use_id, 'toolu_b');
+        assert.equal(blocks[1].content, JSON.stringify({ rows: [1, 2, 3] }));
+        assert.equal(blocks[2].tool_use_id, 'toolu_c');
+        assert.equal(blocks[2].is_error, true);
+    });
+
     test('parseChunk: reassembles tool_use across content_block_start/delta/stop with shared acc', () => {
         const acc = {};
         const start = anthropic.parseChunk({
@@ -379,6 +432,56 @@ describe('providers/openai', () => {
             type: 'object',
             properties: { path: { type: 'string' } },
         });
+    });
+
+    test('mapMessages: assistant tool_use parts → message with tool_calls[] and content:null', () => {
+        const req = openai.buildRequest({
+            model: 'gpt-5.5',
+            messages: [
+                { role: 'user', content: 'hi' },
+                {
+                    role: 'assistant',
+                    content: [
+                        { type: 'tool_use', id: 'call_1', name: 'fs_read', input: { path: '/a' } },
+                        { type: 'tool_use', id: 'call_2', name: 'fs_list', input: { path: '/b' } },
+                    ],
+                },
+            ],
+        });
+        const body = JSON.parse(req.body);
+        const asst = body.messages[1];
+        assert.equal(asst.role, 'assistant');
+        assert.equal(asst.content, null);
+        assert.ok(Array.isArray(asst.tool_calls));
+        assert.equal(asst.tool_calls.length, 2);
+        assert.equal(asst.tool_calls[0].id, 'call_1');
+        assert.equal(asst.tool_calls[0].type, 'function');
+        assert.equal(asst.tool_calls[0].function.name, 'fs_read');
+        assert.equal(asst.tool_calls[0].function.arguments, JSON.stringify({ path: '/a' }));
+        assert.equal(asst.tool_calls[1].function.name, 'fs_list');
+    });
+
+    test('mapMessages: user tool_result parts → N separate role:tool messages', () => {
+        const req = openai.buildRequest({
+            model: 'gpt-5.5',
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        { type: 'tool_result', toolUseId: 'call_1', content: 'A' },
+                        { type: 'tool_result', toolUseId: 'call_2', content: { rows: 3 } },
+                    ],
+                },
+            ],
+        });
+        const body = JSON.parse(req.body);
+        assert.equal(body.messages.length, 2);
+        assert.equal(body.messages[0].role, 'tool');
+        assert.equal(body.messages[0].tool_call_id, 'call_1');
+        assert.equal(body.messages[0].content, 'A');
+        assert.equal(body.messages[1].role, 'tool');
+        assert.equal(body.messages[1].tool_call_id, 'call_2');
+        assert.equal(body.messages[1].content, JSON.stringify({ rows: 3 }));
     });
 
     test('parseChunk: reassembles tool_uses across delta tool_calls then finish_reason=tool_calls', () => {
@@ -1175,6 +1278,109 @@ describe('theme', async () => {
 // the DOM API to get a useful signal here. See the Tests section in
 // the task notes.
 test.skip('views.mount toggles classes correctly', () => {});
+
+// ── mcp-tool-loop ─────────────────────────────────────────────
+
+describe('mcp-tool-loop', async () => {
+    let loop;
+    try { loop = await import('../src/mcp-tool-loop.js'); }
+    catch (e) { console.warn('[unit.test] mcp-tool-loop import failed:', e.message); }
+
+    test('extractToolUses pulls tool_use parts; ignores text and unknown', (ctx) => {
+        if (!loop) return ctx.skip();
+        const out = loop.extractToolUses([
+            { type: 'text', text: 'hello' },
+            { type: 'tool_use', id: 'a', name: 'fs_read', input: { x: 1 } },
+            { type: 'tool_use', id: 'b', name: 'fs_list' }, // no input → defaults to {}
+        ]);
+        assert.equal(out.length, 2);
+        assert.deepEqual(out[0], { id: 'a', name: 'fs_read', input: { x: 1 } });
+        assert.deepEqual(out[1], { id: 'b', name: 'fs_list', input: {} });
+    });
+
+    test('wrapToolResult: ok → string content, error → is_error', (ctx) => {
+        if (!loop) return ctx.skip();
+        const okPart = loop.wrapToolResult({ id: 'x' }, { ok: true, value: 'done' });
+        assert.equal(okPart.type, 'tool_result');
+        assert.equal(okPart.toolUseId, 'x');
+        assert.equal(okPart.content, 'done');
+        assert.equal(okPart.is_error, undefined);
+        const errPart = loop.wrapToolResult({ id: 'x' }, { ok: false, error: 'boom' });
+        assert.equal(errPart.is_error, true);
+        assert.equal(errPart.content, 'boom');
+    });
+
+    test('runToolLoop terminates when assistant has no tool_use', async (ctx) => {
+        if (!loop) return ctx.skip();
+        const out = await loop.runToolLoop({
+            initialHistory: [{ role: 'user', content: 'hi' }],
+            runProvider: async () => ({ role: 'assistant', content: [{ type: 'text', text: 'no tools' }] }),
+            callTool: async () => 'unused',
+        });
+        assert.equal(out.iterations, 0);
+        assert.equal(out.capped, undefined);
+        assert.equal(out.cancelled, undefined);
+        assert.equal(out.history.length, 2);
+    });
+
+    test('runToolLoop: caps at MAX_TOOL_ITERATIONS when provider keeps emitting tool_use', async (ctx) => {
+        if (!loop) return ctx.skip();
+        let calls = 0;
+        const out = await loop.runToolLoop({
+            initialHistory: [{ role: 'user', content: 'go' }],
+            runProvider: async () => ({
+                role: 'assistant',
+                content: [{ type: 'tool_use', id: `t${calls++}`, name: 'echo', input: { i: calls } }],
+            }),
+            callTool: async () => 'ok',
+        });
+        assert.equal(out.capped, true);
+        assert.equal(out.iterations, loop.MAX_TOOL_ITERATIONS);
+    });
+
+    test('runToolLoop: errors in callTool are wrapped as tool_result with is_error', async (ctx) => {
+        if (!loop) return ctx.skip();
+        let phase = 0;
+        const out = await loop.runToolLoop({
+            initialHistory: [{ role: 'user', content: 'go' }],
+            runProvider: async () => {
+                phase += 1;
+                if (phase === 1) {
+                    return { role: 'assistant', content: [{ type: 'tool_use', id: 'a', name: 'oops', input: {} }] };
+                }
+                return { role: 'assistant', content: [{ type: 'text', text: 'recovered' }] };
+            },
+            callTool: async () => { throw new Error('boom'); },
+        });
+        assert.equal(out.capped, undefined);
+        assert.equal(out.iterations, 1);
+        // Last user message in history is the synthetic tool_result message.
+        const beforeAsst = out.history[out.history.length - 2];
+        assert.equal(beforeAsst.role, 'user');
+        assert.ok(Array.isArray(beforeAsst.content));
+        assert.equal(beforeAsst.content[0].type, 'tool_result');
+        assert.equal(beforeAsst.content[0].is_error, true);
+        assert.equal(beforeAsst.content[0].content, 'boom');
+    });
+
+    test('runToolLoop: cancellation between iterations', async (ctx) => {
+        if (!loop) return ctx.skip();
+        let cancelled = false;
+        const out = await loop.runToolLoop({
+            initialHistory: [{ role: 'user', content: 'go' }],
+            runProvider: async () => ({
+                role: 'assistant',
+                content: [{ type: 'tool_use', id: 'a', name: 'echo', input: {} }],
+            }),
+            callTool: async () => { cancelled = true; return 'ok'; },
+            isCancelled: () => cancelled,
+        });
+        assert.equal(out.cancelled, true);
+        // First iteration ran (one runProvider + one callTool) but the
+        // pre-iteration check on the next loop pass returned cancelled.
+        assert.ok(out.iterations >= 1);
+    });
+});
 
 // ── helpers ────────────────────────────────────────────────────
 

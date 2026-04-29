@@ -44,6 +44,11 @@ function extractSystem(messages) {
 /**
  * Translate one of our portable parts to Anthropic's content-block shape.
  * Unknown part types are dropped.
+ *
+ *   - 'text'        → { type: 'text', text }
+ *   - 'image'       → { type: 'image', source: { type: 'base64', ... } }
+ *   - 'tool_use'    → { type: 'tool_use', id, name, input }   (assistant turn)
+ *   - 'tool_result' → { type: 'tool_result', tool_use_id, content, is_error? }
  */
 function partToAnthropic(p) {
     if (!p || typeof p !== 'object') return null;
@@ -56,6 +61,26 @@ function partToAnthropic(p) {
             source: { type: 'base64', media_type: p.mediaType || 'image/jpeg', data: p.data },
         };
     }
+    if (p.type === 'tool_use' && typeof p.name === 'string') {
+        return {
+            type: 'tool_use',
+            id: p.id || '',
+            name: p.name,
+            input: p.input || {},
+        };
+    }
+    if (p.type === 'tool_result' && typeof p.toolUseId === 'string') {
+        const content = typeof p.content === 'string'
+            ? p.content
+            : JSON.stringify(p.content == null ? '' : p.content);
+        const block = {
+            type: 'tool_result',
+            tool_use_id: p.toolUseId,
+            content,
+        };
+        if (p.is_error) block.is_error = true;
+        return block;
+    }
     return null;
 }
 
@@ -64,7 +89,10 @@ function partToAnthropic(p) {
  * Anthropic only accepts `user` and `assistant`; system is extracted.
  * `content` may be a string (legacy) or an array of parts. String content
  * is sent verbatim — Anthropic accepts string OR content-block arrays.
- * Tool/function-call shapes are out of scope for v1.
+ *
+ * Tool round-trip:
+ *   - assistant `tool_use` parts pass through as Anthropic `tool_use` blocks
+ *   - user `tool_result` parts pass through as Anthropic `tool_result` blocks
  */
 function mapMessages(messages) {
     const out = [];

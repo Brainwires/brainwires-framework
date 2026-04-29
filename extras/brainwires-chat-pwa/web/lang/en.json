@@ -113,6 +113,18 @@
     "settings.mcp.tools": "Tools",
     "settings.mcp.testOk": "Connected — {count} tools",
 
+    "mcp.picker.title": "Tools",
+    "mcp.picker.tools": "Tools",
+    "mcp.picker.empty": "No tools advertised by this server.",
+    "mcp.picker.noServers": "No MCP servers configured. Add one in Settings.",
+    "mcp.picker.noConversation": "Open a conversation first.",
+    "mcp.picker.allOn": "Enable all",
+    "mcp.picker.allOff": "Disable all",
+    "mcp.tools.callLabel": "Tool call:",
+    "mcp.tools.resultLabel": "Tool result:",
+    "mcp.tools.errorLabel": "Tool error:",
+    "mcp.tools.loopLimit": "Tool loop limit reached (5 calls)",
+
     "settings.about.title": "About",
     "settings.about.version": "Version",
     "settings.about.build": "Build",

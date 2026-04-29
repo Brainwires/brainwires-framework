@@ -54,6 +54,15 @@ function partToOpenAI(p) {
  * Map our portable history to OpenAI's `messages` array. String content is
  * passed through; parts[] is expanded into the typed content-array shape
  * (chat-completions accepts both forms on a per-message basis).
+ *
+ * Tool round-trip translation:
+ *   - assistant `tool_use` parts → assistant message with `tool_calls[]`
+ *     (multiple tool_uses in one assistant turn become one assistant
+ *     message with multiple `tool_calls[]` entries; per OpenAI spec
+ *     `content` is then `null`).
+ *   - user `tool_result` parts → ONE separate `{role:'tool', tool_call_id, content}`
+ *     message per tool_result. A user message containing N tool_result
+ *     parts therefore expands into N tool-role messages.
  */
 function mapMessages(messages) {
     const out = [];
@@ -67,6 +76,41 @@ function mapMessages(messages) {
             continue;
         }
         if (Array.isArray(m.content)) {
+            // Tool-result expansion (user role only): each tool_result
+            // becomes its own role:'tool' message. Other part types are
+            // dropped from this branch — mixing tool_results with text
+            // is non-conformant for OpenAI; the tool-loop never produces
+            // such a mix.
+            const toolResults = m.content.filter((p) => p && p.type === 'tool_result' && typeof p.toolUseId === 'string');
+            if (toolResults.length > 0 && role === 'user') {
+                for (const r of toolResults) {
+                    out.push({
+                        role: 'tool',
+                        tool_call_id: r.toolUseId,
+                        content: typeof r.content === 'string'
+                            ? r.content
+                            : JSON.stringify(r.content == null ? '' : r.content),
+                    });
+                }
+                continue;
+            }
+            // Tool-use expansion (assistant role only): emit one
+            // assistant message with `tool_calls[]` and `content: null`,
+            // batching every tool_use in this turn together.
+            const toolUses = m.content.filter((p) => p && p.type === 'tool_use' && typeof p.name === 'string');
+            if (toolUses.length > 0 && role === 'assistant') {
+                const tool_calls = toolUses.map((p) => ({
+                    id: p.id || '',
+                    type: 'function',
+                    function: {
+                        name: p.name,
+                        arguments: JSON.stringify(p.input || {}),
+                    },
+                }));
+                out.push({ role: 'assistant', content: null, tool_calls });
+                continue;
+            }
+            // Plain text + image content.
             const items = m.content.map(partToOpenAI).filter(Boolean);
             if (items.length) out.push({ role, content: items });
             continue;

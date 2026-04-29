@@ -359,6 +359,108 @@ a { color: var(--accent); }
 }
 .reasoning-body > :first-child { margin-top: 0; }
 .reasoning-body > :last-child { margin-bottom: 0; }
+
+/* MCP tool call / tool result blocks — same chrome as reasoning. */
+.tool-call,
+.tool-result {
+    margin: 6px 0;
+    padding: 6px 10px;
+    border-left: 2px solid var(--border);
+    background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+    border-radius: 6px;
+    font-size: 13px;
+}
+.tool-result-error {
+    border-left-color: var(--danger, #c1554d);
+}
+.tool-call > summary,
+.tool-result > summary {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    list-style: none;
+    font-weight: 600;
+    color: var(--muted);
+}
+.tool-call > summary::-webkit-details-marker,
+.tool-result > summary::-webkit-details-marker { display: none; }
+.tool-call > summary::before,
+.tool-result > summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 6px;
+    transition: transform 120ms ease;
+}
+.tool-call[open] > summary::before,
+.tool-result[open] > summary::before { transform: rotate(90deg); }
+.tool-call-name,
+.tool-result-id {
+    margin-left: 6px;
+    font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 12px;
+}
+.tool-call-input,
+.tool-result-content {
+    margin: 6px 0 0;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.18);
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 12px;
+}
+
+/* MCP picker — bottom-sheet drawer for the per-conversation tool toggle. */
+.mcp-picker-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 90;
+}
+.mcp-picker-sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 91;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--surface-1);
+    border-top: 1px solid var(--border);
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+    padding: 14px 14px max(14px, env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+}
+.mcp-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+.mcp-picker-title { font-size: 16px; }
+.mcp-picker-body { display: flex; flex-direction: column; gap: 12px; }
+.mcp-picker-tools {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.mcp-picker-tool {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.mcp-picker-tool:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
+.mcp-picker-tool-meta { display: flex; flex-direction: column; gap: 2px; }
+.mcp-picker-tool-name { font-size: 13px; font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace; }
+.mcp-picker-tool-desc { font-size: 12px; color: var(--muted); }
+.mcp-picker-checkbox { margin-top: 3px; }
 .bubble-content code {
     font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
     font-size: 0.92em;
