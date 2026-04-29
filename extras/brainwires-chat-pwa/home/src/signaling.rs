@@ -31,6 +31,7 @@ use webrtc::peer_connection::{PeerConnection, RTCIceCandidateInit};
 
 use crate::TurnConfig;
 use crate::a2a::A2aBridge;
+use crate::binary::BinaryStore;
 use crate::turn::{IceServerJson, mint_ice_servers};
 use crate::webrtc::{
     PeerEvent, apply_offer_and_create_answer, build_answerer, run_a2a_loop_with_session,
@@ -160,10 +161,16 @@ pub struct SessionState {
     /// data channel. The PWA's `system/resume` cursors against this on
     /// reconnect. Capped at [`OUTBOX_CAPACITY`]; oldest entries roll off.
     pub outbox: RwLock<VecDeque<OutboxEntry>>,
+    /// M11 — per-session binary chunking store. `bin/begin` allocates a
+    /// pending buffer; `bin/end` finalizes; a subsequent `message/send`
+    /// with a `bin_id` part consumes the blob. See [`crate::binary`].
+    pub binaries: BinaryStore,
 }
 
 impl SessionState {
-    fn new(session_id: String) -> Self {
+    /// Visible to the rest of the crate so the M11 webrtc tests can stage
+    /// a session by hand without going through the signaling routes.
+    pub(crate) fn new(session_id: String) -> Self {
         Self {
             session_id,
             created_at: Instant::now(),
@@ -176,6 +183,7 @@ impl SessionState {
             data_channel: RwLock::new(None),
             peer_input_count: AtomicUsize::new(0),
             outbox: RwLock::new(VecDeque::with_capacity(OUTBOX_CAPACITY)),
+            binaries: BinaryStore::new(),
         }
     }
 
@@ -274,7 +282,9 @@ impl AppState {
             .retain(|_, s| now.saturating_duration_since(s.created_at) < ttl);
     }
 
-    /// Spawn a background task that GCs every [`GC_INTERVAL`].
+    /// Spawn a background task that GCs every [`GC_INTERVAL`]. M11 piggybacks
+    /// on this tick to also sweep each surviving session's [`BinaryStore`]
+    /// for expired pending buffers (30 s) and finalized blobs (5 min).
     pub fn spawn_gc(&self) -> tokio::task::JoinHandle<()> {
         let me = self.clone();
         tokio::spawn(async move {
@@ -284,6 +294,17 @@ impl AppState {
             loop {
                 tick.tick().await;
                 me.gc_expired();
+                // Snapshot the surviving sessions then sweep each one's
+                // BinaryStore. The snapshot avoids holding the dashmap
+                // shard locks across the .await.
+                let snapshot: Vec<Arc<SessionState>> = me
+                    .sessions
+                    .iter()
+                    .map(|e| e.value().clone())
+                    .collect();
+                for s in snapshot {
+                    s.binaries.gc_expired().await;
+                }
             }
         })
     }

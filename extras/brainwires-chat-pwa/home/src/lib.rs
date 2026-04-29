@@ -11,6 +11,7 @@
 //! a port at all.
 
 pub mod a2a;
+pub mod binary;
 pub mod pairing;
 pub mod signaling;
 pub mod turn;

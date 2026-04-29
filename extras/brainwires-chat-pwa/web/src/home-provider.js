@@ -177,13 +177,131 @@ export function buildSendMessageRequest(messages, _params) {
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
 
+    // M11 — file/image parts in `userTurn.content` (or `userTurn.attachments`)
+    // get rendered as A2A `Part` placeholders here. Anything carrying raw
+    // bytes is left empty (filename + mediaType only); the caller in
+    // [`startChat`] then rewrites those parts via [`uploadFilePartsToBinIds`]
+    // before sending the JSON-RPC frame.
+    const fileParts = [];
+    const fileSources = collectFileLikeSources(userTurn);
+    for (const src of fileSources) {
+        const part = { filename: src.name || 'file' };
+        if (src.mediaType) part.mediaType = src.mediaType;
+        // The bytes ride on a private `_bytes` field that the rewrite helper
+        // strips before sending. Putting it on the request avoids changing
+        // the function's call sites — anything that stringifies the request
+        // would surface this, but the only stringify happens after the
+        // rewrite, where `_bytes` has been replaced with `metadata.bin_id`.
+        if (src.bytes instanceof Uint8Array) part._bytes = src.bytes;
+        fileParts.push(part);
+    }
+
+    const parts = [{ text }, ...fileParts];
+
     return {
         message: {
             messageId,
             role: 'ROLE_USER',
-            parts: [{ text }],
+            parts,
         },
     };
+}
+
+/**
+ * Collect every file-shaped item attached to a chat-UI user turn.
+ * Tolerates two shapes:
+ *   - `userTurn.attachments`: array of `{ name, mediaType, bytes: Uint8Array }`
+ *   - `userTurn.content`: array of `{ type:'file'|'image', file?: { name, mediaType, bytes } }`
+ *     or `{ type:'image', image: { mediaType, bytes } }`
+ * Anything missing `bytes` is dropped — we can't upload what we don't have.
+ *
+ * Exported for the unit tests.
+ */
+export function collectFileLikeSources(userTurn) {
+    const out = [];
+    if (Array.isArray(userTurn.attachments)) {
+        for (const a of userTurn.attachments) {
+            if (!a || !(a.bytes instanceof Uint8Array)) continue;
+            out.push({
+                name: a.name || a.filename || 'file',
+                mediaType: a.mediaType || a.contentType || 'application/octet-stream',
+                bytes: a.bytes,
+            });
+        }
+    }
+    if (Array.isArray(userTurn.content)) {
+        for (const p of userTurn.content) {
+            if (!p || typeof p !== 'object') continue;
+            if (p.type === 'file' && p.file && p.file.bytes instanceof Uint8Array) {
+                out.push({
+                    name: p.file.name || 'file',
+                    mediaType: p.file.mediaType || p.file.contentType || 'application/octet-stream',
+                    bytes: p.file.bytes,
+                });
+            } else if (p.type === 'image' && p.image && p.image.bytes instanceof Uint8Array) {
+                out.push({
+                    name: p.image.name || 'image',
+                    mediaType: p.image.mediaType || p.image.contentType || 'image/jpeg',
+                    bytes: p.image.bytes,
+                });
+            }
+        }
+    }
+    return out;
+}
+
+/**
+ * Threshold above which a file part is uploaded via the binary-chunking
+ * path instead of being inlined. 64 KB is well under the 256 KB chunk
+ * boundary, so even moderately-sized payloads route through the chunked
+ * uplink — small thumbnails (<64 KB) stay inline.
+ */
+export const INLINE_FILE_THRESHOLD = 64 * 1024;
+
+/**
+ * Walk a `SendMessageRequest` and replace each file part's `_bytes`
+ * with a `metadata.bin_id` reference, uploading via the transport's
+ * `uploadBinary` helper. Mutates `req` in place and returns it.
+ *
+ * Parts with `_bytes` length below [`INLINE_FILE_THRESHOLD`] are inlined
+ * as base64 in `raw` instead — small thumbnails don't need the round-trip.
+ *
+ * Exported so tests can drive it with a mock transport.
+ *
+ * @param {{message:{parts:Array<object>}}} req
+ * @param {{ uploadBinary: Function }} transport
+ */
+export async function uploadFilePartsToBinIds(req, transport) {
+    if (!req || !req.message || !Array.isArray(req.message.parts)) return req;
+    const parts = req.message.parts;
+    for (const part of parts) {
+        const bytes = part._bytes;
+        if (!(bytes instanceof Uint8Array)) continue;
+        delete part._bytes;
+        if (bytes.byteLength <= INLINE_FILE_THRESHOLD) {
+            // Small enough to ride inline.
+            part.raw = await uint8ToBase64Async(bytes);
+            continue;
+        }
+        if (!transport || typeof transport.uploadBinary !== 'function') {
+            throw new Error('uploadFilePartsToBinIds: transport.uploadBinary unavailable');
+        }
+        const mediaType = part.mediaType || 'application/octet-stream';
+        const binId = await transport.uploadBinary(bytes, mediaType);
+        part.metadata = part.metadata || {};
+        part.metadata.bin_id = binId;
+    }
+    return req;
+}
+
+/**
+ * Internal — base64-encode a Uint8Array using the same chunked approach
+ * as home-transport.js (shared via dynamic import to avoid duplicating
+ * the helper while keeping this module independently testable).
+ */
+async function uint8ToBase64Async(bytes) {
+    const mod = await import('./home-transport.js');
+    return mod.uint8ToBase64(bytes);
 }
 
 /**
@@ -273,6 +391,9 @@ export async function startChat({
     let request;
     try {
         request = buildSendMessageRequest(messages, params);
+        // M11 — auto-upload any file/image parts. Large files become
+        // bin_id refs; small thumbnails ride inline as base64.
+        await uploadFilePartsToBinIds(request, transport);
     } catch (err) {
         const errMsg = (err && err.message) || String(err);
         dispatch('chat_error', { conversationId, messageId, error: errMsg });

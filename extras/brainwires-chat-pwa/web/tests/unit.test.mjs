@@ -2476,6 +2476,229 @@ describe('home-provider.isAvailable (paired-only gating)', async () => {
     });
 });
 
+// ── home-transport.uploadBinary (M11) ──────────────────────────
+
+describe('home-transport.uint8ToBase64 + sha256Hex', async () => {
+    const { uint8ToBase64, sha256Hex } = await import('../src/home-transport.js');
+
+    test('uint8ToBase64 round-trips with Buffer.from(b64, "base64")', () => {
+        const u8 = new Uint8Array([0, 1, 2, 250, 251, 252, 253, 254, 255]);
+        const b64 = uint8ToBase64(u8);
+        const back = Buffer.from(b64, 'base64');
+        assert.deepEqual(Array.from(back), Array.from(u8));
+    });
+
+    test('uint8ToBase64 handles 600 KB without blowing the stack', () => {
+        const big = new Uint8Array(600 * 1024);
+        for (let i = 0; i < big.length; i++) big[i] = i & 0xff;
+        const b64 = uint8ToBase64(big);
+        // Decoded length should match the input size.
+        assert.equal(Buffer.from(b64, 'base64').length, big.length);
+    });
+
+    test('sha256Hex matches a known fixture', async () => {
+        // SHA-256("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+        const out = await sha256Hex(new TextEncoder().encode('abc'));
+        assert.equal(out, 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+    });
+});
+
+describe('home-transport.uploadBinary (M11)', async () => {
+    const { HomeTransport } = await import('../src/home-transport.js');
+
+    /**
+     * Build a HomeTransport that's already in the 'connected' state with
+     * a fake data channel and a captured request log. The test pokes the
+     * private fields directly because re-deriving the ICE handshake just
+     * to exercise the chunking path would dwarf the test in plumbing.
+     */
+    function connectedFakeTransport() {
+        const sent = [];
+        const fakeDC = { send: (frame) => sent.push(frame) };
+        const t = new HomeTransport({ signaling: {}, rtcPeerConnection: function () {} });
+        t._state = 'connected';
+        t._dc = fakeDC;
+        // Auto-resolve every JSON-RPC request the dispatcher tries to fire.
+        const realRequest = t._dispatcher.request.bind(t._dispatcher);
+        t._dispatcher.request = (method, params, opts) => {
+            const slot = realRequest(method, params, opts);
+            // Resolve next tick so the await yields.
+            queueMicrotask(() => {
+                t._dispatcher.dispatch(JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: slot.id,
+                    result: { ok: true },
+                }));
+            });
+            return slot;
+        };
+        return { t, sent };
+    }
+
+    test('uploadBinary chunks at 256 KB boundaries (600 KB → 3 chunks)', async () => {
+        const { t, sent } = connectedFakeTransport();
+        const big = new Uint8Array(600 * 1024);
+        for (let i = 0; i < big.length; i++) big[i] = i & 0xff;
+        const onProgress = [];
+        const binId = await t.uploadBinary(big, 'application/octet-stream', {
+            onProgress: (p) => onProgress.push({ ...p }),
+        });
+        assert.equal(typeof binId, 'string');
+        // 1 begin + 3 chunks + 1 end = 5 frames
+        const methods = sent.map((f) => JSON.parse(f).method);
+        assert.deepEqual(methods, ['bin/begin', 'bin/chunk', 'bin/chunk', 'bin/chunk', 'bin/end']);
+        // Progress fires once per chunk with monotonic `sent`, and final
+        // `sent === total`.
+        assert.equal(onProgress.length, 3);
+        assert.equal(onProgress[0].total, big.length);
+        assert.ok(onProgress[0].sent < onProgress[1].sent);
+        assert.ok(onProgress[1].sent < onProgress[2].sent);
+        assert.equal(onProgress[2].sent, big.length);
+    });
+
+    test('uploadBinary computes SHA-256 and includes it in bin/end', async () => {
+        const { t, sent } = connectedFakeTransport();
+        const data = new TextEncoder().encode('abc');
+        await t.uploadBinary(data, 'text/plain');
+        const endFrame = sent.map((f) => JSON.parse(f)).find((m) => m.method === 'bin/end');
+        assert.ok(endFrame);
+        assert.equal(
+            endFrame.params.sha256,
+            'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+        );
+    });
+
+    test('uploadBinary < 256 KB sends a single chunk', async () => {
+        const { t, sent } = connectedFakeTransport();
+        const small = new Uint8Array(100 * 1024);
+        await t.uploadBinary(small, 'application/octet-stream');
+        const methods = sent.map((f) => JSON.parse(f).method);
+        assert.deepEqual(methods, ['bin/begin', 'bin/chunk', 'bin/end']);
+        const beginFrame = JSON.parse(sent[0]);
+        assert.equal(beginFrame.params.total_chunks, 1);
+        assert.equal(beginFrame.params.total_size, small.length);
+    });
+
+    test('uploadBinary throws when not connected', async () => {
+        const t = new HomeTransport({ signaling: {} });
+        // _state defaults to 'idle'.
+        await assert.rejects(
+            t.uploadBinary(new Uint8Array(8), 'application/octet-stream'),
+            /not connected/,
+        );
+    });
+});
+
+describe('home-provider.uploadFilePartsToBinIds (M11)', async () => {
+    const { uploadFilePartsToBinIds, INLINE_FILE_THRESHOLD } =
+        await import('../src/home-provider.js');
+
+    test('large file part becomes a bin_id ref via transport.uploadBinary', async () => {
+        const big = new Uint8Array(INLINE_FILE_THRESHOLD + 1024);
+        const calls = [];
+        const fakeTransport = {
+            async uploadBinary(bytes, ct) {
+                calls.push({ size: bytes.byteLength, ct });
+                return 'bin-xyz';
+            },
+        };
+        const req = {
+            message: {
+                messageId: 'm',
+                role: 'ROLE_USER',
+                parts: [
+                    { text: 'see attachment' },
+                    { filename: 'big.bin', mediaType: 'application/octet-stream', _bytes: big },
+                ],
+            },
+        };
+        await uploadFilePartsToBinIds(req, fakeTransport);
+        assert.equal(calls.length, 1);
+        assert.equal(calls[0].size, big.byteLength);
+        assert.equal(calls[0].ct, 'application/octet-stream');
+        const filePart = req.message.parts[1];
+        assert.equal(filePart._bytes, undefined, '_bytes must be stripped before sending');
+        assert.equal(filePart.metadata.bin_id, 'bin-xyz');
+        assert.equal(filePart.raw, undefined, 'large parts must NOT be inlined');
+    });
+
+    test('small file part is inlined as base64 raw, not uploaded', async () => {
+        const small = new Uint8Array(8);
+        small.set([0, 1, 2, 3, 4, 5, 6, 7]);
+        const fakeTransport = {
+            async uploadBinary() { throw new Error('should not be called'); },
+        };
+        const req = {
+            message: {
+                messageId: 'm',
+                role: 'ROLE_USER',
+                parts: [
+                    { filename: 'tiny.bin', _bytes: small },
+                ],
+            },
+        };
+        await uploadFilePartsToBinIds(req, fakeTransport);
+        const filePart = req.message.parts[0];
+        assert.equal(filePart._bytes, undefined);
+        assert.equal(filePart.raw, Buffer.from(small).toString('base64'));
+        // No bin_id metadata for the inline case.
+        assert.equal(
+            filePart.metadata == null || filePart.metadata.bin_id == null,
+            true,
+        );
+    });
+
+    test('plain text-only request is left untouched', async () => {
+        const req = {
+            message: {
+                messageId: 'm', role: 'ROLE_USER',
+                parts: [{ text: 'hello' }],
+            },
+        };
+        const fakeTransport = { uploadBinary: () => { throw new Error('nope'); } };
+        await uploadFilePartsToBinIds(req, fakeTransport);
+        assert.deepEqual(req.message.parts, [{ text: 'hello' }]);
+    });
+});
+
+describe('home-provider.buildSendMessageRequest with attachments (M11)', async () => {
+    const { buildSendMessageRequest, collectFileLikeSources } =
+        await import('../src/home-provider.js');
+
+    test('attachments shape is collected', () => {
+        const userTurn = {
+            role: 'user',
+            content: 'caption',
+            attachments: [
+                { name: 'a.png', mediaType: 'image/png', bytes: new Uint8Array([1, 2]) },
+                { name: 'b.bin', bytes: new Uint8Array([3]) },
+                { name: 'c.no-bytes' }, // dropped
+            ],
+        };
+        const out = collectFileLikeSources(userTurn);
+        assert.equal(out.length, 2);
+        assert.equal(out[0].mediaType, 'image/png');
+        assert.equal(out[1].mediaType, 'application/octet-stream');
+    });
+
+    test('buildSendMessageRequest emits one part per file with _bytes set', () => {
+        const userTurn = {
+            role: 'user',
+            content: 'see image',
+            attachments: [
+                { name: 'a.png', mediaType: 'image/png', bytes: new Uint8Array([7, 7, 7]) },
+            ],
+        };
+        const req = buildSendMessageRequest([userTurn]);
+        assert.equal(req.message.parts.length, 2);
+        assert.equal(req.message.parts[0].text, 'see image');
+        assert.equal(req.message.parts[1].filename, 'a.png');
+        assert.equal(req.message.parts[1].mediaType, 'image/png');
+        assert.ok(req.message.parts[1]._bytes instanceof Uint8Array);
+        assert.deepEqual(Array.from(req.message.parts[1]._bytes), [7, 7, 7]);
+    });
+});
+
 // ── helpers ────────────────────────────────────────────────────
 
 function mkResponse(body) {

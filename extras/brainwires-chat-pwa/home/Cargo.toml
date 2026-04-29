@@ -66,6 +66,9 @@ rand = { workspace = true }
 hex = { workspace = true }
 sha2 = { workspace = true }
 
+# Binary chunking (M11): base64 transcode for `bin/chunk.data` payloads.
+base64 = { workspace = true }
+
 # CLI
 clap = { version = "4", features = ["derive", "env"] }
 

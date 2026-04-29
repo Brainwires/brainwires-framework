@@ -26,8 +26,10 @@ branch.
 | M6        | CORS configuration + tunnel-pointing docs                                | landed     |
 | M7        | Cloudflare Calls TURN credential minting (cellular symmetric-NAT path)  | landed     |
 | M8        | Pairing flow (`/pair/claim`, `/pair/confirm`, QR + 6-digit confirm)     | landed     |
-| **M9**    | `home-provider.js` adapter — "Home agent" appears as a chat provider   | this commit |
-| M10–M12   | reconnect/resume, multimodal chunking, polish                           | —          |
+| M9        | `home-provider.js` adapter — "Home agent" appears as a chat provider   | landed     |
+| M10       | Reconnect/resume — heartbeat, ICE restart, outbox replay                | landed     |
+| **M11**   | Multimodal chunking — `bin/begin` + `bin/chunk` + `bin/end`            | this commit |
+| M12       | Polish                                                                  | —          |
 
 ## Architecture
 
@@ -169,8 +171,39 @@ reinvent retransmit/sequence. Payloads are
 `JsonRpcResponse` / `message/stream` partial-result envelopes verbatim —
 zero new schema. Streaming tokens are one frame per datachannel send.
 
-Multimodal payloads >256 KB chunk via `bin/begin`, `bin/chunk`, `bin/end`
-JSON-RPC pairs (transport concern, lives in `webrtc.rs`).
+### Binary chunking (M11)
+
+Payloads larger than the SCTP frame budget (or just larger than 64 KB,
+where inlining stops being free) ride a three-call JSON-RPC sequence
+instead of one big `message/send`:
+
+| Method      | Params                                                          | Reply                          |
+|-------------|-----------------------------------------------------------------|--------------------------------|
+| `bin/begin` | `{ bin_id, content_type, total_size, total_chunks }`            | `{ ok: true }`                 |
+| `bin/chunk` | `{ bin_id, seq, data: <base64> }`                               | `{ ok: true }`                 |
+| `bin/end`   | `{ bin_id, sha256? }`                                           | `{ ok: true, size }`           |
+
+Default raw chunk size: **256 KB** (≈341 KB after base64). The PWA
+generates `bin_id` as a UUID and uploads sequentially. The home daemon
+keeps pending buffers per session for 30 s and finalized blobs for 5
+minutes; both are GC'd by the existing 60 s tick. A subsequent
+`message/send` whose `parts[]` contains an entry with
+`metadata.bin_id == "<id>"` consumes the blob — the daemon strips the
+metadata and inlines the bytes as `Part.raw` (base64) before forwarding
+to the agent. One-shot: a second `message/send` referencing the same
+`bin_id` finds nothing.
+
+Custom error codes (in addition to the spec range):
+
+| Code     | Meaning                                                |
+|----------|--------------------------------------------------------|
+| `-32001` | unknown `bin_id` (chunk before begin, or after expiry) |
+| `-32002` | `seq` doesn't match `next_expected`                    |
+| `-32003` | sha256 mismatch on `bin/end` (buffer is dropped)       |
+
+Lives in `home/src/binary.rs` (the store + parsing) and `home/src/webrtc.rs`
+(JSON-RPC dispatch + the `message/send` rewrite that resolves bin refs
+to inline bytes).
 
 ## Reconnect
 

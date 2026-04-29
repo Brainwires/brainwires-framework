@@ -601,6 +601,83 @@ export class HomeTransport {
         await this.connect();
     }
 
+    // ── M11: binary chunking (uplink) ──────────────────────────
+
+    /**
+     * Upload a binary payload to the home daemon, auto-chunking at 256 KB
+     * raw boundaries when needed. Returns a fresh `bin_id` (UUID) the
+     * caller can reference in a subsequent `message/send` file part as
+     * `metadata: { bin_id }`. The daemon resolves the reference and
+     * inlines the bytes before the agent sees the message.
+     *
+     * Wire (each `bin/*` is one JSON-RPC call over the data channel):
+     *   bin/begin → bin/chunk × N → bin/end (with sha256)
+     *
+     * Sequential by design — chunk N+1 only after chunk N's reply lands.
+     * The dispatcher would serialize them anyway via id allocation, but
+     * explicit awaits make the protocol invariants obvious in tracing.
+     *
+     * @param {Uint8Array} bytes raw payload
+     * @param {string} contentType MIME type for the daemon to record
+     * @param {{
+     *   chunkSize?: number,           // raw bytes per chunk, default 256 KB
+     *   onProgress?: (p: {sent: number, total: number}) => void,
+     *   timeoutMs?: number,           // per-call JSON-RPC timeout, default 30 s
+     * }} [opts]
+     * @returns {Promise<string>} the bin_id
+     */
+    async uploadBinary(bytes, contentType, opts = {}) {
+        if (this._state !== 'connected') {
+            throw new Error(`HomeTransport.uploadBinary: not connected (state=${this._state})`);
+        }
+        if (!(bytes instanceof Uint8Array)) {
+            throw new Error('HomeTransport.uploadBinary: bytes must be a Uint8Array');
+        }
+        const chunkSize = typeof opts.chunkSize === 'number' && opts.chunkSize > 0
+            ? opts.chunkSize
+            : (256 * 1024);
+        const timeoutMs = typeof opts.timeoutMs === 'number' ? opts.timeoutMs : 30000;
+        const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : null;
+
+        const total = bytes.byteLength;
+        const totalChunks = total === 0 ? 1 : Math.ceil(total / chunkSize);
+        const binId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+            ? crypto.randomUUID()
+            : `bin-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+
+        // Compute SHA-256 once over the whole payload — the daemon
+        // verifies on bin/end. Computed up-front because Web Crypto's
+        // digest API is one-shot, not incremental.
+        const sha = await sha256Hex(bytes);
+
+        await this.request('bin/begin', {
+            bin_id: binId,
+            content_type: contentType,
+            total_size: total,
+            total_chunks: totalChunks,
+        }, { timeoutMs });
+
+        let sent = 0;
+        for (let seq = 0; seq < totalChunks; seq++) {
+            const start = seq * chunkSize;
+            const end = Math.min(start + chunkSize, total);
+            const slice = bytes.subarray(start, end);
+            const b64 = uint8ToBase64(slice);
+            await this.request('bin/chunk', {
+                bin_id: binId,
+                seq,
+                data: b64,
+            }, { timeoutMs });
+            sent += slice.byteLength;
+            if (onProgress) {
+                try { onProgress({ sent, total }); } catch (_) { /* swallow */ }
+            }
+        }
+
+        await this.request('bin/end', { bin_id: binId, sha256: sha }, { timeoutMs });
+        return binId;
+    }
+
     /** Disconnect cleanly. Idempotent. */
     async close() {
         if (this._state === 'closed' || this._state === 'closing') return;
@@ -616,4 +693,57 @@ export class HomeTransport {
         }
         this._setState('closed');
     }
+}
+
+// ── M11 helpers ────────────────────────────────────────────────
+
+/**
+ * Encode a Uint8Array to base64 in a way that works in browsers
+ * (where btoa exists but only takes a binary string) and in node
+ * (where Buffer is available). The chunked-string approach avoids
+ * blowing the call-stack on multi-MB payloads — `String.fromCharCode`
+ * applied to a >100 K-element array hits engine limits.
+ *
+ * Exported for the unit tests.
+ * @param {Uint8Array} u8
+ * @returns {string}
+ */
+export function uint8ToBase64(u8) {
+    // eslint-disable-next-line no-undef
+    if (typeof Buffer !== 'undefined' && Buffer.from) {
+        // node test environment
+        // eslint-disable-next-line no-undef
+        return Buffer.from(u8.buffer, u8.byteOffset, u8.byteLength).toString('base64');
+    }
+    if (typeof btoa !== 'function') {
+        throw new Error('uint8ToBase64: no btoa or Buffer available');
+    }
+    let bin = '';
+    const CHUNK = 0x8000; // 32 KB sub-batches keep fromCharCode happy
+    for (let i = 0; i < u8.length; i += CHUNK) {
+        const slice = u8.subarray(i, i + CHUNK);
+        bin += String.fromCharCode.apply(null, slice);
+    }
+    return btoa(bin);
+}
+
+/**
+ * SHA-256 the input bytes and return a lowercase hex string. Uses
+ * Web Crypto's `crypto.subtle.digest` (available in every PWA-target
+ * browser and in node 18+).
+ * @param {Uint8Array} bytes
+ * @returns {Promise<string>}
+ */
+export async function sha256Hex(bytes) {
+    if (!globalThis.crypto || !globalThis.crypto.subtle) {
+        throw new Error('sha256Hex: Web Crypto unavailable');
+    }
+    const buf = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+    const arr = new Uint8Array(buf);
+    let hex = '';
+    for (let i = 0; i < arr.length; i++) {
+        const h = arr[i].toString(16);
+        hex += h.length === 1 ? `0${h}` : h;
+    }
+    return hex;
 }
