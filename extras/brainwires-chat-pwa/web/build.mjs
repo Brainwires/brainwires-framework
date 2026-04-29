@@ -194,6 +194,25 @@ function generateKatexAssets() {
     writeFileSync(outPath, body);
 }
 
+// Stage pdfjs-dist as static assets under vendor/pdfjs/. pdf-text.js does a
+// variable-path dynamic import to opt out of esbuild's static analysis and
+// fetch the ESM bundle (and its sidecar worker) on demand. Keeps the
+// ~640 KB raw pdfjs payload out of cold-start app.js.
+function generatePdfjsAssets() {
+    const distDir = join(__dirname, 'node_modules/pdfjs-dist/build');
+    const dst = join(__dirname, 'vendor/pdfjs');
+    const src = ['pdf.min.mjs', 'pdf.worker.min.mjs'];
+    if (!existsSync(distDir)) {
+        console.warn(`  pdfjs dist missing; skipping`);
+        return;
+    }
+    mkdirSync(dst, { recursive: true });
+    for (const f of src) {
+        const p = join(distDir, f);
+        if (existsSync(p)) copyFileSync(p, join(dst, f));
+    }
+}
+
 // Read the highlight.js theme CSS and emit a generated JS module that exports
 // the stylesheet as a string literal. Done as a pre-build step because
 // esbuild's default CSS handling overrides `loader: { '.css': 'text' }` and
@@ -237,6 +256,7 @@ async function buildAll() {
     const t0 = performance.now();
     generateHljsTheme();
     generateKatexAssets();
+    generatePdfjsAssets();
     await esbuild.build(appConfig);
     await esbuild.build(workerConfig);
     await esbuild.build(writerWorkerConfig);
@@ -250,6 +270,7 @@ async function buildAll() {
 if (isServe) {
     generateHljsTheme();
     generateKatexAssets();
+    generatePdfjsAssets();
     const ctx = await esbuild.context(appConfig);
     const workerCtx = await esbuild.context(workerConfig);
     const writerCtx = await esbuild.context(writerWorkerConfig);
@@ -273,6 +294,7 @@ if (isServe) {
 } else if (isWatch) {
     generateHljsTheme();
     generateKatexAssets();
+    generatePdfjsAssets();
     const ctx = await esbuild.context(appConfig);
     const workerCtx = await esbuild.context(workerConfig);
     const writerCtx = await esbuild.context(writerWorkerConfig);

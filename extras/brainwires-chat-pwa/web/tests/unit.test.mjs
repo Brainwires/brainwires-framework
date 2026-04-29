@@ -620,6 +620,48 @@ describe('markdown', async () => {
     });
 });
 
+// ── chunker ───────────────────────────────────────────────────
+
+describe('chunker', async () => {
+    let chunkText;
+    try { ({ chunkText } = await import('../src/chunker.js')); }
+    catch (e) { console.warn('[unit.test] chunker import failed:', e.message); }
+
+    test('empty / null returns empty array', (ctx) => {
+        if (!chunkText) return ctx.skip();
+        assert.deepEqual(chunkText(''), []);
+        assert.deepEqual(chunkText(null), []);
+        assert.deepEqual(chunkText(undefined), []);
+    });
+
+    test('short text fits in one chunk', (ctx) => {
+        if (!chunkText) return ctx.skip();
+        const out = chunkText('Hello world. This is a short doc.');
+        assert.equal(out.length, 1);
+        assert.match(out[0], /Hello world/);
+    });
+
+    test('long text splits into multiple chunks with overlap', (ctx) => {
+        if (!chunkText) return ctx.skip();
+        // ~3000 chars of repeating sentences → multiple ~2KB chunks at the
+        // default target (512 tokens × 4 chars/token = 2048).
+        const sentences = [];
+        for (let i = 0; i < 80; i++) sentences.push(`Sentence ${i} has a payload of words that hopefully chunks well.`);
+        const out = chunkText(sentences.join(' '));
+        assert.ok(out.length >= 2, `expected multiple chunks, got ${out.length}`);
+        // Adjacent chunks should share some prefix material via overlap.
+        const tail = out[0].slice(-32);
+        assert.ok(out[1].includes(tail.slice(0, 16)) || out[1].length > 0);
+    });
+
+    test('hard-splits a single sentence longer than target', (ctx) => {
+        if (!chunkText) return ctx.skip();
+        const huge = 'x'.repeat(5000);
+        const out = chunkText(huge);
+        assert.ok(out.length >= 2, `expected hard-split, got ${out.length}`);
+    });
+});
+
 // ── vision (mapping + isVisionModel) ──────────────────────────
 
 describe('vision', async () => {

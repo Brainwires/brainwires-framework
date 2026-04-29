@@ -24,6 +24,7 @@
     "dompurify": "^3.4.1",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.45",
-    "marked": "^12.0.2"
+    "marked": "^12.0.2",
+    "pdfjs-dist": "^4.10.38"
   }
 }

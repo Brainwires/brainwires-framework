@@ -34,6 +34,7 @@ import {
 import * as voice from './voice.js';
 import { mount as mountView } from './views.js';
 import { getTheme, setTheme } from './theme.js';
+import { render as renderRagPanel } from './ui-rag-panel.js';
 
 const PASSPHRASE_SETTING = 'passphraseConfig'; // { salt: base64, verify: encrypted("ok") }
 const ENCRYPT_OPT_OUT_SETTING = 'encryptionOptOut';
@@ -54,6 +55,7 @@ export async function render(root) {
     main.appendChild(await sectionProviders());
     main.appendChild(await sectionLocalModel());
     main.appendChild(await sectionEmbeddingModels());
+    main.appendChild(await sectionRag());
     main.appendChild(await sectionVoice());
     main.appendChild(await sectionAbout());
 
@@ -564,6 +566,13 @@ async function sectionEmbeddingModels() {
         }
     }
     return sectionWrap('Embedding models (local RAG)', body);
+}
+
+// ── Private RAG ────────────────────────────────────────────────
+
+async function sectionRag() {
+    const body = await renderRagPanel();
+    return sectionWrap(t('settings.rag.title'), body);
 }
 
 // ── Partial card refresh (swap one card, keep scroll + rest) ──

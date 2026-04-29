@@ -36,6 +36,7 @@ import { extractThinking, buildReasoningElement } from './reasoning-display.js';
 import * as attachments from './attachments.js';
 import { buildStrip as buildAttachmentStrip } from './ui-attachments.js';
 import { isVisionModel, imageToBase64 } from './vision.js';
+import { retrieve as ragRetrieve, formatRetrievalAsSystem } from './rag.js';
 
 // math.js (KaTeX + theme) is dynamically imported on first render so the
 // ~80 KB gz cost is paid only by sessions that actually contain math.
@@ -515,7 +516,18 @@ async function handleSend() {
         await refreshConversations();
     }
 
-    await runProvider(_messages.map((m) => ({ role: m.role, content: m.content })));
+    // Best-effort RAG retrieval. Failures (no embedding model, no docs,
+    // wasm not yet rebuilt) silently fall through to a no-context send so
+    // chat keeps working before the user has set up a library.
+    let history = _messages.map((m) => ({ role: m.role, content: m.content }));
+    try {
+        const hits = await ragRetrieve(text, { conversationId: _conversationId, k: 4 });
+        const sys = formatRetrievalAsSystem(hits);
+        if (sys) history = [{ role: 'system', content: sys }, ...history];
+    } catch (e) {
+        console.warn('[bw] rag retrieve skipped:', e && e.message ? e.message : e);
+    }
+    await runProvider(history);
 }
 
 async function runProvider(messages) {

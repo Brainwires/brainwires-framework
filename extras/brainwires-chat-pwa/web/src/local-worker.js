@@ -76,6 +76,11 @@ let wasmPromise = null;
 let handle = null;
 let loadedModelId = null;
 
+// Embedding model lives in a separate slot from the chat handle — RAG
+// indexing and assistant generation can run with different weights.
+let embedHandle = null;
+let embedModelId = null;
+
 const inflight = new Map();
 
 async function getWasm() {
@@ -180,6 +185,9 @@ self.addEventListener('message', (ev) => {
         case 'load':         handleLoad(msg);   break;
         case 'chat':         handleChat(msg);   break;
         case 'vision_chat':  handleVisionChat(msg); break;
+        case 'embed_load':   handleEmbedLoad(msg); break;
+        case 'embed_text':   handleEmbedText(msg); break;
+        case 'embed_unload': handleEmbedUnload(msg); break;
         case 'cancel':       handleCancel(msg); break;
         case 'unload':       handleUnload(msg); break;
         default: console.error('local-worker: unknown message type', msg.type);
@@ -424,6 +432,92 @@ async function runChatStream(msg, wasmFnName) {
     } finally {
         inflight.delete(conversationId);
     }
+}
+
+// ── Embedding RPCs (RAG ingest path) ──────────────────────────
+//
+// Same general lifecycle as the chat handle: load weights once, embed many
+// times, free on unload. wasm exports we expect (gated at runtime so the
+// page surfaces a clear error on a wasm crate that hasn't shipped them):
+//   - mod.init_embedding_model(weightsBytes, tokenizerBytes, modelId) → handle
+//   - handle.embed_text(text) → Float32Array
+//   - handle.dim → number
+//   - handle.free()
+async function handleEmbedLoad(msg) {
+    const { requestId, modelId } = msg;
+    try {
+        if (embedHandle && embedModelId === modelId) {
+            self.postMessage({ requestId, type: 'embed_load_done', modelId, dim: embedHandle.dim });
+            return;
+        }
+        if (!(await isDownloaded(modelId))) {
+            self.postMessage({ requestId, type: 'embed_load_error', error: 'not_downloaded' });
+            return;
+        }
+        const mod = await getWasm();
+        if (typeof mod.init_embedding_model !== 'function') {
+            self.postMessage({
+                requestId, type: 'embed_load_error',
+                error: 'wasm.init_embedding_model() not available — rebuild the WASM crate',
+            });
+            return;
+        }
+        if (embedHandle && typeof embedHandle.free === 'function') {
+            try { embedHandle.free(); } catch (_) { /* ignore */ }
+        }
+        embedHandle = null;
+        embedModelId = null;
+
+        let { weights, tokenizer } = await getModelBytes(modelId);
+        try {
+            embedHandle = await mod.init_embedding_model(weights, tokenizer, modelId);
+        } finally {
+            weights = null;
+            tokenizer = null;
+        }
+        embedModelId = modelId;
+        self.postMessage({ requestId, type: 'embed_load_done', modelId, dim: embedHandle.dim });
+    } catch (err) {
+        const error = err && err.message ? err.message : String(err);
+        console.error('local-worker: embed_load failed', err);
+        self.postMessage({ requestId, type: 'embed_load_error', error });
+    }
+}
+
+async function handleEmbedText(msg) {
+    const { requestId, text } = msg;
+    if (embedHandle === null) {
+        self.postMessage({ requestId, type: 'embed_text_error', error: 'no_embedding_model_loaded' });
+        return;
+    }
+    if (typeof embedHandle.embed_text !== 'function') {
+        self.postMessage({
+            requestId, type: 'embed_text_error',
+            error: 'embedHandle.embed_text() not available — rebuild the WASM crate',
+        });
+        return;
+    }
+    try {
+        const vec = await embedHandle.embed_text(typeof text === 'string' ? text : '');
+        // Workers can transfer typed-array buffers cheaply; pass via the
+        // standard postMessage path (no transfer list) for simplicity since
+        // a single 384-768 dim vector is small.
+        self.postMessage({ requestId, type: 'embed_text_done', vector: vec });
+    } catch (err) {
+        const error = err && err.message ? err.message : String(err);
+        console.error('local-worker: embed_text failed', err);
+        self.postMessage({ requestId, type: 'embed_text_error', error });
+    }
+}
+
+function handleEmbedUnload(msg) {
+    const { requestId } = msg;
+    if (embedHandle && typeof embedHandle.free === 'function') {
+        try { embedHandle.free(); } catch (_) { /* idempotent */ }
+    }
+    embedHandle = null;
+    embedModelId = null;
+    self.postMessage({ requestId, type: 'embed_unload_ack' });
 }
 
 function handleCancel(msg) {
