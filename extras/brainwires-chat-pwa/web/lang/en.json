@@ -19,6 +19,8 @@
     "chat.copied": "Copied",
     "chat.speak": "Speak",
     "chat.reasoning": "Reasoning",
+    "chat.attach": "Attach image",
+    "chat.remove": "Remove",
     "chat.empty": "Start a conversation. Pick a provider, paste an API key in Settings, and say hello.",
     "chat.you": "You",
     "chat.assistant": "Assistant",

@@ -417,6 +417,86 @@ a { color: var(--accent); }
     .bubble-actions { opacity: 1; }
 }
 
+/* ── Bubble images (vision attachments + history) ─────────── */
+
+.bubble-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 8px;
+}
+.bubble-image {
+    max-width: min(360px, 100%);
+    max-height: 320px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    object-fit: cover;
+    cursor: zoom-in;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ── Composer attachment strip ──────────────────────────── */
+
+.att-strip {
+    display: flex;
+    gap: 6px;
+    padding: 6px 8px 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+.att-strip[hidden] { display: none; }
+.att-chip {
+    position: relative;
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-2);
+    padding: 0;
+    overflow: hidden;
+    min-height: 56px;
+}
+.att-chip-image .att-thumb {
+    display: block;
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+}
+.att-chip:not(.att-chip-image) {
+    padding: 8px 28px 8px 10px;
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 220px;
+    align-self: center;
+}
+.att-name {
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+}
+.att-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    padding: 0;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    line-height: 1;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.att-remove:hover { background: var(--danger); }
+
 /* ── Composer ────────────────────────────────────────────── */
 
 .composer {

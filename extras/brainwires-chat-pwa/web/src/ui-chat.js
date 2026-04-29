@@ -33,6 +33,9 @@ import { t } from './i18n.js';
 import { renderMarkdown } from './markdown.js';
 import { highlightWithin } from './code-highlight.js';
 import { extractThinking, buildReasoningElement } from './reasoning-display.js';
+import * as attachments from './attachments.js';
+import { buildStrip as buildAttachmentStrip } from './ui-attachments.js';
+import { isVisionModel, imageToBase64 } from './vision.js';
 
 // math.js (KaTeX + theme) is dynamically imported on first render so the
 // ~80 KB gz cost is paid only by sessions that actually contain math.
@@ -203,6 +206,24 @@ function buildLayout() {
     _ui.micBtn = micBtn;
     bindMic(micBtn);
 
+    // Attach button — hidden until a vision-capable model is selected.
+    // The hidden file input is detached; the button triggers it via .click().
+    const attachInput = el('input', {
+        type: 'file',
+        attrs: { accept: 'image/*,application/pdf', multiple: '', style: 'display:none' },
+        onChange: async (e) => {
+            const files = Array.from(e.currentTarget.files || []);
+            if (files.length) await attachments.addFiles(files);
+            e.currentTarget.value = '';
+        },
+    });
+    const attachBtn = el('button', {
+        class: 'icon-btn attach-btn',
+        attrs: { type: 'button', 'aria-label': t('chat.attach'), hidden: '' },
+        onClick: () => attachInput.click(),
+    }, glyph('paperclip'));
+    _ui.attachBtn = attachBtn;
+
     const sendBtn = el('button', {
         class: 'icon-btn send-btn',
         attrs: { type: 'button', 'aria-label': t('chat.send'), disabled: '' },
@@ -217,12 +238,17 @@ function buildLayout() {
     }, t('chat.provider'));
     _ui.providerChip = providerChip;
 
+    const attachmentStrip = buildAttachmentStrip();
+
     const composer = el('form', {
         class: 'composer',
         attrs: { 'aria-label': 'Composer' },
         onSubmit: (e) => { e.preventDefault(); handleSend(); },
     },
+        attachmentStrip,
         el('div', { class: 'composer-row' },
+            attachBtn,
+            attachInput,
             micBtn,
             textarea,
             sendBtn,
@@ -232,6 +258,39 @@ function buildLayout() {
         ),
     );
     _ui.composer = composer;
+
+    // Paste-from-clipboard image support on the textarea. Gated by the
+    // attach button's visibility so we never silently swallow images on
+    // non-vision providers.
+    textarea.addEventListener('paste', async (e) => {
+        if (attachBtn.hasAttribute('hidden')) return;
+        const items = e.clipboardData ? Array.from(e.clipboardData.items) : [];
+        const files = items
+            .filter((it) => it.kind === 'file' && it.type && it.type.startsWith('image/'))
+            .map((it) => it.getAsFile())
+            .filter(Boolean);
+        if (files.length) {
+            e.preventDefault();
+            await attachments.addFiles(files);
+        }
+    });
+
+    // Drag-and-drop on the chat shell. Same gate as paste.
+    function onDragOver(e) {
+        if (attachBtn.hasAttribute('hidden')) return;
+        if (!e.dataTransfer || !Array.from(e.dataTransfer.items || []).some((it) => it.kind === 'file')) return;
+        e.preventDefault();
+    }
+    async function onDrop(e) {
+        if (attachBtn.hasAttribute('hidden')) return;
+        const files = Array.from(e.dataTransfer ? e.dataTransfer.files : []);
+        const accepted = files.filter((f) => f.type.startsWith('image/') || f.type === 'application/pdf');
+        if (accepted.length === 0) return;
+        e.preventDefault();
+        await attachments.addFiles(accepted);
+    }
+    composer.addEventListener('dragover', onDragOver);
+    composer.addEventListener('drop', onDrop);
 
     return el('div', { class: 'chat-shell' },
         header,
@@ -340,14 +399,31 @@ function renderMessages() {
 function buildBubble(m) {
     const isUser = m.role === 'user';
     const cls = isUser ? 'bubble bubble-user' : 'bubble bubble-assistant';
-    // Flatten parts[] to text for the markdown/thinking pipeline. Image and
-    // tool_use rendering arrives in Step 4c.
     const textContent = partsToText(m.content || '');
+    const imageParts = Array.isArray(m.content)
+        ? m.content.filter((p) => p && p.type === 'image' && typeof p.data === 'string')
+        : [];
     const { thinking, body } = isUser
         ? { thinking: null, body: textContent }
         : extractThinking(textContent);
     const contentNode = el('div', { class: 'bubble-content' });
     if (thinking) contentNode.appendChild(buildReasoningElement(thinking));
+    if (imageParts.length > 0) {
+        const gallery = el('div', { class: 'bubble-images' });
+        for (const p of imageParts) {
+            const img = el('img', {
+                class: 'bubble-image',
+                attrs: {
+                    src: `data:${p.mediaType || 'image/jpeg'};base64,${p.data}`,
+                    alt: 'attached image',
+                    loading: 'lazy',
+                    decoding: 'async',
+                },
+            });
+            gallery.appendChild(img);
+        }
+        contentNode.appendChild(gallery);
+    }
     const bodyNode = el('div', { class: 'bubble-body' });
     bodyNode.innerHTML = renderMarkdown(body);
     contentNode.appendChild(bodyNode);
@@ -384,17 +460,37 @@ function buildBubble(m) {
 
 async function handleSend() {
     const text = _ui.textarea ? _ui.textarea.value.trim() : '';
-    if (!text) return;
+    const attached = attachments.getAll();
+    if (!text && attached.length === 0) return;
     if (!_activeProviderId) { toast(t('error.noProvider'), 'error'); return; }
     if (!await canUseProvider(_activeProviderId)) return;
 
     if (!_conversationId) await newConversation(true);
 
+    // If any image attachments are queued, pre-process them into parts[].
+    // Resize + base64 happens before the user message is persisted so that
+    // a successful save means the image is fully prepared for retries.
+    let content = text;
+    if (attached.length > 0) {
+        const parts = [];
+        for (const a of attached) {
+            if (a.kind !== 'image') continue;
+            try {
+                const { data, mediaType } = await imageToBase64(a.file);
+                parts.push({ type: 'image', mediaType, data });
+            } catch (e) {
+                toast(`Failed to process ${a.name}: ${e.message || e}`, 'error');
+            }
+        }
+        if (text) parts.push({ type: 'text', text });
+        content = parts.length > 0 ? parts : text;
+    }
+
     const userMsg = {
         conversationId: _conversationId,
         messageId: genId('msg'),
         role: 'user',
-        content: text,
+        content,
         createdAt: Date.now(),
         updatedAt: Date.now(),
     };
@@ -405,11 +501,15 @@ async function handleSend() {
 
     _ui.textarea.value = '';
     autoSizeTextarea(_ui.textarea);
+    attachments.clear();
     updateSendDisabled();
 
-    // If this is the first user message, set the conversation title to a snippet.
+    // If this is the first user message, set the conversation title to a
+    // snippet of the text (parts content with no text falls back to a
+    // generic image-message label).
     if (_messages.filter((m) => m.role === 'user').length === 1) {
-        const snip = text.length > 48 ? text.slice(0, 45) + '…' : text;
+        const titleSrc = text || (attached.length > 0 ? `[image] ${attached[0].name}` : '');
+        const snip = titleSrc.length > 48 ? titleSrc.slice(0, 45) + '…' : titleSrc;
         await putConversation({ ..._conversation, id: _conversationId, title: snip });
         setTitle(snip);
         await refreshConversations();
@@ -614,6 +714,7 @@ async function refreshActiveProvider() {
     }
     updateProviderChip();
     updateSendDisabled();
+    await updateAttachVisibility();
 }
 
 async function cycleProvider() {
@@ -625,6 +726,27 @@ async function cycleProvider() {
     await setSetting('chat.activeProvider', next.id);
     updateProviderChip();
     updateSendDisabled();
+    await updateAttachVisibility();
+}
+
+// Show the attach button only when the active (provider, model) pair
+// supports image inputs. Reads the saved per-provider model so the
+// gating reflects the user's selection, not just the provider default.
+async function updateAttachVisibility() {
+    if (!_ui.attachBtn) return;
+    let model = '';
+    try { model = await getSetting(`provider.${_activeProviderId}.model`); } catch (_) {}
+    const providers = listProviders();
+    const p = providers.find((x) => x.id === _activeProviderId);
+    if (!model && p) model = p.defaultModel;
+    if (isVisionModel(_activeProviderId, model)) {
+        _ui.attachBtn.removeAttribute('hidden');
+    } else {
+        _ui.attachBtn.setAttribute('hidden', '');
+        // Drop any pending attachments — they can't be sent through this
+        // provider anyway and would silently be discarded at submit.
+        attachments.clear();
+    }
 }
 
 function updateProviderChip() {
@@ -922,6 +1044,7 @@ function glyph(name) {
         speaker: 'M5 9v6h4l5 5V4L9 9H5z M16 8a5 5 0 010 8',
         refresh: 'M4 12a8 8 0 0114-5l2-2v6h-6l3-3a6 6 0 10-1 9',
         dots: 'M5 12a1 1 0 102 0 1 1 0 10-2 0z M11 12a1 1 0 102 0 1 1 0 10-2 0z M17 12a1 1 0 102 0 1 1 0 10-2 0z',
+        paperclip: 'M21 11l-9 9a5 5 0 01-7-7l9-9a3.5 3.5 0 015 5l-9 9a2 2 0 11-3-3l8-8',
     };
     const d = paths[name] || paths.dots;
     const svg = document.createElementNS(svgNS, 'svg');
