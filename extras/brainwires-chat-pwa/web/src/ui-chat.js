@@ -29,6 +29,7 @@ import * as localProvider from './providers/local.js';
 import { isDownloaded } from './model-store.js';
 import { el, clear, toast, isMobile, genId, escapeHtml } from './utils.js';
 import { t } from './i18n.js';
+import { renderMarkdown } from './markdown.js';
 import * as voice from './voice.js';
 import { isDownloadActive, activeModelId } from './ui-download-banner.js';
 import * as cryptoStore from '../crypto-store.js';
@@ -789,72 +790,9 @@ function bindMic(btn) {
     });
 }
 
-// ── Markdown (tiny hand-rolled subset) ─────────────────────────
-
-/**
- * Render a small markdown subset to safe HTML. Supports:
- *   - fenced code blocks ```lang\n...\n``` (with copy button)
- *   - inline `code`
- *   - **bold**, *italic*, _italic_
- *   - [link](url) — opens in a new tab
- *   - paragraphs split by blank lines
- *   - line breaks within a paragraph become <br>
- *
- * We escape everything first, then re-introduce HTML for the markers
- * we recognize. This avoids needing a sanitizer.
- */
-export function renderMarkdown(src) {
-    if (!src) return '';
-    const out = [];
-    const text = String(src);
-
-    // Tokenize fenced code blocks first.
-    const fenceRe = /```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g;
-    let last = 0;
-    let m;
-    const parts = [];
-    while ((m = fenceRe.exec(text)) !== null) {
-        if (m.index > last) parts.push({ type: 'text', value: text.slice(last, m.index) });
-        parts.push({ type: 'code', lang: m[1] || '', value: m[2] });
-        last = m.index + m[0].length;
-    }
-    if (last < text.length) parts.push({ type: 'text', value: text.slice(last) });
-
-    for (const p of parts) {
-        if (p.type === 'code') {
-            const langCls = p.lang ? ` class="lang-${escapeHtml(p.lang)}"` : '';
-            const escaped = escapeHtml(p.value.replace(/\n$/, ''));
-            // Use `data-bw-code` so a delegate elsewhere wires the copy button.
-            out.push(
-                `<div class="codeblock"><button type="button" class="codeblock-copy" aria-label="${escapeHtml(t('chat.copy'))}" data-bw-copy="1">${escapeHtml(t('chat.copy'))}</button><pre><code${langCls}>${escaped}</code></pre></div>`,
-            );
-        } else {
-            out.push(renderInline(p.value));
-        }
-    }
-    return out.join('');
-}
-
-function renderInline(text) {
-    const paragraphs = text.split(/\n{2,}/);
-    return paragraphs.map((p) => {
-        let s = escapeHtml(p);
-        // Inline code first so bold/italic don't eat backticks inside.
-        s = s.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
-        // Links — already escaped, so reconstruct safely.
-        s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,
-            (_, label, url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`);
-        // Bold then italic.
-        s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-        s = s.replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>');
-        // Single newlines → <br>
-        s = s.replace(/\n/g, '<br>');
-        return `<p>${s}</p>`;
-    }).join('');
-}
-
-// Wire the copy buttons in code blocks via event delegation.
+// ── Code block copy button (event delegation) ─────────────────
+// Wire the copy buttons in code blocks via event delegation. The button
+// markup is produced by markdown.js with [data-bw-copy].
 document.addEventListener('click', (e) => {
     const t0 = e.target;
     if (!(t0 instanceof Element)) return;

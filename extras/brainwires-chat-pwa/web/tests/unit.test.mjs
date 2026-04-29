@@ -563,6 +563,63 @@ describe('i18n', () => {
     });
 });
 
+// ── markdown ──────────────────────────────────────────────────
+
+describe('markdown', async () => {
+    let renderRaw;
+    try {
+        const i18n = await import('../src/i18n.js');
+        i18n._setDictForTests({ 'chat.copy': 'Copy' });
+        const md = await import('../src/markdown.js');
+        renderRaw = md.renderRaw;
+    } catch (e) {
+        console.warn('[unit.test] markdown imports failed:', e.message);
+    }
+
+    test('emits our codeblock wrapper with copy button + language class', (ctx) => {
+        if (!renderRaw) return ctx.skip();
+        const out = renderRaw('```javascript\nconst x = 1;\n```\n');
+        assert.match(out, /<div class="codeblock">/);
+        assert.match(out, /data-bw-copy="1"/);
+        assert.match(out, /class="codeblock-copy"/);
+        assert.match(out, /<code class="language-javascript">/);
+        assert.match(out, /const x = 1;/);
+    });
+
+    test('inline code, bold, italic render', (ctx) => {
+        if (!renderRaw) return ctx.skip();
+        const out = renderRaw('use `foo` and **bold** and *italic*');
+        assert.match(out, /<code>foo<\/code>/);
+        assert.match(out, /<strong>bold<\/strong>/);
+        assert.match(out, /<em>italic<\/em>/);
+    });
+
+    test('links get target=_blank and rel=noopener noreferrer', (ctx) => {
+        if (!renderRaw) return ctx.skip();
+        const out = renderRaw('[click](https://example.com)');
+        assert.match(out, /href="https:\/\/example\.com"/);
+        assert.match(out, /target="_blank"/);
+        assert.match(out, /rel="noopener noreferrer"/);
+    });
+
+    test('unclosed fence at end of stream still renders as code (mid-stream safety)', (ctx) => {
+        if (!renderRaw) return ctx.skip();
+        const out = renderRaw('here:\n```js\nconst partial = ');
+        // Marked treats an unclosed fence as a code block to EOF — exactly
+        // what we want during streaming so the bubble doesn't briefly show
+        // the fence as plain text and then "snap" into a code block.
+        assert.match(out, /<pre><code/);
+        assert.match(out, /const partial =/);
+    });
+
+    test('escapes HTML inside code blocks (no XSS via fenced content)', (ctx) => {
+        if (!renderRaw) return ctx.skip();
+        const out = renderRaw('```\n<script>x</script>\n```');
+        assert.ok(!out.includes('<script>x'));
+        assert.match(out, /&lt;script&gt;x&lt;\/script&gt;/);
+    });
+});
+
 // ── theme ─────────────────────────────────────────────────────
 
 describe('theme', async () => {

@@ -19,5 +19,9 @@
     "eslint": "9.39.4",
     "fake-indexeddb": "^6.2.5",
     "globals": "15.15.0"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.1",
+    "marked": "^12.0.2"
   }
 }
