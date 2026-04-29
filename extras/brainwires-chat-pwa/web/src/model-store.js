@@ -182,7 +182,26 @@ export function getKnownEmbeddingModel(modelId) {
 }
 
 const CACHE_NAME = 'bw-models-v1';
+const OPFS_DIR = 'model-downloads';
 const PROGRESS_EMIT_MS = 200;
+
+function _hasOpfs() {
+    return typeof navigator !== 'undefined' && navigator.storage && typeof navigator.storage.getDirectory === 'function';
+}
+
+async function _getOpfsFile(modelId, filename) {
+    if (!_hasOpfs()) return null;
+    try {
+        const root = await navigator.storage.getDirectory();
+        const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
+        const modelDir = await dlDir.getDirectoryHandle(modelId, { create: false });
+        const fileHandle = await modelDir.getFileHandle(filename, { create: false });
+        const file = await fileHandle.getFile();
+        return file.size > 0 ? file : null;
+    } catch (_) {
+        return null;
+    }
+}
 
 export function listKnownModels() {
     return Object.values(KNOWN_MODELS).map((m) => ({ ...m }));
@@ -222,11 +241,13 @@ function _hasCaches() {
  * @returns {Promise<boolean>}
  */
 export async function isDownloaded(modelId) {
-    if (!_hasCaches()) return false;
     const m = getKnownModel(modelId);
     if (!m) return false;
-    const cache = await caches.open(CACHE_NAME);
     for (const f of m.files) {
+        const opfsFile = await _getOpfsFile(modelId, f.filename);
+        if (opfsFile) continue;
+        if (!_hasCaches()) return false;
+        const cache = await caches.open(CACHE_NAME);
         const hit = await cache.match(cacheKey(modelId, f.filename));
         if (!hit) return false;
     }
@@ -240,12 +261,18 @@ export async function isDownloaded(modelId) {
  * @returns {Promise<{weights: Uint8Array, tokenizer: Uint8Array}>}
  */
 export async function getModelBytes(modelId) {
-    if (!_hasCaches()) throw new Error('Cache Storage unavailable');
     const m = getKnownModel(modelId);
     if (!m) throw new Error(`unknown model: ${modelId}`);
-    const cache = await caches.open(CACHE_NAME);
     const out = {};
     for (const f of m.files) {
+        const opfsFile = await _getOpfsFile(modelId, f.filename);
+        if (opfsFile) {
+            const buf = await opfsFile.arrayBuffer();
+            out[f.kind] = new Uint8Array(buf);
+            continue;
+        }
+        if (!_hasCaches()) throw new Error(`model not downloaded: ${modelId} (${f.filename})`);
+        const cache = await caches.open(CACHE_NAME);
         const hit = await cache.match(cacheKey(modelId, f.filename));
         if (!hit) throw new Error(`model not downloaded: ${modelId} (${f.filename})`);
         const buf = await hit.arrayBuffer();
@@ -253,7 +280,6 @@ export async function getModelBytes(modelId) {
     }
     if (!out.weights) throw new Error(`model ${modelId} missing weights file`);
     if (!out.tokenizer) {
-        // Some entries (GGUF) don't ship a tokenizer; provide a 0-byte placeholder.
         out.tokenizer = new Uint8Array(0);
     }
     return out;

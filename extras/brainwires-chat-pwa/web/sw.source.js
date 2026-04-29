@@ -161,11 +161,9 @@ class StreamingSha256 {
 }
 function _rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
 
-async function streamingSha256Hex(cache, url) {
-    const resp = await cache.match(url);
-    if (!resp || !resp.body) return null;
+async function streamingSha256FromFile(file) {
     const hasher = new StreamingSha256();
-    const reader = resp.body.getReader();
+    const reader = file.stream().getReader();
     while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -408,7 +406,7 @@ async function handleModelDownload(msg, _event) {
         for (const f of files) {
             const url = f.url;
 
-            // Already cached — skip.
+            // Already cached (Cache Storage) — skip.
             const existing = await cache.match(url);
             if (existing) {
                 const len = Number(existing.headers.get('content-length')) || 0;
@@ -418,9 +416,28 @@ async function handleModelDownload(msg, _event) {
                 continue;
             }
 
+            // Already verified in OPFS — check for a companion .verified marker.
+            if (opfsAvailable) {
+                try {
+                    const modelDir = await opfsDir.getDirectoryHandle(modelId, { create: false });
+                    await modelDir.getFileHandle(f.filename + '.verified', { create: false });
+                    const fh = await modelDir.getFileHandle(f.filename, { create: false });
+                    const ff = await fh.getFile();
+                    if (ff.size > 0) {
+                        const len = ff.size;
+                        totalBytesTotal += len;
+                        totalBytesDone += len;
+                        emitProgress(f, len, len, true);
+                        console.log(`[bw-sw] ${f.filename}: already verified in OPFS (${len} bytes)`);
+                        continue;
+                    }
+                } catch (_) { /* no marker — proceed with download */ }
+            }
+
             // ── OPFS-based resumable streaming download ──────────
-            // Bytes flow: network → OPFS file (streaming write) → on
-            // complete: read back as stream → Cache Storage + SHA verify.
+            // Bytes flow: network → OPFS file (streaming write).
+            // On complete: SHA verify directly from OPFS. OPFS IS the
+            // durable store — no copy to Cache Storage needed.
             // Resume: OPFS file persists across SW restarts; getFile().size
             // tells us where to resume with a Range header.
 
@@ -461,7 +478,15 @@ async function handleModelDownload(msg, _event) {
                     broadcastDl({ type: 'model_download_error', modelId, error: 'HF_AUTH_REQUIRED' });
                     return;
                 }
-                if (resp.status === 416) { console.log(`[bw-sw] ${f.filename}: 416 — already complete`); break; }
+                if (resp.status === 416) {
+                    if (opfsHandle) {
+                        const p = await opfsHandle.getFile();
+                        contentLength = p.size;
+                        totalBytesTotal += contentLength;
+                    }
+                    console.log(`[bw-sw] ${f.filename}: 416 — already complete in OPFS (${contentLength} bytes)`);
+                    break;
+                }
                 if (!resp.ok && resp.status !== 206) {
                     console.warn(`[bw-sw] ${f.filename} HTTP ${resp.status}`);
                     if (attempt === MAX_RETRIES) throw new Error(`HF ${resp.status}`);
@@ -558,43 +583,48 @@ async function handleModelDownload(msg, _event) {
 
             emitProgress(f, fileBytesDone, contentLength, true);
 
-            // Move OPFS file → Cache Storage via stream (no full RAM copy).
-            console.log(`[bw-sw] ${f.filename}: moving to Cache Storage`);
-            if (opfsHandle) {
-                const opfsFile = await opfsHandle.getFile();
-                const cacheHdrs = new Headers();
-                cacheHdrs.set('content-type', 'application/octet-stream');
-                cacheHdrs.set('content-length', String(opfsFile.size));
-                await cache.put(url, new Response(opfsFile.stream(), { status: 200, headers: cacheHdrs }));
-            }
-
-            // SHA-256 verification via streaming hasher.
-            if (f.sha256) {
-                console.log(`[bw-sw] ${f.filename}: verifying SHA-256 (streaming)...`);
+            // SHA-256 verification directly from OPFS (no Cache Storage copy).
+            if (f.sha256 && opfsHandle) {
+                console.log(`[bw-sw] ${f.filename}: verifying SHA-256 (streaming from OPFS)...`);
                 broadcastDl({ type: 'model_progress', detail: { phase: 'verifying', modelId, file: f.filename } });
-                const hex = await streamingSha256Hex(cache, url);
+                const opfsFile = await opfsHandle.getFile();
+                const hex = await streamingSha256FromFile(opfsFile);
                 if (hex && hex !== f.sha256) {
                     console.error(`[bw-sw] ${f.filename}: SHA mismatch! got=${hex} expected=${f.sha256}`);
-                    await cache.delete(url);
                     await deleteOpfsModel(modelId);
                     throw new Error(`SHA-256 mismatch for ${f.filename}`);
                 }
                 console.log(`[bw-sw] ${f.filename}: SHA-256 verified ✓`);
             }
 
-            // Clean up OPFS temp file — Cache Storage is the durable home.
-            if (opfsAvailable) {
-                await deleteOpfsModel(modelId).catch((e) => { console.warn("[bw] swallowed:", e); });
+            // Write a .verified marker so future runs skip re-download.
+            if (opfsHandle) {
+                try {
+                    const modelDir = await opfsDir.getDirectoryHandle(modelId, { create: true });
+                    const marker = await modelDir.getFileHandle(f.filename + '.verified', { create: true });
+                    const mw = await marker.createWritable();
+                    await mw.write('ok');
+                    await mw.close();
+                } catch (markerErr) {
+                    console.warn(`[bw-sw] ${f.filename}: failed to write .verified marker`, markerErr);
+                }
             }
-            console.log(`[bw-sw] ${f.filename}: done`);
+
+            // OPFS is the durable store — getModelBytes() reads from here.
+            console.log(`[bw-sw] ${f.filename}: done (stored in OPFS)`);
             emitProgress(f, fileBytesDone, contentLength, true);
         }
 
         broadcastDl({ type: 'model_download_done', modelId });
     } catch (e) {
+        const isAbort = controller.signal.aborted ||
+            (e && e.name === 'AbortError') ||
+            (e && e.message && e.message.includes('abort'));
+        const errorMsg = isAbort ? 'aborted' : (e.message || String(e));
+        if (!isAbort) console.error('[bw-sw] download error:', errorMsg);
         const clients = await self.clients.matchAll({ type: 'window' });
         for (const c of clients) {
-            c.postMessage({ type: 'model_download_error', modelId, error: e.message || String(e) });
+            c.postMessage({ type: 'model_download_error', modelId, error: errorMsg });
         }
     } finally {
         activeModelDownloads.delete(modelId);

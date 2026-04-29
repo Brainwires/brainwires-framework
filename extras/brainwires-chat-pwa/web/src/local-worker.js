@@ -34,6 +34,21 @@
 // web root), so `./pkg/...` lands on the wasm-pack output directory.
 const PKG_URL = new URL('./pkg/brainwires_chat_pwa.js', import.meta.url).href;
 const CACHE_NAME = 'bw-models-v1';
+const OPFS_DIR = 'model-downloads';
+
+async function _getOpfsFile(modelId, filename) {
+    if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) return null;
+    try {
+        const root = await navigator.storage.getDirectory();
+        const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
+        const modelDir = await dlDir.getDirectoryHandle(modelId, { create: false });
+        const fh = await modelDir.getFileHandle(filename, { create: false });
+        const file = await fh.getFile();
+        return file.size > 0 ? file : null;
+    } catch (_) {
+        return null;
+    }
+}
 
 // Mirror of the registry in src/model-store.js. Kept in lock-step; the
 // only fields we actually need here are the HF (repo, revision) and the
@@ -81,9 +96,11 @@ async function getWasm() {
 async function isDownloaded(modelId) {
     const m = KNOWN_MODELS[modelId];
     if (!m) return false;
-    if (typeof caches === 'undefined') return false;
-    const cache = await caches.open(CACHE_NAME);
     for (const f of m.files) {
+        const opfsFile = await _getOpfsFile(modelId, f.filename);
+        if (opfsFile) continue;
+        if (typeof caches === 'undefined') return false;
+        const cache = await caches.open(CACHE_NAME);
         const hit = await cache.match(cacheKey(modelId, f.filename));
         if (!hit) return false;
     }
@@ -93,10 +110,16 @@ async function isDownloaded(modelId) {
 async function getModelBytes(modelId) {
     const m = KNOWN_MODELS[modelId];
     if (!m) throw new Error(`unknown model: ${modelId}`);
-    if (typeof caches === 'undefined') throw new Error('Cache Storage unavailable');
-    const cache = await caches.open(CACHE_NAME);
     const out = {};
     for (const f of m.files) {
+        const opfsFile = await _getOpfsFile(modelId, f.filename);
+        if (opfsFile) {
+            const buf = await opfsFile.arrayBuffer();
+            out[f.kind] = new Uint8Array(buf);
+            continue;
+        }
+        if (typeof caches === 'undefined') throw new Error(`model not downloaded: ${modelId} (${f.filename})`);
+        const cache = await caches.open(CACHE_NAME);
         const hit = await cache.match(cacheKey(modelId, f.filename));
         if (!hit) throw new Error(`model not downloaded: ${modelId} (${f.filename})`);
         const buf = await hit.arrayBuffer();
