@@ -29,6 +29,67 @@ import * as google from './google.js';
 import * as ollama from './ollama.js';
 import * as local from './local.js';
 
+// ── Provider-shape typedefs ────────────────────────────────────
+//
+// Two runtime kinds plug into this dispatcher:
+//
+//   - `CloudProvider` (runtime: 'cloud') — pure, returns a request
+//     envelope from `buildRequest()` that the SW fetches; chunks come
+//     back through `parseChunk(ev)` against `streaming.js` events.
+//   - `EventProvider` (runtime: 'local' | 'home') — owns its own
+//     transport (worker / dial-home) and emits `chat_chunk` /
+//     `chat_done` / `chat_error` on `state.events` directly.
+//
+// Phase 2's `home-provider.js` will be an `EventProvider` with
+// `runtime: 'home'`.
+
+/**
+ * @typedef {object} RequestEnvelope
+ * @property {string} url            absolute https URL
+ * @property {string} method         e.g. 'POST'
+ * @property {object} headers        header map; `__API_KEY__` sentinel is rewritten by the SW after AES-GCM decrypt
+ * @property {string} body           serialized request body (typically JSON.stringify of the provider payload)
+ * @property {'sse' | 'ndjson'} format stream framing the SW should parse
+ */
+
+/**
+ * Per-event output of a CloudProvider's `parseChunk()`. All fields are
+ * optional — providers return `null` for events they want to skip.
+ *
+ * @typedef {object} ChunkEvent
+ * @property {string} [delta]        appended assistant text
+ * @property {object} [usage]        provider-shaped token-count object
+ * @property {boolean} [finished]    end-of-message marker
+ */
+
+/**
+ * @typedef {object} CloudProvider
+ * @property {string} id
+ * @property {string} [displayName]
+ * @property {'cloud'} runtime
+ * @property {'sse' | 'ndjson'} format
+ * @property {string[]} models
+ * @property {string} defaultModel
+ * @property {(args: {model: string, messages: Array<{role: string, content: any}>, params: object}) => RequestEnvelope} buildRequest
+ * @property {(ev: {event?: string, data?: string, done?: boolean}) => (ChunkEvent | null)} parseChunk
+ */
+
+/**
+ * EventProviders own their own streaming transport; `startChat` resolves
+ * with a `{usage?, tokensReceived?}` summary on `chat_done` and rejects
+ * on `chat_error`. Chunks are dispatched on `state.events` as
+ * CustomEvents (`chat_chunk`, `chat_done`, `chat_error`) — see
+ * `state.js` for the event-detail shapes.
+ *
+ * @typedef {object} EventProvider
+ * @property {string} id
+ * @property {string} [displayName]
+ * @property {'local' | 'home'} runtime
+ * @property {string[]} models
+ * @property {string} defaultModel
+ * @property {(args: {conversationId: string, messageId: string, messages: Array<{role: string, content: any}>, params: object}) => Promise<{usage?: object, tokensReceived?: number}>} startChat
+ */
+
 const REGISTRY = new Map();
 function register(mod) { REGISTRY.set(mod.id, mod); }
 

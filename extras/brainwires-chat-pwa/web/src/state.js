@@ -154,9 +154,16 @@ export function setDecryptedSessionKey(key) {
 //   - 'chat-chunk'   { conversationId, messageId, delta } (CustomEvent.detail)
 //   - 'chat-done'    { conversationId, messageId, usage }
 //   - 'chat-error'   { conversationId, messageId, error }
-//   - 'chat_chunk' / 'chat_done' / 'chat_error' (mirrors of the SW
-//      message types; `providers/local.js` dispatches these so the UI
-//      doesn't care whether a stream is cloud-via-SW or local-via-WASM)
+//   - Canonical streaming-event envelope (mirrors of the SW message types;
+//     `providers/local.js` dispatches these so the UI doesn't care whether
+//     a stream is cloud-via-SW or local-via-WASM):
+//       'chat_chunk'    { conversationId, messageId, delta?, reasoning_delta? }
+//       'chat_tool_use' { conversationId, messageId, tool_use: {id, name, input} }
+//       'chat_done'     { conversationId, messageId, usage?, tokensReceived? }
+//       'chat_error'    { conversationId, messageId, error }
+//     Note: `chat_tool_use` is documented now but emitted by Follow-up 2;
+//     current code does not produce it. `reasoning_delta` is similarly
+//     reserved for future reasoning-stream providers.
 //   - 'model_progress' { modelId, file, fileBytesDone, ... }
 //   - 'model_deleted'  { modelId }
 //   - 'local-model-loaded' / 'local-model-unloaded'
