@@ -22,23 +22,53 @@ function endpointFor(model) {
     return `https://generativelanguage.googleapis.com/v1beta/models/${m}:streamGenerateContent?alt=sse&key=__API_KEY__`;
 }
 
+function partToGemini(p) {
+    if (!p || typeof p !== 'object') return null;
+    if (p.type === 'text') {
+        return typeof p.text === 'string' ? { text: p.text } : null;
+    }
+    if (p.type === 'image' && typeof p.data === 'string') {
+        return { inline_data: { mime_type: p.mediaType || 'image/jpeg', data: p.data } };
+    }
+    return null;
+}
+
+function flattenText(content) {
+    if (typeof content === 'string') return content;
+    if (!Array.isArray(content)) return '';
+    return content
+        .filter((p) => p && p.type === 'text' && typeof p.text === 'string')
+        .map((p) => p.text)
+        .join('');
+}
+
 /**
  * Map our `{role, content}` history to Gemini's `contents` array.
  * Roles: user → user, assistant → model. system messages are extracted
- * separately and returned as `systemInstruction`.
+ * separately and returned as `systemInstruction`. `content` may be a string
+ * (legacy) or parts[]; image parts become `inline_data` items.
  */
 function mapMessages(messages) {
     const contents = [];
     const sysParts = [];
     for (const m of messages) {
         if (!m || typeof m !== 'object') continue;
-        const text = typeof m.content === 'string' ? m.content : '';
         if (m.role === 'system') {
+            const text = flattenText(m.content);
             if (text) sysParts.push(text);
             continue;
         }
         const role = m.role === 'assistant' ? 'model' : 'user';
-        contents.push({ role, parts: [{ text }] });
+        let parts;
+        if (typeof m.content === 'string') {
+            parts = [{ text: m.content }];
+        } else if (Array.isArray(m.content)) {
+            parts = m.content.map(partToGemini).filter(Boolean);
+            if (!parts.length) parts = [{ text: '' }];
+        } else {
+            parts = [{ text: '' }];
+        }
+        contents.push({ role, parts });
     }
     const systemInstruction = sysParts.length
         ? { parts: [{ text: sysParts.join('\n\n') }] }

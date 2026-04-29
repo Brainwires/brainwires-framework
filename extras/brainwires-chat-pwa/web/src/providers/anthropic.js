@@ -20,20 +20,50 @@ export const models = [
 const ENDPOINT = 'https://api.anthropic.com/v1/messages';
 const API_VERSION = '2023-06-01';
 
+function flattenSystemContent(content) {
+    if (typeof content === 'string') return content;
+    if (!Array.isArray(content)) return '';
+    return content
+        .filter((p) => p && p.type === 'text' && typeof p.text === 'string')
+        .map((p) => p.text)
+        .join('');
+}
+
 /**
  * Extract a single concatenated system prompt from `system` messages.
  * Returns `''` when there are none.
  */
 function extractSystem(messages) {
     return messages
-        .filter((m) => m && m.role === 'system' && typeof m.content === 'string')
-        .map((m) => m.content)
+        .filter((m) => m && m.role === 'system')
+        .map((m) => flattenSystemContent(m.content))
+        .filter(Boolean)
         .join('\n\n');
+}
+
+/**
+ * Translate one of our portable parts to Anthropic's content-block shape.
+ * Unknown part types are dropped.
+ */
+function partToAnthropic(p) {
+    if (!p || typeof p !== 'object') return null;
+    if (p.type === 'text') {
+        return typeof p.text === 'string' ? { type: 'text', text: p.text } : null;
+    }
+    if (p.type === 'image' && typeof p.data === 'string') {
+        return {
+            type: 'image',
+            source: { type: 'base64', media_type: p.mediaType || 'image/jpeg', data: p.data },
+        };
+    }
+    return null;
 }
 
 /**
  * Map our portable history shape to Anthropic's `messages` array.
  * Anthropic only accepts `user` and `assistant`; system is extracted.
+ * `content` may be a string (legacy) or an array of parts. String content
+ * is sent verbatim — Anthropic accepts string OR content-block arrays.
  * Tool/function-call shapes are out of scope for v1.
  */
 function mapMessages(messages) {
@@ -42,8 +72,16 @@ function mapMessages(messages) {
         if (!m || typeof m !== 'object') continue;
         if (m.role === 'system') continue;
         const role = m.role === 'assistant' ? 'assistant' : 'user';
-        const content = typeof m.content === 'string' ? m.content : '';
-        out.push({ role, content });
+        if (typeof m.content === 'string') {
+            out.push({ role, content: m.content });
+            continue;
+        }
+        if (Array.isArray(m.content)) {
+            const blocks = m.content.map(partToAnthropic).filter(Boolean);
+            if (blocks.length) out.push({ role, content: blocks });
+            continue;
+        }
+        out.push({ role, content: '' });
     }
     return out;
 }

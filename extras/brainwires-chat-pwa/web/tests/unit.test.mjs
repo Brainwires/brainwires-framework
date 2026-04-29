@@ -620,6 +620,98 @@ describe('markdown', async () => {
     });
 });
 
+// ── vision (mapping + isVisionModel) ──────────────────────────
+
+describe('vision', async () => {
+    let vision;
+    try { vision = await import('../src/vision.js'); }
+    catch (e) { console.warn('[unit.test] vision import failed:', e.message); }
+
+    test('isVisionModel returns true for known multimodal models', (ctx) => {
+        if (!vision) return ctx.skip();
+        assert.equal(vision.isVisionModel('anthropic', 'claude-opus-4-7'), true);
+        assert.equal(vision.isVisionModel('anthropic', 'claude-sonnet-4-6'), true);
+        assert.equal(vision.isVisionModel('openai', 'gpt-5.5'), true);
+        assert.equal(vision.isVisionModel('openai', 'gpt-4.1-mini'), true);
+        assert.equal(vision.isVisionModel('openai', 'o3'), true);
+        assert.equal(vision.isVisionModel('google', 'gemini-2.5-flash'), true);
+        assert.equal(vision.isVisionModel('google', 'gemini-1.5-pro'), true);
+        assert.equal(vision.isVisionModel('local', 'gemma-4-e2b'), true);
+    });
+
+    test('isVisionModel returns false for unknown providers / models', (ctx) => {
+        if (!vision) return ctx.skip();
+        assert.equal(vision.isVisionModel('ollama', 'llama3'), false);
+        assert.equal(vision.isVisionModel('mystery', 'foo'), false);
+        assert.equal(vision.isVisionModel('anthropic', null), false);
+    });
+});
+
+describe('providers vision mapping', async () => {
+    const ant = await import('../src/providers/anthropic.js');
+    const oai = await import('../src/providers/openai.js');
+    const gem = await import('../src/providers/google.js');
+
+    const visionMessage = {
+        role: 'user',
+        content: [
+            { type: 'text', text: 'what is in this image?' },
+            { type: 'image', mediaType: 'image/jpeg', data: 'AAAAB' },
+        ],
+    };
+
+    test('anthropic: image part becomes a base64 source content block', () => {
+        const req = ant.buildRequest({
+            model: 'claude-opus-4-7',
+            messages: [visionMessage],
+        });
+        const body = JSON.parse(req.body);
+        const blocks = body.messages[0].content;
+        assert.ok(Array.isArray(blocks));
+        assert.equal(blocks[0].type, 'text');
+        assert.equal(blocks[0].text, 'what is in this image?');
+        assert.equal(blocks[1].type, 'image');
+        assert.equal(blocks[1].source.type, 'base64');
+        assert.equal(blocks[1].source.media_type, 'image/jpeg');
+        assert.equal(blocks[1].source.data, 'AAAAB');
+    });
+
+    test('openai: image part becomes an image_url with data URL', () => {
+        const req = oai.buildRequest({
+            model: 'gpt-5.5',
+            messages: [visionMessage],
+        });
+        const body = JSON.parse(req.body);
+        const items = body.messages[0].content;
+        assert.ok(Array.isArray(items));
+        assert.equal(items[0].type, 'text');
+        assert.equal(items[1].type, 'image_url');
+        assert.equal(items[1].image_url.url, 'data:image/jpeg;base64,AAAAB');
+    });
+
+    test('gemini: image part becomes inline_data', () => {
+        const req = gem.buildRequest({
+            model: 'gemini-2.5-flash',
+            messages: [visionMessage],
+        });
+        const body = JSON.parse(req.body);
+        const parts = body.contents[0].parts;
+        assert.equal(parts[0].text, 'what is in this image?');
+        assert.equal(parts[1].inline_data.mime_type, 'image/jpeg');
+        assert.equal(parts[1].inline_data.data, 'AAAAB');
+    });
+
+    test('all providers: legacy string content still works', () => {
+        const msgs = [{ role: 'user', content: 'plain' }];
+        const a = JSON.parse(ant.buildRequest({ model: 'claude-opus-4-7', messages: msgs }).body);
+        const o = JSON.parse(oai.buildRequest({ model: 'gpt-5.5', messages: msgs }).body);
+        const g = JSON.parse(gem.buildRequest({ model: 'gemini-2.5-flash', messages: msgs }).body);
+        assert.equal(a.messages[0].content, 'plain');
+        assert.equal(o.messages[0].content, 'plain');
+        assert.equal(g.contents[0].parts[0].text, 'plain');
+    });
+});
+
 // ── db parts[] helpers ────────────────────────────────────────
 
 describe('db parts[] helpers', async () => {

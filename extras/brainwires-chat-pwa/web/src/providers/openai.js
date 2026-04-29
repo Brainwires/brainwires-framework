@@ -35,8 +35,25 @@ export const models = [
 const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
 /**
- * OpenAI's `messages` shape matches ours 1:1; we just normalize to
- * `{role, content}` strings (no tool calls in v1).
+ * Translate one of our parts to an OpenAI chat-completions content item.
+ * Unknown / unsupported parts are dropped.
+ */
+function partToOpenAI(p) {
+    if (!p || typeof p !== 'object') return null;
+    if (p.type === 'text') {
+        return typeof p.text === 'string' ? { type: 'text', text: p.text } : null;
+    }
+    if (p.type === 'image' && typeof p.data === 'string') {
+        const mt = p.mediaType || 'image/jpeg';
+        return { type: 'image_url', image_url: { url: `data:${mt};base64,${p.data}` } };
+    }
+    return null;
+}
+
+/**
+ * Map our portable history to OpenAI's `messages` array. String content is
+ * passed through; parts[] is expanded into the typed content-array shape
+ * (chat-completions accepts both forms on a per-message basis).
  */
 function mapMessages(messages) {
     const out = [];
@@ -45,8 +62,16 @@ function mapMessages(messages) {
         const role = m.role === 'assistant' ? 'assistant'
             : m.role === 'system' ? 'system'
             : 'user';
-        const content = typeof m.content === 'string' ? m.content : '';
-        out.push({ role, content });
+        if (typeof m.content === 'string') {
+            out.push({ role, content: m.content });
+            continue;
+        }
+        if (Array.isArray(m.content)) {
+            const items = m.content.map(partToOpenAI).filter(Boolean);
+            if (items.length) out.push({ role, content: items });
+            continue;
+        }
+        out.push({ role, content: '' });
     }
     return out;
 }
