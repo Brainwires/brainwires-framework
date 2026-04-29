@@ -18,9 +18,9 @@ branch.
 
 | Milestone | What lands                                                              | Status     |
 |-----------|--------------------------------------------------------------------------|------------|
-| **M1**    | Crate scaffold, `webrtc-rs` dep, in-process two-peer ping/pong test     | this commit |
-| M2        | Axum `/signal/*` endpoints, in-memory session map, agent-card JSON      | next       |
-| M3        | Wire the WebRTC peer into the axum routes; JSON-RPC `ping` echo         | —          |
+| M1        | Crate scaffold, `webrtc-rs` dep, in-process two-peer ping/pong test     | landed     |
+| **M2**    | Axum `/signal/*` endpoints, in-memory session map, agent-card JSON      | this commit |
+| M3        | Wire the WebRTC peer into the axum routes; JSON-RPC `ping` echo         | next       |
 | M4        | A2A bridge — route inbound JSON-RPC into a real `TaskAgent`             | —          |
 | M5–M6     | Browser-side dial-home + point PWA at the existing tunnel               | —          |
 | M7        | Cloudflare Calls TURN credential minting (cellular symmetric-NAT path)  | —          |
@@ -60,28 +60,38 @@ The default bind is `127.0.0.1:7878` — the tunnel sits in front of it. The
 daemon never needs to listen on a public interface; if it does, you've
 mis-configured the tunnel.
 
-## Endpoints (target shape — wired up in M2/M3/M8)
+## Endpoints
 
-### Signaling
+### Signaling (M2 — wired)
 
-| Method | Path                        | Body / response                                     |
-|--------|-----------------------------|-----------------------------------------------------|
-| POST   | `/signal/session`           | → `{ session_id, ice_servers: [...] }`              |
-| POST   | `/signal/offer/{session}`   | `{ sdp, type }` → `204`                             |
-| GET    | `/signal/answer/{session}`  | long-poll 25 s → `{ sdp, type }`                    |
-| POST   | `/signal/ice/{session}`     | `{ candidate }` → `204`                             |
-| GET    | `/signal/ice/{session}?since=N` | long-poll → `{ candidates: [...], cursor }`     |
-| DELETE | `/signal/{session}`         | → `204`                                             |
+| Method | Path                        | Body / response                                     | Status |
+|--------|-----------------------------|-----------------------------------------------------|--------|
+| POST   | `/signal/session`           | → `{ session_id, ice_servers: [...] }`              | M2     |
+| POST   | `/signal/offer/{session}`   | `{ sdp, type }` → `204`                             | M2     |
+| GET    | `/signal/answer/{session}`  | long-poll 25 s → `{ sdp, type }` or `204`           | M2     |
+| POST   | `/signal/ice/{session}`     | `{ candidate, sdpMid, sdpMLineIndex }` → `204`      | M2     |
+| GET    | `/signal/ice/{session}?since=N` | long-poll → `{ candidates: [...], cursor }`     | M2     |
+| DELETE | `/signal/{session}`         | → `204` (idempotent)                                | M2     |
 
-`ice_servers` includes a Cloudflare Calls TURN credential the daemon mints
-server-side (~10 minute lifetime, refreshed on next session). The PWA never
-holds the CF Calls API key.
+State is **in-memory only**: an `Arc<DashMap<String, Arc<SessionState>>>` held
+in axum `State`. A background task GCs sessions older than 30 minutes every
+60 s. Long-poll handlers `await` a `tokio::sync::Notify` with a deadline; on
+timeout `/signal/answer` returns `204` (PWA retries) and `/signal/ice` returns
+the current snapshot.
 
-### Well-known
+For M2, `ice_servers` is an empty array. M7 fills it with Cloudflare Calls
+TURN credentials (~10 minute lifetime, minted server-side; the PWA never
+holds the CF Calls API key).
+
+### Well-known (M2 — wired)
 
 | Method | Path                              | Description                          |
 |--------|-----------------------------------|--------------------------------------|
-| GET    | `/.well-known/agent-card.json`    | A2A agent card for discovery         |
+| GET    | `/.well-known/agent-card.json`    | A2A 0.3 AgentCard for discovery      |
+
+The card is built from `brainwires_a2a::AgentCard`, advertises `streaming:
+true`, `defaultInputModes: ["text"]`, and a single `JSONRPC`
+`supportedInterfaces` entry pinned to `A2A_PROTOCOL_VERSION` ("0.3").
 
 ### Pairing (M8)
 

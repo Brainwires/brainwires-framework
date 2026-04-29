@@ -47,6 +47,9 @@ bytes = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+# In-memory session map
+dashmap = { workspace = true }
+
 # IDs & time
 uuid = { workspace = true }
 chrono = { workspace = true }
@@ -63,3 +66,6 @@ tracing-subscriber = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile = { workspace = true }
+# `tower::ServiceExt::oneshot` for axum router tests without a real port.
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
