@@ -203,6 +203,30 @@ async function _getOpfsFile(modelId, filename) {
     }
 }
 
+/**
+ * Check if OPFS has any partial download data for this model.
+ * Returns { hasData, totalBytes } or { hasData: false } if nothing found.
+ */
+export async function getPartialInfo(modelId) {
+    if (!_hasOpfs()) return { hasData: false, totalBytes: 0 };
+    try {
+        const root = await navigator.storage.getDirectory();
+        const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
+        const modelDir = await dlDir.getDirectoryHandle(modelId, { create: false });
+        let totalBytes = 0;
+        let fileCount = 0;
+        for await (const [name, handle] of modelDir.entries()) {
+            if (handle.kind !== 'file' || name.endsWith('.verified')) continue;
+            const file = await handle.getFile();
+            totalBytes += file.size;
+            fileCount++;
+        }
+        return { hasData: fileCount > 0, totalBytes };
+    } catch (_) {
+        return { hasData: false, totalBytes: 0 };
+    }
+}
+
 export function listKnownModels() {
     return Object.values(KNOWN_MODELS).map((m) => ({ ...m }));
 }

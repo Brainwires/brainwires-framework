@@ -20,6 +20,7 @@ import {
     isDownloaded,
     cancelDownload,
     deleteModel,
+    getPartialInfo,
 } from './model-store.js';
 import * as banner from './ui-download-banner.js';
 import * as cryptoStore from '../crypto-store.js';
@@ -398,6 +399,8 @@ async function buildLlmCard(modelId) {
     ));
     card.appendChild(el('p', { class: 'settings-help' }, m.description));
 
+    const partial = !downloaded ? await getPartialInfo(modelId).catch(() => ({ hasData: false })) : null;
+
     const actions = el('div', { class: 'settings-actions' });
     if (!downloaded) {
         actions.appendChild(el('button', {
@@ -410,6 +413,17 @@ async function buildLlmCard(modelId) {
             attrs: { type: 'button' },
             onClick: () => cancelDownload(modelId),
         }, t('settings.localModel.cancel')));
+        if (partial && partial.hasData) {
+            actions.appendChild(el('button', {
+                class: 'bw-btn bw-btn-danger bw-btn-sm',
+                attrs: { type: 'button' },
+                onClick: async () => {
+                    await deleteModel(modelId);
+                    toast(`Cleared ${formatSize(partial.totalBytes)} partial data`);
+                    await refreshCard(modelId);
+                },
+            }, `Clear partial (${formatSize(partial.totalBytes)})`));
+        }
     } else {
         actions.appendChild(el('button', {
             class: 'bw-btn bw-btn-danger bw-btn-sm',
@@ -453,6 +467,8 @@ async function buildEmbeddingCard(m) {
         `${m.provider} · ${m.dimensions}-dim · ${m.maxTokens} max tokens`));
     card.appendChild(el('p', { class: 'settings-help' }, m.description));
 
+    const partial = !downloaded ? await getPartialInfo(m.id).catch(() => ({ hasData: false })) : null;
+
     const actions = el('div', { class: 'settings-actions' });
     if (!downloaded) {
         actions.appendChild(el('button', {
@@ -463,6 +479,17 @@ async function buildEmbeddingCard(m) {
                 toast(`Downloading ${m.displayName}…`);
             },
         }, 'Download'));
+        if (partial && partial.hasData) {
+            actions.appendChild(el('button', {
+                class: 'bw-btn bw-btn-danger bw-btn-sm',
+                attrs: { type: 'button' },
+                onClick: async () => {
+                    await deleteModel(m.id);
+                    toast(`Cleared ${formatSize(partial.totalBytes)} partial data`);
+                    await refreshCard(m.id);
+                },
+            }, `Clear partial (${formatSize(partial.totalBytes)})`));
+        }
     } else {
         if (!active) {
             actions.appendChild(el('button', {

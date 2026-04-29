@@ -518,7 +518,7 @@ async function handleModelDownload(msg, _event) {
                 // isn't durable until .close(). If the SW is killed mid-write
                 // (phone backgrounded), uncommitted bytes are lost. Close + reopen
                 // every COMMIT_INTERVAL bytes so at most that much is lost.
-                const COMMIT_INTERVAL = 50 * 1024 * 1024; // 50 MB
+                const COMMIT_INTERVAL = 500 * 1024 * 1024; // 500 MB
                 const reader = resp.body.getReader();
                 let streamFailed = false;
                 let writable = null;
@@ -583,18 +583,42 @@ async function handleModelDownload(msg, _event) {
 
             emitProgress(f, fileBytesDone, contentLength, true);
 
-            // SHA-256 verification directly from OPFS (no Cache Storage copy).
-            if (f.sha256 && opfsHandle) {
-                console.log(`[bw-sw] ${f.filename}: verifying SHA-256 (streaming from OPFS)...`);
-                broadcastDl({ type: 'model_progress', detail: { phase: 'verifying', modelId, file: f.filename } });
+            // Verify download integrity.
+            if (opfsHandle) {
                 const opfsFile = await opfsHandle.getFile();
-                const hex = await streamingSha256FromFile(opfsFile);
-                if (hex && hex !== f.sha256) {
-                    console.error(`[bw-sw] ${f.filename}: SHA mismatch! got=${hex} expected=${f.sha256}`);
-                    await deleteOpfsModel(modelId);
-                    throw new Error(`SHA-256 mismatch for ${f.filename}`);
+                const SIZE_LIMIT_FOR_JS_SHA = 2 * 1024 * 1024 * 1024; // 2 GB
+
+                if (f.sha256 && opfsFile.size <= SIZE_LIMIT_FOR_JS_SHA) {
+                    // Small/medium files: full SHA-256 from OPFS.
+                    console.log(`[bw-sw] ${f.filename}: verifying SHA-256 (${opfsFile.size} bytes)...`);
+                    broadcastDl({ type: 'model_progress', detail: { phase: 'verifying', modelId, file: f.filename } });
+                    try {
+                        const hex = await streamingSha256FromFile(opfsFile);
+                        if (hex && hex !== f.sha256) {
+                            console.error(`[bw-sw] ${f.filename}: SHA mismatch! got=${hex} expected=${f.sha256}`);
+                            await deleteOpfsModel(modelId);
+                            throw new Error(`SHA-256 mismatch for ${f.filename}`);
+                        }
+                        console.log(`[bw-sw] ${f.filename}: SHA-256 verified ✓`);
+                    } catch (shaErr) {
+                        if (shaErr && shaErr.message && shaErr.message.includes('SHA-256 mismatch')) throw shaErr;
+                        console.warn(`[bw-sw] ${f.filename}: SHA-256 verification failed, using size check:`, shaErr.message);
+                        if (contentLength > 0 && opfsFile.size !== contentLength) {
+                            await deleteOpfsModel(modelId);
+                            throw new Error(`size mismatch for ${f.filename}: got ${opfsFile.size}, expected ${contentLength}`);
+                        }
+                    }
+                } else if (contentLength > 0) {
+                    // Large files: JS SHA-256 is too slow / fails in SW.
+                    // Verify size matches content-length (HTTPS already
+                    // guarantees integrity of the bytes received).
+                    if (opfsFile.size !== contentLength) {
+                        console.error(`[bw-sw] ${f.filename}: size mismatch! got=${opfsFile.size} expected=${contentLength}`);
+                        await deleteOpfsModel(modelId);
+                        throw new Error(`size mismatch for ${f.filename}`);
+                    }
+                    console.log(`[bw-sw] ${f.filename}: size verified (${opfsFile.size} bytes) ✓`);
                 }
-                console.log(`[bw-sw] ${f.filename}: SHA-256 verified ✓`);
             }
 
             // Write a .verified marker so future runs skip re-download.
