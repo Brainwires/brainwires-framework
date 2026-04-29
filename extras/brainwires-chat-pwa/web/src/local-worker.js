@@ -177,10 +177,11 @@ self.addEventListener('message', (ev) => {
     const msg = ev.data;
     if (!msg || typeof msg !== 'object') return;
     switch (msg.type) {
-        case 'load':   handleLoad(msg);   break;
-        case 'chat':   handleChat(msg);   break;
-        case 'cancel': handleCancel(msg); break;
-        case 'unload': handleUnload(msg); break;
+        case 'load':         handleLoad(msg);   break;
+        case 'chat':         handleChat(msg);   break;
+        case 'vision_chat':  handleVisionChat(msg); break;
+        case 'cancel':       handleCancel(msg); break;
+        case 'unload':       handleUnload(msg); break;
         default: console.error('local-worker: unknown message type', msg.type);
     }
 });
@@ -328,48 +329,68 @@ async function tryChunkedLoad(mod, modelId, requestId) {
 }
 
 async function handleChat(msg) {
+    return runChatStream(msg, 'local_chat_stream');
+}
+
+// Same shape as handleChat but routed through `local_chat_stream_with_image`,
+// which (when the wasm crate exposes it) accepts the parts[] message shape
+// directly so {type:'image'} parts can be decoded inside Rust. Falls back to
+// a clear error message when the wasm side hasn't been rebuilt yet — the
+// JS plumbing is here so the upgrade is just a wasm-pack rebuild away.
+async function handleVisionChat(msg) {
+    return runChatStream(msg, 'local_chat_stream_with_image');
+}
+
+// Drives an NDJSON stream from a wasm chat function. Both text-only and
+// vision paths share this loop; the only thing that differs is which wasm
+// export is invoked.
+async function runChatStream(msg, wasmFnName) {
     const { requestId, conversationId, messageId, messages, params } = msg;
     if (handle === null) {
         self.postMessage({
-            requestId,
-            type: 'chat_error',
-            conversationId,
-            messageId,
+            requestId, type: 'chat_error', conversationId, messageId,
             error: 'no_model_loaded',
         });
         return;
     }
     const mod = await getWasm();
-    if (typeof mod.local_chat_stream !== 'function') {
+    if (typeof mod[wasmFnName] !== 'function') {
         self.postMessage({
-            requestId,
-            type: 'chat_error',
-            conversationId,
-            messageId,
-            error: 'wasm.local_chat_stream() not available — rebuild the WASM crate',
+            requestId, type: 'chat_error', conversationId, messageId,
+            error: `wasm.${wasmFnName}() not available — rebuild the WASM crate`,
         });
         return;
     }
 
-    // Track in-flight stream so 'cancel' can short-circuit it.
     const ctl = { aborted: false, reader: null };
     inflight.set(conversationId, ctl);
 
     let usage = null;
     let tokensReceived = 0;
     try {
-        const stream = await mod.local_chat_stream(
+        const stream = await mod[wasmFnName](
             handle,
             JSON.stringify(messages || []),
             JSON.stringify(params || {}),
         );
         if (!stream || typeof stream.getReader !== 'function') {
-            throw new Error('local_chat_stream did not return a ReadableStream');
+            throw new Error(`${wasmFnName} did not return a ReadableStream`);
         }
         const reader = stream.getReader();
         ctl.reader = reader;
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
+
+        const dispatchObj = (obj) => {
+            if (!obj || typeof obj !== 'object') return;
+            if (typeof obj.error === 'string' && obj.error !== '') throw new Error(obj.error);
+            if (typeof obj.delta === 'string' && obj.delta !== '') {
+                tokensReceived += 1;
+                self.postMessage({ type: 'chat_chunk', conversationId, messageId, delta: obj.delta });
+            }
+            if (obj.usage && typeof obj.usage === 'object') usage = obj.usage;
+            // obj.finished is informational; reader's `done` is authoritative.
+        };
 
         while (true) {
             if (ctl.aborted) break;
@@ -381,72 +402,25 @@ async function handleChat(msg) {
                 const line = buffer.slice(0, nl).replace(/\r$/, '');
                 buffer = buffer.slice(nl + 1);
                 if (line.trim() === '') continue;
-                let obj;
-                try { obj = JSON.parse(line); } catch (_) { continue; }
-                if (!obj || typeof obj !== 'object') continue;
-                if (typeof obj.error === 'string' && obj.error !== '') {
-                    throw new Error(obj.error);
-                }
-                if (typeof obj.delta === 'string' && obj.delta !== '') {
-                    tokensReceived += 1;
-                    self.postMessage({
-                        type: 'chat_chunk',
-                        conversationId,
-                        messageId,
-                        delta: obj.delta,
-                    });
-                }
-                if (obj.usage && typeof obj.usage === 'object') usage = obj.usage;
-                // obj.finished is informational; the reader's `done` is authoritative.
+                try { dispatchObj(JSON.parse(line)); } catch (_) { continue; }
             }
         }
-        // Flush trailing partial line, if any.
         if (!ctl.aborted && buffer.trim() !== '') {
-            try {
-                const obj = JSON.parse(buffer.trim());
-                if (obj && typeof obj.delta === 'string' && obj.delta !== '') {
-                    tokensReceived += 1;
-                    self.postMessage({
-                        type: 'chat_chunk',
-                        conversationId,
-                        messageId,
-                        delta: obj.delta,
-                    });
-                }
-                if (obj && obj.usage) usage = obj.usage;
-            } catch (_err) { console.warn("[bw] caught:", _err); }
+            try { dispatchObj(JSON.parse(buffer.trim())); }
+            catch (_err) { console.warn("[bw] caught:", _err); }
             buffer = '';
         }
         try { reader.releaseLock(); } catch (_) { /* already released */ }
 
         if (ctl.aborted) {
-            self.postMessage({
-                requestId,
-                type: 'chat_error',
-                conversationId,
-                messageId,
-                error: 'aborted',
-            });
+            self.postMessage({ requestId, type: 'chat_error', conversationId, messageId, error: 'aborted' });
         } else {
-            self.postMessage({
-                requestId,
-                type: 'chat_done',
-                conversationId,
-                messageId,
-                usage,
-                tokensReceived,
-            });
+            self.postMessage({ requestId, type: 'chat_done', conversationId, messageId, usage, tokensReceived });
         }
     } catch (err) {
         const error = err && err.message ? err.message : String(err);
-        console.error('local-worker: chat failed', err);
-        self.postMessage({
-            requestId,
-            type: 'chat_error',
-            conversationId,
-            messageId,
-            error,
-        });
+        console.error(`local-worker: ${wasmFnName} failed`, err);
+        self.postMessage({ requestId, type: 'chat_error', conversationId, messageId, error });
     } finally {
         inflight.delete(conversationId);
     }

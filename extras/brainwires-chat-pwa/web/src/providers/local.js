@@ -23,7 +23,7 @@ import {
     events,
     appEvents,
 } from '../state.js';
-import { appendMessageChunk, putMessage } from '../db.js';
+import { appendMessageChunk, putMessage, partsToText } from '../db.js';
 
 export const id = 'local-gemma-4-e2b';
 export const displayName = 'Gemma 4 E2B (on-device)';
@@ -227,13 +227,26 @@ export async function startChat({ conversationId, messageId, messages, params = 
         await loadLocalModel(params.model || defaultModel);
     }
     _activeChats.set(conversationId, { messageId });
+    // Route through the vision RPC when any message carries an image part
+    // (parts[] content). Text-only history flows through the legacy chat
+    // RPC so wasm builds without the multimodal export still work; we
+    // flatten any text-only parts[] back to string for that path so the
+    // current wasm signature (string content) keeps accepting it.
+    const hasImage = Array.isArray(messages)
+        && messages.some((m) => Array.isArray(m && m.content) && m.content.some((p) => p && p.type === 'image'));
+    const wireMessages = hasImage
+        ? messages
+        : (messages || []).map((m) => ({
+            role: m.role,
+            content: typeof m.content === 'string' ? m.content : partsToText(m.content),
+        }));
     let result;
     try {
         result = await rpc({
-            type: 'chat',
+            type: hasImage ? 'vision_chat' : 'chat',
             conversationId,
             messageId,
-            messages,
+            messages: wireMessages,
             params,
         });
     } catch (err) {
