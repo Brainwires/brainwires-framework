@@ -974,13 +974,5 @@ async function hardRefresh() {
         const rs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(rs.map(r => r.unregister()));
     }
-    if (navigator.storage && navigator.storage.getDirectory) {
-        try {
-            const root = await navigator.storage.getDirectory();
-            for await (const [name] of root.entries()) {
-                try { await root.removeEntry(name, { recursive: true }); } catch (_) {}
-            }
-        } catch (_) {}
-    }
     location.reload();
 }
