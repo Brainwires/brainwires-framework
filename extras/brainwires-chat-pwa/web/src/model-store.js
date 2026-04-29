@@ -309,23 +309,37 @@ export async function getModelBytes(modelId) {
     return out;
 }
 
-/** Remove all files for a model. */
+/** Remove all files for a model. Cancels any active download first. */
 export async function deleteModel(modelId) {
-    if (!_hasCaches()) return;
+    cancelDownload(modelId);
+    // Give the SW time to close its writable stream after abort.
+    await new Promise((r) => setTimeout(r, 500));
+
     const m = getKnownModel(modelId);
-    if (!m) return;
-    const cache = await caches.open(CACHE_NAME);
-    for (const f of m.files) {
-        try { await cache.delete(cacheKey(modelId, f.filename)); } catch (_err) { console.warn("[bw] caught:", _err); }
-    }
-    // Also clear OPFS partial downloads so a re-download starts fresh.
-    try {
-        if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
-            const root = await navigator.storage.getDirectory();
-            const dlDir = await root.getDirectoryHandle('model-downloads', { create: false }).catch((e) => { console.warn("[bw] swallowed:", e); return null; });
-            if (dlDir) await dlDir.removeEntry(modelId, { recursive: true }).catch((e) => { console.warn("[bw] swallowed:", e); });
+    if (m && _hasCaches()) {
+        const cache = await caches.open(CACHE_NAME);
+        for (const f of m.files) {
+            try { await cache.delete(cacheKey(modelId, f.filename)); } catch (_err) { console.warn("[bw] caught:", _err); }
         }
-    } catch (_) { /* OPFS unavailable or dir doesn't exist */ }
+    }
+    // Clear OPFS files. Retry once after a delay if the lock is still held.
+    const clearOpfs = async () => {
+        if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) return;
+        const root = await navigator.storage.getDirectory();
+        const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
+        await dlDir.removeEntry(modelId, { recursive: true });
+    };
+    try {
+        await clearOpfs();
+    } catch (e) {
+        if (e && e.name === 'NoModificationAllowedError') {
+            console.warn('[bw] OPFS lock still held, retrying in 1s...');
+            await new Promise((r) => setTimeout(r, 1000));
+            try { await clearOpfs(); } catch (e2) { console.warn('[bw] OPFS delete retry failed:', e2); }
+        } else if (e && e.name !== 'NotFoundError') {
+            console.warn('[bw] OPFS delete failed:', e);
+        }
+    }
     events.dispatchEvent(new CustomEvent('model_deleted', { detail: { modelId } }));
 }
 
