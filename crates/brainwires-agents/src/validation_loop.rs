@@ -252,15 +252,30 @@ pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResul
     for check in &config.checks {
         match check {
             ValidationCheck::NoDuplicates => {
+                #[cfg(feature = "native")]
                 run_duplicates_check(&changed_files, &mut issues).await;
+                #[cfg(not(feature = "native"))]
+                {
+                    let _ = &changed_files;
+                }
             }
 
             ValidationCheck::SyntaxValid => {
+                #[cfg(feature = "native")]
                 run_syntax_check(&changed_files, &mut issues).await;
+                #[cfg(not(feature = "native"))]
+                {
+                    let _ = &changed_files;
+                }
             }
 
             ValidationCheck::BuildSuccess { build_type } => {
+                #[cfg(feature = "native")]
                 run_build_check(&config.working_directory, build_type, &mut issues).await;
+                #[cfg(not(feature = "native"))]
+                {
+                    let _ = (&config.working_directory, build_type);
+                }
             }
 
             ValidationCheck::CustomCommand { command, args } => {
@@ -317,6 +332,7 @@ pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResul
 
 // ── Validation tool dispatch (feature-gated) ─────────────────────────────────
 
+#[cfg(feature = "native")]
 async fn run_duplicates_check(changed_files: &[String], issues: &mut Vec<ValidationIssue>) {
     use brainwires_tools::validation::check_duplicates;
 
@@ -354,6 +370,7 @@ async fn run_duplicates_check(changed_files: &[String], issues: &mut Vec<Validat
     }
 }
 
+#[cfg(feature = "native")]
 async fn run_syntax_check(changed_files: &[String], issues: &mut Vec<ValidationIssue>) {
     use brainwires_tools::validation::check_syntax;
 
@@ -389,6 +406,7 @@ async fn run_syntax_check(changed_files: &[String], issues: &mut Vec<ValidationI
     }
 }
 
+#[cfg(feature = "native")]
 async fn run_build_check(
     working_directory: &str,
     build_type: &str,

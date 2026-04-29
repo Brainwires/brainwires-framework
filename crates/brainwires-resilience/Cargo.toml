@@ -28,7 +28,9 @@ rand = "0.8"
 rusqlite = { workspace = true, optional = true }
 
 [features]
-default = []
+default = ["native"]
+native = []
+wasm = []
 cache = ["dep:rusqlite"]
 
 [dev-dependencies]

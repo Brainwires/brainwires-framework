@@ -651,6 +651,7 @@ pub struct FileWriteOp {
     pub is_new_file: bool,
 }
 
+#[cfg(feature = "native")]
 #[async_trait]
 impl CompensableOperation for FileWriteOp {
     async fn execute(&self) -> Result<OperationResult> {
@@ -723,6 +724,7 @@ pub struct FileEditOp {
     pub new_content: String,
 }
 
+#[cfg(feature = "native")]
 #[async_trait]
 impl CompensableOperation for FileEditOp {
     async fn execute(&self) -> Result<OperationResult> {
@@ -765,6 +767,7 @@ pub struct GitStageOp {
     pub working_dir: PathBuf,
 }
 
+#[cfg(feature = "native")]
 #[async_trait]
 impl CompensableOperation for GitStageOp {
     async fn execute(&self) -> Result<OperationResult> {
@@ -816,6 +819,7 @@ pub struct GitCommitOp {
     pub working_dir: PathBuf,
 }
 
+#[cfg(feature = "native")]
 #[async_trait]
 impl CompensableOperation for GitCommitOp {
     async fn execute(&self) -> Result<OperationResult> {
