@@ -13,10 +13,11 @@ use std::time::{Duration, Instant};
 use axum::{
     Json, Router,
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{HeaderName, HeaderValue, Method, StatusCode},
     response::IntoResponse,
     routing::{get, post},
 };
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use brainwires_a2a::{
     A2A_PROTOCOL_VERSION, AgentCapabilities, AgentCard, AgentInterface, AgentProvider,
 };
@@ -43,6 +44,20 @@ pub const GC_INTERVAL: Duration = Duration::from_secs(60);
 
 /// Crate version, baked at compile time. Surfaced in the AgentCard.
 pub const HOME_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// `Access-Control-Max-Age` value advertised by the CORS layer (10 min).
+pub const CORS_MAX_AGE: Duration = Duration::from_secs(600);
+
+/// Default allow-list when neither `--cors-origin` nor `--cors-permissive`
+/// is supplied. Matches the chat-PWA dev container (`HOST_PORT` defaults to
+/// 8080 in `extras/brainwires-chat-pwa/docker-compose.yml`) plus the
+/// esbuild-serve fallback on 5173, on both `localhost` and `127.0.0.1`.
+pub const DEFAULT_DEV_ORIGINS: &[&str] = &[
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+];
 
 // ---------- wire types ----------
 
@@ -184,10 +199,113 @@ impl AppState {
     }
 }
 
+// ---------- CORS ----------
+
+/// CORS policy applied to the axum router.
+///
+/// The chat PWA is served from a different origin than the home daemon
+/// (PWA on the tunnel hostname or `localhost:8080` dev; daemon on
+/// `127.0.0.1:7878`), so the browser issues preflight `OPTIONS` requests
+/// against `/signal/*` + `/.well-known/agent-card.json`. Without an
+/// `Access-Control-Allow-Origin` matching the PWA origin, the browser
+/// blocks the actual call.
+///
+/// Three modes:
+///   1. **Default** ([`CorsConfig::default`]): allow `DEFAULT_DEV_ORIGINS`
+///      (chat-PWA's dev container + esbuild-serve loopback origins).
+///   2. **Allow-list** ([`CorsConfig::allow_origin`], repeatable): exact-
+///      match origin strings — typical production wiring is one PWA URL.
+///   3. **Permissive** ([`CorsConfig::permissive`]): allow any origin.
+///      Dev only — wide-open CORS in production is a footgun.
+///
+/// No credentials mode is enabled — the PWA carries Bearer tokens (M8),
+/// not cookies, so `Access-Control-Allow-Credentials` is intentionally off.
+#[derive(Debug, Clone)]
+pub struct CorsConfig {
+    origins: Vec<String>,
+    permissive: bool,
+}
+
+impl Default for CorsConfig {
+    fn default() -> Self {
+        Self {
+            origins: DEFAULT_DEV_ORIGINS.iter().map(|s| (*s).to_string()).collect(),
+            permissive: false,
+        }
+    }
+}
+
+impl CorsConfig {
+    /// Append an origin to the allow-list. Replaces the
+    /// [`DEFAULT_DEV_ORIGINS`] defaults on first call — explicit callers
+    /// opt in to exactly the origins they list, no surprise loopbacks.
+    pub fn allow_origin(mut self, origin: impl Into<String>) -> Self {
+        if self.origins.iter().any(|o| DEFAULT_DEV_ORIGINS.contains(&o.as_str())) {
+            // Wipe the dev defaults the first time the caller adds an
+            // explicit origin. Otherwise they'd unknowingly inherit
+            // `http://localhost:8080` in production.
+            self.origins.clear();
+        }
+        self.origins.push(origin.into());
+        self
+    }
+
+    /// Allow any origin (wide-open). **Dev only.** Use this when the
+    /// daemon and PWA are both on the same dev host but you don't want
+    /// to enumerate ports.
+    pub fn permissive(mut self) -> Self {
+        self.permissive = true;
+        self
+    }
+
+    /// Build the [`CorsLayer`] reflecting this config.
+    pub fn into_layer(self) -> CorsLayer {
+        let methods = [
+            Method::GET,
+            Method::POST,
+            Method::DELETE,
+            Method::OPTIONS,
+        ];
+        // Headers the PWA + the M8 pairing flow need to send. Listed
+        // explicitly rather than `mirror_request` because some browsers
+        // are stricter when credentials are involved.
+        let headers = [
+            HeaderName::from_static("content-type"),
+            HeaderName::from_static("authorization"),
+            HeaderName::from_static("cf-access-client-id"),
+            HeaderName::from_static("cf-access-client-secret"),
+        ];
+        let layer = CorsLayer::new()
+            .allow_methods(methods)
+            .allow_headers(headers)
+            .max_age(CORS_MAX_AGE);
+        if self.permissive {
+            layer.allow_origin(AllowOrigin::any())
+        } else {
+            let values: Vec<HeaderValue> = self
+                .origins
+                .iter()
+                .filter_map(|o| HeaderValue::from_str(o).ok())
+                .collect();
+            layer.allow_origin(AllowOrigin::list(values))
+        }
+    }
+}
+
 // ---------- router ----------
 
 /// Build the axum `Router` for all `/signal/*` + agent-card routes.
+///
+/// This wires the default CORS policy (chat-PWA dev origins). For
+/// production, callers should go through [`router_with_cors`] with an
+/// explicit allow-list — or via [`crate::HomeServerBuilder`] which
+/// exposes the same knobs as CLI flags.
 pub fn router(state: AppState) -> Router {
+    router_with_cors(state, CorsConfig::default())
+}
+
+/// Build the axum `Router` with an explicit CORS configuration.
+pub fn router_with_cors(state: AppState, cors: CorsConfig) -> Router {
     Router::new()
         .route("/signal/session", post(create_session))
         .route("/signal/offer/{session}", post(post_offer))
@@ -196,6 +314,7 @@ pub fn router(state: AppState) -> Router {
         .route("/signal/{session}", axum::routing::delete(delete_session))
         .route("/.well-known/agent-card.json", get(agent_card))
         .with_state(state)
+        .layer(cors.into_layer())
 }
 
 // ---------- handlers ----------
@@ -725,6 +844,162 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(80)).await;
         state.gc_expired();
         assert!(!state.sessions.contains_key(&id), "session should be GC'd");
+    }
+
+    // ---------- CORS preflight tests ----------
+    //
+    // These exercise the `CorsLayer` wiring through the real router rather
+    // than testing tower-http internals. The goal is "verify CORS is
+    // configured correctly" — a preflight from an allowed origin gets
+    // ACAO back; a disallowed one doesn't.
+
+    fn preflight_request(origin: &str) -> Request<Body> {
+        Request::builder()
+            .method(Method::OPTIONS)
+            .uri("/signal/session")
+            .header("origin", origin)
+            .header("access-control-request-method", "POST")
+            .header("access-control-request-headers", "content-type,authorization")
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_cors_preflight_allowed_origin() {
+        let cors = CorsConfig::default().allow_origin("http://localhost:8080");
+        let app = router_with_cors(test_state(), cors);
+        let resp = app
+            .oneshot(preflight_request("http://localhost:8080"))
+            .await
+            .unwrap();
+        // tower-http emits 200 OK for accepted preflight.
+        assert!(
+            resp.status().is_success(),
+            "preflight from allowed origin should succeed, got {}",
+            resp.status()
+        );
+        let acao = resp
+            .headers()
+            .get("access-control-allow-origin")
+            .expect("ACAO header present on accepted preflight")
+            .to_str()
+            .unwrap();
+        assert_eq!(acao, "http://localhost:8080");
+    }
+
+    #[tokio::test]
+    async fn test_cors_preflight_disallowed_origin() {
+        let cors = CorsConfig::default().allow_origin("http://localhost:8080");
+        let app = router_with_cors(test_state(), cors);
+        let resp = app
+            .oneshot(preflight_request("https://evil.example.com"))
+            .await
+            .unwrap();
+        // tower-http silently drops the ACAO header when the origin isn't
+        // matched; the browser treats absence as block. Either no header
+        // or a non-matching one is acceptable — the critical thing is that
+        // the evil origin is NOT echoed back and `*` is NOT returned.
+        match resp.headers().get("access-control-allow-origin") {
+            None => {}
+            Some(v) => {
+                let s = v.to_str().unwrap_or("");
+                assert_ne!(s, "*", "must not return wildcard ACAO");
+                assert_ne!(
+                    s, "https://evil.example.com",
+                    "must not echo disallowed origin"
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cors_permissive_allows_any() {
+        let cors = CorsConfig::default().permissive();
+        let app = router_with_cors(test_state(), cors);
+        let resp = app
+            .oneshot(preflight_request("https://random.example.com"))
+            .await
+            .unwrap();
+        assert!(
+            resp.status().is_success(),
+            "permissive preflight should succeed, got {}",
+            resp.status()
+        );
+        // Permissive mode emits `*` (no credentials, so `*` is legal).
+        let acao = resp
+            .headers()
+            .get("access-control-allow-origin")
+            .expect("ACAO header present in permissive mode")
+            .to_str()
+            .unwrap()
+            .to_string();
+        assert_eq!(acao, "*", "permissive mode must return wildcard");
+    }
+
+    #[tokio::test]
+    async fn test_cors_default_localhost_origins() {
+        // No CLI flags → DEFAULT_DEV_ORIGINS apply.
+        let app = router_with_cors(test_state(), CorsConfig::default());
+
+        // Allowed: chat-PWA dev container origin.
+        let resp = app
+            .clone()
+            .oneshot(preflight_request("http://localhost:8080"))
+            .await
+            .unwrap();
+        assert!(resp.status().is_success());
+        let acao = resp
+            .headers()
+            .get("access-control-allow-origin")
+            .expect("ACAO present for default-allowed origin")
+            .to_str()
+            .unwrap();
+        assert_eq!(acao, "http://localhost:8080");
+
+        // Disallowed: arbitrary public origin.
+        let resp = app
+            .oneshot(preflight_request("https://random.example.com"))
+            .await
+            .unwrap();
+        match resp.headers().get("access-control-allow-origin") {
+            None => {}
+            Some(v) => {
+                let s = v.to_str().unwrap_or("");
+                assert_ne!(s, "*");
+                assert_ne!(s, "https://random.example.com");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cors_allow_origin_replaces_dev_defaults() {
+        // Sanity: once the caller adds an explicit origin, the dev
+        // defaults must drop out — production daemons shouldn't silently
+        // accept `http://localhost:8080` next to their real origin.
+        let cors = CorsConfig::default().allow_origin("https://chat.example.com");
+        let app = router_with_cors(test_state(), cors);
+
+        let resp = app
+            .clone()
+            .oneshot(preflight_request("https://chat.example.com"))
+            .await
+            .unwrap();
+        assert!(resp.status().is_success());
+
+        let resp = app
+            .oneshot(preflight_request("http://localhost:8080"))
+            .await
+            .unwrap();
+        match resp.headers().get("access-control-allow-origin") {
+            None => {}
+            Some(v) => {
+                let s = v.to_str().unwrap_or("");
+                assert_ne!(
+                    s, "http://localhost:8080",
+                    "dev defaults should be cleared once the caller adds an explicit origin"
+                );
+            }
+        }
     }
 }
 

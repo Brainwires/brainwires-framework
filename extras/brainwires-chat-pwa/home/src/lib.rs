@@ -22,7 +22,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::a2a::A2aBridge;
-use crate::signaling::{AppState, DEFAULT_LONG_POLL, DEFAULT_SESSION_TTL};
+use crate::signaling::{AppState, CorsConfig, DEFAULT_LONG_POLL, DEFAULT_SESSION_TTL};
 
 /// Default loopback bind. The daemon expects to live behind a Cloudflare
 /// Tunnel (or equivalent reverse tunnel) — listening on a public interface
@@ -33,6 +33,7 @@ pub const DEFAULT_BIND: &str = "127.0.0.1:7878";
 pub struct HomeServer {
     bind: SocketAddr,
     state: AppState,
+    cors: CorsConfig,
 }
 
 /// Builder for [`HomeServer`].
@@ -46,6 +47,8 @@ pub struct HomeServerBuilder {
     long_poll_timeout: Duration,
     session_ttl: Duration,
     bridge: Option<Arc<A2aBridge>>,
+    cors: CorsConfig,
+    cors_explicit: bool,
 }
 
 impl HomeServer {
@@ -56,6 +59,8 @@ impl HomeServer {
             long_poll_timeout: DEFAULT_LONG_POLL,
             session_ttl: DEFAULT_SESSION_TTL,
             bridge: None,
+            cors: CorsConfig::default(),
+            cors_explicit: false,
         }
     }
 
@@ -75,7 +80,7 @@ impl HomeServer {
     /// Tests can drive this via `tower::ServiceExt::oneshot`. Production code
     /// goes through [`HomeServer::serve`], which binds and runs it.
     pub fn router(&self) -> Router {
-        signaling::router(self.state.clone())
+        signaling::router_with_cors(self.state.clone(), self.cors.clone())
     }
 
     /// Run the server until it errors or is dropped.
@@ -84,7 +89,7 @@ impl HomeServer {
     /// hands the listener to `axum::serve`. Returns when the server exits.
     pub async fn serve(self) -> Result<()> {
         let _gc = self.state.spawn_gc();
-        let app = signaling::router(self.state.clone());
+        let app = signaling::router_with_cors(self.state.clone(), self.cors.clone());
         let listener = tokio::net::TcpListener::bind(self.bind)
             .await
             .with_context(|| format!("bind {}", self.bind))?;
@@ -135,6 +140,27 @@ impl HomeServerBuilder {
         self
     }
 
+    /// Add an exact-match origin to the CORS allow-list. Repeatable.
+    ///
+    /// The first call clears the [`signaling::DEFAULT_DEV_ORIGINS`]
+    /// defaults — once the caller names a real PWA origin, the daemon
+    /// should not also silently accept localhost dev origins.
+    pub fn cors_allow_origin(mut self, origin: impl Into<String>) -> Self {
+        self.cors = self.cors.allow_origin(origin);
+        self.cors_explicit = true;
+        self
+    }
+
+    /// Wide-open CORS (`Access-Control-Allow-Origin: *`). **Dev only.**
+    /// Disables the default dev-origin allow-list and accepts any origin.
+    /// The CLI exposes this as `--cors-permissive`; the README flags it
+    /// as a footgun for production.
+    pub fn cors_permissive(mut self) -> Self {
+        self.cors = CorsConfig::default().permissive();
+        self.cors_explicit = true;
+        self
+    }
+
     /// Materialize the builder into a [`HomeServer`].
     pub fn build(self) -> Result<HomeServer> {
         let bind = self
@@ -144,7 +170,16 @@ impl HomeServerBuilder {
         if let Some(bridge) = self.bridge {
             state = state.with_bridge(bridge);
         }
-        Ok(HomeServer { bind, state })
+        if !self.cors_explicit {
+            tracing::debug!(
+                "no --cors-origin / --cors-permissive flags; allowing chat-PWA dev origins only"
+            );
+        }
+        Ok(HomeServer {
+            bind,
+            state,
+            cors: self.cors,
+        })
     }
 }
 

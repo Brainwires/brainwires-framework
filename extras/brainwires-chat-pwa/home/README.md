@@ -19,10 +19,11 @@ branch.
 | Milestone | What lands                                                              | Status     |
 |-----------|--------------------------------------------------------------------------|------------|
 | M1        | Crate scaffold, `webrtc-rs` dep, in-process two-peer ping/pong test     | landed     |
-| **M2**    | Axum `/signal/*` endpoints, in-memory session map, agent-card JSON      | this commit |
-| M3        | Wire the WebRTC peer into the axum routes; JSON-RPC `ping` echo         | next       |
-| M4        | A2A bridge — route inbound JSON-RPC into a real `TaskAgent`             | —          |
-| M5–M6     | Browser-side dial-home + point PWA at the existing tunnel               | —          |
+| M2        | Axum `/signal/*` endpoints, in-memory session map, agent-card JSON      | landed     |
+| M3        | Wire the WebRTC peer into the axum routes; JSON-RPC `ping` echo         | landed     |
+| M4        | A2A bridge — route inbound JSON-RPC into a real `TaskAgent`             | landed     |
+| M5        | Browser-side dial-home transport (`web/src/home-*`)                     | landed     |
+| **M6**    | CORS configuration + tunnel-pointing docs                                | this commit |
 | M7        | Cloudflare Calls TURN credential minting (cellular symmetric-NAT path)  | —          |
 | M8        | Pairing flow (`/pair/claim`, `/pair/confirm`, QR + 6-digit confirm)     | —          |
 | M9–M12    | `home-provider.js`, reconnect/resume, multimodal chunking, polish       | —          |
@@ -137,6 +138,103 @@ gate to wiring the same peer into the axum signaling routes in M3.
 
 For end-to-end PWA → home dev (M5+): point `web/src/home-signaling.js` at
 `http://127.0.0.1:7878` and flip the dev toggle in the PWA Settings panel.
+
+## Pointing the PWA at the daemon
+
+The PWA and the home daemon always live on different origins — PWA in a
+browser, daemon on `127.0.0.1:7878` (behind a tunnel for remote access).
+That's a cross-origin request, so the daemon ships with a configurable
+CORS layer. Two flows:
+
+### 1. Localhost dev
+
+PWA served from `localhost:8080` (the chat-PWA's `docker compose` default;
+see `extras/brainwires-chat-pwa/docker-compose.yml` `HOST_PORT`), daemon on
+`127.0.0.1:7878`.
+
+```sh
+# daemon — defaults already allow http://localhost:8080
+cargo run -p brainwires-home -- --bind 127.0.0.1:7878
+
+# or explicit (equivalent for localhost dev):
+cargo run -p brainwires-home -- --cors-origin http://localhost:8080
+```
+
+PWA: open `http://localhost:8080/?home=http://127.0.0.1:7878` (or set the
+home URL in the Settings panel).
+
+### 2. Tunneled production
+
+PWA at e.g. `https://chat.example.com`, daemon at `127.0.0.1:7878` behind
+a tunnel reachable as `https://home.example.com`.
+
+```sh
+cargo run -p brainwires-home -- \
+    --bind 127.0.0.1:7878 \
+    --cors-origin https://chat.example.com
+```
+
+PWA: `https://chat.example.com/?home=https://home.example.com`.
+
+Adding even one `--cors-origin` clears the dev defaults — production
+daemons should not silently accept `http://localhost:8080` next to their
+real origin.
+
+### CORS
+
+The home daemon attaches a `tower_http::cors::CorsLayer` to every route.
+Three modes:
+
+| Flag                                                    | Behaviour |
+|---------------------------------------------------------|-----------|
+| (none)                                                  | Allow chat-PWA dev origins: `http://localhost:8080`, `http://127.0.0.1:8080`, `http://localhost:5173`, `http://127.0.0.1:5173`. |
+| `--cors-origin <URL>` (repeatable)                      | Exact-match allow-list. First call clears the dev defaults. |
+| `--cors-permissive` (env `BRAINWIRES_HOME_CORS_PERMISSIVE`) | Allow any origin (`Access-Control-Allow-Origin: *`). **Dev only.** |
+
+Methods allowed: `GET POST DELETE OPTIONS`. Headers allowed:
+`content-type`, `authorization`, `cf-access-client-id`,
+`cf-access-client-secret` (the latter two ride along today even though M5
+doesn't use them — they're the M8 pairing flow's auth headers).
+`Access-Control-Max-Age: 600` (10 min) on preflight responses. **No**
+credentials mode — the PWA carries Bearer tokens (M8), not cookies.
+
+Why permissive is dev-only: any web page in any browser tab can preflight-
+poke a permissive daemon and discover its endpoints. Production should
+always pin to one origin via `--cors-origin`.
+
+### Bind address
+
+Default `127.0.0.1:7878` — loopback only. The tunnel client (cloudflared,
+ngrok, etc.) connects to this loopback address and is what's exposed to
+the public internet:
+
+```sh
+cloudflared tunnel run --url http://localhost:7878 brainwires-home
+```
+
+Don't bind `0.0.0.0` unless you've thought through the firewall and
+authentication implications. The whole point of the tunnel is that
+public exposure is a separate concern from the daemon's listener.
+
+### M6 verification
+
+Manual round-trip (run on the same hardware that hosts the tunnel):
+
+1. Start the daemon with the right CORS allow-list for your PWA origin.
+2. Open the PWA in a browser. Set the home URL to the tunnel hostname.
+3. Issue a `ping` from the PWA dev console; expect a `pong`-shaped JSON-
+   RPC reply over the WebRTC data channel.
+
+`cargo test -p brainwires-home` covers preflight allow / disallow paths
+under each mode in process — but the actual phone → tunnel → home
+round-trip is a manual test the user runs against their existing tunnel.
+
+**SRI**: not relevant to M6. The chat PWA vendors all assets at build
+time (KaTeX, pdfjs, highlight.js, the WASM module — see
+`extras/brainwires-chat-pwa/web/build.mjs`); there are no CDN scripts to
+integrity-check. The service worker hashes its own static cache via the
+`STATIC_ASSETS` table in `build.mjs`, which is a separate offline-cache
+integrity property.
 
 ## Production
 
