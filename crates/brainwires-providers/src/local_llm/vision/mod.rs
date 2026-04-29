@@ -9,12 +9,15 @@
 //!
 //! Stage A scaffolds the module + preprocess + token markers.
 
+pub mod gemma3_mm;
+pub mod mm_pipeline;
 pub mod preprocess;
 pub mod projector;
 pub mod siglip;
 pub mod tokens;
 
 // Re-exports follow as later stages land.
+pub use mm_pipeline::{Gemma3MultiModal, ImageInput, MmPipelineError};
 pub use preprocess::{
     GEMMA_VISION_INPUT_SIZE, GEMMA_VISION_NORM_MEAN, GEMMA_VISION_NORM_STD, PreprocessError,
     preprocess_image_bytes, preprocess_image_dynamic,
