@@ -230,13 +230,11 @@ async function handleLoad(msg) {
         const m = KNOWN_MODELS[modelId];
         const multimodal = !!(m && m.multimodal);
 
-        // Multimodal models load through `init_local_multimodal` (bulk-read
-        // only — Stage E ships without a chunked multimodal loader because
-        // routing tensors across SigLIP / projector / decoder VarBuilders
-        // exceeded reasonable scope). Text-only models prefer the chunked
-        // loader so we don't allocate a 10 GB buffer for a single
-        // safetensors file.
-        if (!multimodal && typeof mod.init_local_model_chunked === 'function') {
+        if (multimodal && typeof mod.init_local_multimodal_chunked === 'function') {
+            const loaded = await tryChunkedMultimodalLoad(mod, modelId, requestId);
+            if (loaded) return;
+            console.log('[local-worker] chunked multimodal load unavailable, falling back to bulk read');
+        } else if (!multimodal && typeof mod.init_local_model_chunked === 'function') {
             const loaded = await tryChunkedLoad(mod, modelId, requestId);
             if (loaded) return;
             console.log('[local-worker] chunked load unavailable, falling back to bulk read');
@@ -365,6 +363,77 @@ async function tryChunkedLoad(mod, modelId, requestId) {
             try { weightsSyncHandle.close(); } catch (_) {}
         }
         console.error('[local-worker] chunked load failed:', e);
+        throw e;
+    }
+}
+
+async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
+    const m = KNOWN_MODELS[modelId];
+    if (!m) return false;
+    if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) {
+        return false;
+    }
+
+    const weightsFile = m.files.find((f) => f.kind === 'weights');
+    const tokenizerFile = m.files.find((f) => f.kind === 'tokenizer');
+    if (!weightsFile) return false;
+
+    let weightsSyncHandle = null;
+    try {
+        const root = await navigator.storage.getDirectory();
+        const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
+        const modelDir = await dlDir.getDirectoryHandle(modelId, { create: false });
+
+        const weightsFh = await modelDir.getFileHandle(weightsFile.filename, { create: false });
+        weightsSyncHandle = await weightsFh.createSyncAccessHandle();
+        const fileSize = weightsSyncHandle.getSize();
+        if (fileSize === 0) {
+            weightsSyncHandle.close();
+            return false;
+        }
+        console.log(`[local-worker] chunked multimodal load: weights file ${fileSize} bytes`);
+
+        let tokenizerBytes = new Uint8Array(0);
+        if (tokenizerFile) {
+            try {
+                const tokFh = await modelDir.getFileHandle(tokenizerFile.filename, { create: false });
+                const tokSync = await tokFh.createSyncAccessHandle();
+                try {
+                    const tokSize = tokSync.getSize();
+                    if (tokSize > 0) {
+                        tokenizerBytes = new Uint8Array(tokSize);
+                        tokSync.read(tokenizerBytes, { at: 0 });
+                    }
+                } finally {
+                    tokSync.close();
+                }
+            } catch (e) {
+                console.warn('[local-worker] chunked multimodal: tokenizer read failed:', e.message);
+            }
+        }
+
+        const readFn = (offset, length) => {
+            const buf = new Uint8Array(length);
+            weightsSyncHandle.read(buf, { at: offset });
+            return buf;
+        };
+
+        handle = await mod.init_local_multimodal_chunked(readFn, fileSize, tokenizerBytes, modelId);
+        loadedModelId = modelId;
+        handleIsMultimodal = true;
+
+        weightsSyncHandle.close();
+        weightsSyncHandle = null;
+
+        const deviceType = handle.device_type || 'cpu';
+        self.postMessage({ type: 'load_progress', phase: 'ready', modelId, deviceType });
+        self.postMessage({ requestId, type: 'load_done', modelId, deviceType });
+        return true;
+    } catch (e) {
+        if (weightsSyncHandle) {
+            try { weightsSyncHandle.close(); } catch (_) {}
+        }
+        console.error('[local-worker] chunked multimodal load failed:', e);
         throw e;
     }
 }

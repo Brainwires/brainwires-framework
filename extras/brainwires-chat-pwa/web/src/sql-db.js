@@ -105,91 +105,21 @@ CREATE TABLE IF NOT EXISTS _sync_state (
     key TEXT PRIMARY KEY,
     value TEXT
 );
-
-CREATE TRIGGER IF NOT EXISTS _sync_conversations_ins AFTER INSERT ON conversations
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('conversations', NEW.id, 'I'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_conversations_upd AFTER UPDATE ON conversations
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('conversations', NEW.id, 'U'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_conversations_del AFTER DELETE ON conversations
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('conversations', OLD.id, 'D'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_messages_ins AFTER INSERT ON messages
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('messages', NEW.conversation_id || ':' || NEW.message_id, 'I'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_messages_upd AFTER UPDATE ON messages
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('messages', NEW.conversation_id || ':' || NEW.message_id, 'U'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_messages_del AFTER DELETE ON messages
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('messages', OLD.conversation_id || ':' || OLD.message_id, 'D'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_settings_ins AFTER INSERT ON settings
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('settings', NEW.key, 'I'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_settings_upd AFTER UPDATE ON settings
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('settings', NEW.key, 'U'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_settings_del AFTER DELETE ON settings
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('settings', OLD.key, 'D'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_voice_prefs_ins AFTER INSERT ON voice_prefs
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('voice_prefs', NEW.key, 'I'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_voice_prefs_upd AFTER UPDATE ON voice_prefs
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('voice_prefs', NEW.key, 'U'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_voice_prefs_del AFTER DELETE ON voice_prefs
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('voice_prefs', OLD.key, 'D'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_attachments_ins AFTER INSERT ON attachments
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('attachments', NEW.id, 'I'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_attachments_upd AFTER UPDATE ON attachments
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('attachments', NEW.id, 'U'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_attachments_del AFTER DELETE ON attachments
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('attachments', OLD.id, 'D'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_mcp_servers_ins AFTER INSERT ON mcp_servers
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('mcp_servers', NEW.id, 'I'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_mcp_servers_upd AFTER UPDATE ON mcp_servers
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('mcp_servers', NEW.id, 'U'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_mcp_servers_del AFTER DELETE ON mcp_servers
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('mcp_servers', OLD.id, 'D'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_mcp_tool_state_ins AFTER INSERT ON mcp_tool_state
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('mcp_tool_state', NEW.conversation_id || ':' || NEW.server_id || ':' || NEW.tool_name, 'I'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_mcp_tool_state_upd AFTER UPDATE ON mcp_tool_state
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('mcp_tool_state', NEW.conversation_id || ':' || NEW.server_id || ':' || NEW.tool_name, 'U'); END;
-
-CREATE TRIGGER IF NOT EXISTS _sync_mcp_tool_state_del AFTER DELETE ON mcp_tool_state
-WHEN (SELECT value FROM _sync_state WHERE key = 'applying') IS NULL
-BEGIN INSERT INTO _sync_log (table_name, row_key, op) VALUES ('mcp_tool_state', OLD.conversation_id || ':' || OLD.server_id || ':' || OLD.tool_name, 'D'); END;
 `;
+
+// JS-side sync changelog — replaces SQL triggers to avoid schema page overflow.
+let _applying = false;
+
+async function _logSync(table, rowKey, op) {
+    if (_applying) return;
+    try {
+        const db = await openDb();
+        await db.exec(
+            `INSERT INTO _sync_log (table_name, row_key, op, ts) VALUES (?, ?, ?, ?)`,
+            [table, rowKey, op, Date.now()],
+        );
+    } catch (_) { /* best-effort */ }
+}
 
 export function openDb() {
     if (_dbPromise) return _dbPromise;
@@ -238,6 +168,7 @@ export async function putConversation(conversation) {
          VALUES (?, ?, ?, ?)`,
         [row.id, row.title ?? null, row.createdAt, row.updatedAt],
     );
+    await _logSync('conversations', row.id, 'I');
     return row;
 }
 
@@ -267,6 +198,7 @@ export async function deleteConversation(id) {
     await db.exec(`DELETE FROM rag_docs WHERE conversation_id = ?`, [id]);
     await db.exec(`DELETE FROM mcp_tool_state WHERE conversation_id = ?`, [id]);
     await db.exec(`DELETE FROM conversations WHERE id = ?`, [id]);
+    await _logSync('conversations', id, 'D');
 }
 
 // ── Messages ───────────────────────────────────────────────────
@@ -313,6 +245,7 @@ export async function appendMessageChunk(conversationId, messageId, delta) {
          VALUES (?, ?, ?, ?, ?, ?)`,
         [conversationId, messageId, role, contentJson, createdAt, now],
     );
+    await _logSync('messages', `${conversationId}:${messageId}`, existing ? 'U' : 'I');
 
     return {
         conversationId, messageId, role, content,
@@ -350,6 +283,7 @@ export async function putMessage(row) {
             next.createdAt ?? Date.now(), next.updatedAt,
         ],
     );
+    await _logSync('messages', `${next.conversationId}:${next.messageId}`, 'I');
     return next;
 }
 
@@ -421,6 +355,7 @@ export async function putAttachment(row) {
             next.dataUrl ?? null, next.bytes ?? null, next.createdAt,
         ],
     );
+    await _logSync('attachments', next.id, 'I');
     return next;
 }
 
@@ -450,6 +385,7 @@ export async function listAttachmentsByMessage(messageId) {
 export async function deleteAttachment(id) {
     const db = await openDb();
     await db.exec(`DELETE FROM attachments WHERE id = ?`, [id]);
+    await _logSync('attachments', id, 'D');
 }
 
 // ── RAG documents + chunks ─────────────────────────────────────
@@ -539,6 +475,7 @@ export async function putMcpServer(row) {
          row.headers ? JSON.stringify(row.headers) : null,
          row.enabledByDefault !== false ? 1 : 0],
     );
+    await _logSync('mcp_servers', row.id, 'I');
     return row;
 }
 
@@ -559,6 +496,7 @@ export async function listMcpServers() {
 export async function deleteMcpServer(id) {
     const db = await openDb();
     await db.exec(`DELETE FROM mcp_servers WHERE id = ?`, [id]);
+    await _logSync('mcp_servers', id, 'D');
 }
 
 export async function setMcpToolEnabled(conversationId, serverId, toolName, enabled) {
@@ -570,6 +508,7 @@ export async function setMcpToolEnabled(conversationId, serverId, toolName, enab
          VALUES (?, ?, ?, ?)`,
         [conversationId, serverId, toolName, enabled ? 1 : 0],
     );
+    await _logSync('mcp_tool_state', `${conversationId}:${serverId}:${toolName}`, 'I');
 }
 
 export async function listMcpToolStateForConversation(conversationId) {
@@ -592,6 +531,7 @@ export async function setSetting(key, value) {
         `INSERT INTO settings (key, value) VALUES (?, ?)`,
         [key, JSON.stringify(value)],
     );
+    await _logSync('settings', key, 'I');
 }
 
 export async function getSetting(key) {
@@ -611,6 +551,7 @@ export async function setVoicePref(key, value) {
         `INSERT INTO voice_prefs (key, value) VALUES (?, ?)`,
         [key, JSON.stringify(value)],
     );
+    await _logSync('voice_prefs', key, 'I');
 }
 
 export async function getVoicePref(key) {
@@ -661,14 +602,11 @@ export async function getSyncLogSince(seq) {
 }
 
 export async function beginApplying() {
-    const db = await openDb();
-    await db.exec(`DELETE FROM _sync_state WHERE key = 'applying'`, []);
-    await db.exec(`INSERT INTO _sync_state (key, value) VALUES ('applying', '1')`, []);
+    _applying = true;
 }
 
 export async function endApplying() {
-    const db = await openDb();
-    await db.exec(`DELETE FROM _sync_state WHERE key = 'applying'`, []);
+    _applying = false;
 }
 
 export async function getSnapshotForEntry(entry) {

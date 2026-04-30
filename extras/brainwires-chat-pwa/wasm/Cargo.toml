@@ -13,9 +13,15 @@ crate-type = ["cdylib", "rlib"]
 brainwires-core = { path = "../../../crates/brainwires-core", default-features = false, features = ["wasm"] }
 brainwires-providers = { path = "../../../crates/brainwires-providers", default-features = false, features = ["local-llm-candle", "local-llm-vision", "web-speech", "candle-wgpu"] }
 
+# Enable the WebGPU backend for wgpu. The candle fork declares wgpu with
+# default-features=false (wgsl only, no backend). Since this crate always
+# targets wasm32, we add the browser backend here.
+wgpu = { version = "29", default-features = false, features = ["webgpu"] }
+
 # Candle BERT (embedding model). Pulled in directly so we can use the
 # `candle_transformers::models::bert::BertModel` API; the workspace patch
 # at the root redirects this to the Brainwires candle-0.10 fork.
+candle-core = { version = "0.10", default-features = false }
 candle-transformers = { version = "0.10", default-features = false }
 
 # Candle NN — needed for the multimodal vision path which references

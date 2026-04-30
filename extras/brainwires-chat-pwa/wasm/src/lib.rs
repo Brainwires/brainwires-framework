@@ -44,6 +44,7 @@ use brainwires_providers::local_llm::CandleLlmProvider;
 use brainwires_providers::local_llm::candle_provider::default_gemma_e2b_config;
 use brainwires_providers::CandleDevice as Device;
 use brainwires_providers::{CandleDType as DType, CandleTensor as Tensor, CandleVarBuilder};
+use brainwires_providers::{CandleStorage as Storage, WgpuDevice, WgpuStorage};
 use brainwires_providers::web_speech::{
     WebSpeechStt, WebSpeechSttOptions, WebSpeechTts, WebSpeechTtsOptions,
 };
@@ -59,7 +60,10 @@ mod embedding;
 pub use embedding::{init_embedding_model, EmbeddingHandle};
 
 mod vision;
-pub use vision::{init_local_multimodal, local_chat_stream_with_image, LocalMultiModalHandle};
+pub use vision::{
+    init_local_multimodal, init_local_multimodal_chunked, local_chat_stream_with_image,
+    LocalMultiModalHandle,
+};
 
 #[wasm_bindgen(start)]
 pub fn __start() {
@@ -179,6 +183,18 @@ pub async fn init_local_model_gpu(
 }
 
 async fn try_webgpu_device() -> Result<Device, String> {
+    let has_gpu = js_sys::Reflect::get(
+        &js_sys::global(),
+        &JsValue::from_str("navigator"),
+    )
+    .ok()
+    .and_then(|nav| js_sys::Reflect::get(&nav, &JsValue::from_str("gpu")).ok())
+    .map_or(false, |gpu| !gpu.is_undefined() && !gpu.is_null());
+
+    if !has_gpu {
+        return Err("navigator.gpu not available".into());
+    }
+
     let gpu_device = brainwires_providers::WgpuDevice::new_async()
         .await
         .map_err(|e| format!("{e}"))?;
@@ -190,13 +206,13 @@ async fn try_webgpu_device() -> Result<Device, String> {
 // ---------------------------------------------------------------------------
 
 #[derive(Deserialize)]
-struct StTensorInfo {
-    dtype: String,
-    shape: Vec<usize>,
-    data_offsets: (usize, usize),
+pub(crate) struct StTensorInfo {
+    pub(crate) dtype: String,
+    pub(crate) shape: Vec<usize>,
+    pub(crate) data_offsets: (u64, u64),
 }
 
-fn st_dtype_to_candle(s: &str) -> Result<DType, String> {
+pub(crate) fn st_dtype_to_candle(s: &str) -> Result<DType, String> {
     match s {
         "F32" => Ok(DType::F32),
         "F16" => Ok(DType::F16),
@@ -211,14 +227,103 @@ fn st_dtype_to_candle(s: &str) -> Result<DType, String> {
     }
 }
 
-fn call_read_fn(read_fn: &Function, offset: usize, length: usize) -> Result<Vec<u8>, JsValue> {
-    let result = read_fn.call2(
-        &JsValue::NULL,
-        &JsValue::from_f64(offset as f64),
-        &JsValue::from_f64(length as f64),
-    )?;
-    let array = Uint8Array::new(&result);
-    Ok(array.to_vec())
+pub(crate) fn call_read_fn(read_fn: &Function, offset: u64, length: u64) -> Result<Vec<u8>, JsValue> {
+    const CHUNK: u64 = 64 * 1024 * 1024;
+
+    let total = usize::try_from(length).map_err(|_| {
+        JsValue::from_str(&format!(
+            "tensor too large for wasm32: {length} bytes exceeds usize::MAX"
+        ))
+    })?;
+    if total > isize::MAX as usize {
+        return Err(JsValue::from_str(&format!(
+            "tensor too large for wasm32 linear memory: {total} bytes exceeds \
+             isize::MAX ({}). Model requires a native backend.",
+            isize::MAX
+        )));
+    }
+
+    if length <= CHUNK {
+        let result = read_fn.call2(
+            &JsValue::NULL,
+            &JsValue::from_f64(offset as f64),
+            &JsValue::from_f64(length as f64),
+        )?;
+        let array = Uint8Array::new(&result);
+        return Ok(array.to_vec());
+    }
+
+    let mut buf: Vec<u8> = Vec::new();
+    buf.try_reserve(total).map_err(|e| {
+        JsValue::from_str(&format!(
+            "wasm OOM: failed to reserve {total} bytes for tensor read: {e}"
+        ))
+    })?;
+    // Pre-set length so we can copy_to directly into slices.
+    // capacity >= total is guaranteed by try_reserve above,
+    // so resize will not reallocate.
+    buf.resize(total, 0);
+
+    let mut pos = 0u64;
+    while pos < length {
+        let chunk_len = std::cmp::min(CHUNK, length - pos);
+        let result = read_fn.call2(
+            &JsValue::NULL,
+            &JsValue::from_f64((offset + pos) as f64),
+            &JsValue::from_f64(chunk_len as f64),
+        )?;
+        let array = Uint8Array::new(&result);
+        let start = pos as usize;
+        let end = start + array.length() as usize;
+        array.copy_to(&mut buf[start..end]);
+        pos += chunk_len;
+    }
+    Ok(buf)
+}
+
+/// Stream tensor bytes directly from OPFS into a GPU buffer, bypassing
+/// WASM linear memory. Required for tensors > 2 GB on wasm32.
+pub(crate) fn load_tensor_to_gpu(
+    read_fn: &Function,
+    file_offset: u64,
+    byte_length: u64,
+    dtype: DType,
+    shape: &[usize],
+    wgpu_dev: &WgpuDevice,
+) -> Result<Tensor, JsValue> {
+    const CHUNK: u64 = 64 * 1024 * 1024;
+
+    let elem_count: usize = shape.iter().product();
+    let buffer = wgpu_dev.create_storage_buffer(byte_length);
+
+    let mut pos = 0u64;
+    while pos < byte_length {
+        let chunk_len = std::cmp::min(CHUNK, byte_length - pos);
+        let result = read_fn.call2(
+            &JsValue::NULL,
+            &JsValue::from_f64((file_offset + pos) as f64),
+            &JsValue::from_f64(chunk_len as f64),
+        )?;
+        let array = Uint8Array::new(&result);
+        let chunk_bytes = array.to_vec();
+        wgpu_dev.write_to_buffer(&buffer, pos, &chunk_bytes);
+        pos += chunk_len;
+    }
+
+    let storage = WgpuStorage::from_raw_buffer(
+        Arc::new(buffer),
+        elem_count,
+        dtype,
+        wgpu_dev.clone(),
+    );
+    let storage = Storage::Wgpu(storage);
+    let shape: candle_core::Shape = shape.into();
+    Ok(Tensor::from_storage(
+        storage,
+        shape,
+        candle_core::op::BackpropOp::none(),
+        false,
+    ))
 }
 
 /// Build a [`LocalModelHandle`] by reading tensors one-at-a-time from OPFS.
@@ -239,7 +344,7 @@ pub async fn init_local_model_chunked(
     tokenizer_json: Vec<u8>,
     model_id: String,
 ) -> Result<LocalModelHandle, JsValue> {
-    let file_size = file_size as usize;
+    let file_size = file_size as u64;
     web_sys::console::log_1(
         &format!("[wasm] init_local_model_chunked: file_size={file_size}, model={model_id}")
             .into(),
@@ -251,7 +356,7 @@ pub async fn init_local_model_chunked(
         return Err(JsValue::from_str("failed to read safetensors header size"));
     }
     let header_size =
-        u64::from_le_bytes(header_size_bytes[..8].try_into().unwrap()) as usize;
+        u64::from_le_bytes(header_size_bytes[..8].try_into().unwrap());
     web_sys::console::log_1(
         &format!("[wasm] safetensors header: {header_size} bytes").into(),
     );
@@ -281,7 +386,7 @@ pub async fn init_local_model_chunked(
         &format!("[wasm] parsed {} tensor entries", tensor_meta.len()).into(),
     );
 
-    let data_start = 8 + header_size;
+    let data_start: u64 = 8 + header_size;
 
     // ── 3. Select device (WebGPU preferred) ────────────────────────
     let device = match try_webgpu_device().await {
@@ -303,6 +408,11 @@ pub async fn init_local_model_chunked(
     let total = tensor_meta.len();
     let mut tensors: HashMap<String, Tensor> = HashMap::with_capacity(total);
 
+    let wgpu_dev = match &device {
+        Device::Wgpu(w) => Some(w.clone()),
+        _ => None,
+    };
+
     for (idx, (name, info)) in tensor_meta.iter().enumerate() {
         let offset = data_start + info.data_offsets.0;
         let length = info.data_offsets.1 - info.data_offsets.0;
@@ -311,22 +421,35 @@ pub async fn init_local_model_chunked(
             JsValue::from_str(&format!("tensor {name}: {e}"))
         })?;
 
-        let bytes = call_read_fn(&read_fn, offset, length)?;
+        // Tensors that exceed wasm32 addressable memory (or ~2 GB
+        // isize::MAX) are streamed directly to GPU via queue.write_buffer,
+        // never touching WASM linear memory as a contiguous allocation.
+        let needs_gpu_stream = length > (isize::MAX as u64);
 
-        let tensor =
-            Tensor::from_raw_buffer(&bytes, src_dtype, &info.shape, &device).map_err(
-                |e| JsValue::from_str(&format!("tensor {name}: {e}")),
-            )?;
+        let tensor = if needs_gpu_stream {
+            let w = wgpu_dev.as_ref().ok_or_else(|| {
+                JsValue::from_str(&format!(
+                    "tensor {name} is {length} bytes — too large for wasm32 \
+                     and no WebGPU device available for direct upload"
+                ))
+            })?;
+            load_tensor_to_gpu(&read_fn, offset, length, src_dtype, &info.shape, w)?
+        } else {
+            let bytes = call_read_fn(&read_fn, offset, length)?;
+            let t = Tensor::from_raw_buffer(&bytes, src_dtype, &info.shape, &device)
+                .map_err(|e| JsValue::from_str(&format!("tensor {name}: {e}")))?;
+            drop(bytes);
+            t
+        };
 
-        // bytes are dropped here, freeing the WASM-side allocation
-        drop(bytes);
-
-        tensors.insert(name.clone(), tensor);
+        let key = name.strip_prefix("model.").unwrap_or(name).to_string();
+        tensors.insert(key, tensor);
 
         if idx % 20 == 0 || idx == total - 1 {
+            let method = if needs_gpu_stream { " [gpu-direct]" } else { "" };
             web_sys::console::log_1(
                 &format!(
-                    "[wasm] loaded tensor {}/{total}: {name} {:?} [{}] ({} bytes)",
+                    "[wasm] loaded tensor {}/{total}: {name} {:?} [{}] ({} bytes){method}",
                     idx + 1,
                     info.shape,
                     info.dtype,
