@@ -83,6 +83,59 @@ impl Gemma4MultiModal {
         }
     }
 
+    /// Whether the vision tower is currently loaded.
+    pub fn has_vision(&self) -> bool {
+        self.model
+            .lock()
+            .map(|m| m.has_vision())
+            .unwrap_or(false)
+    }
+
+    /// Whether the audio tower is currently loaded.
+    pub fn has_audio(&self) -> bool {
+        self.model
+            .lock()
+            .map(|m| m.has_audio())
+            .unwrap_or(false)
+    }
+
+    /// Attach vision weights to a model that was loaded with
+    /// `Model::new_text_only`. Idempotent — does nothing if already attached.
+    pub fn attach_vision(
+        &self,
+        vb: candle_nn::VarBuilder,
+    ) -> Result<(), Gemma4PipelineError> {
+        let mut model = self
+            .model
+            .lock()
+            .map_err(|_| Gemma4PipelineError::Decoder("mutex poisoned".to_string()))?;
+        if model.has_vision() {
+            return Ok(());
+        }
+        model
+            .attach_vision(vb)
+            .map_err(|e| Gemma4PipelineError::Decoder(e.to_string()))
+    }
+
+    /// Attach audio weights to a model that was loaded with
+    /// `Model::new_text_only`. Requires `cfg.audio_config` to be `Some`.
+    /// Idempotent — does nothing if already attached.
+    pub fn attach_audio(
+        &self,
+        vb: candle_nn::VarBuilder,
+    ) -> Result<(), Gemma4PipelineError> {
+        let mut model = self
+            .model
+            .lock()
+            .map_err(|_| Gemma4PipelineError::Decoder("mutex poisoned".to_string()))?;
+        if model.has_audio() {
+            return Ok(());
+        }
+        model
+            .attach_audio(vb)
+            .map_err(|e| Gemma4PipelineError::Decoder(e.to_string()))
+    }
+
     /// Greedy generation with optional image inputs.
     ///
     /// `pixel_values`: preprocessed `[1, 3, H, W]` f32 tensors in `[0, 1]`.
@@ -125,9 +178,18 @@ impl Gemma4MultiModal {
 
         // 2. If we have images, run vision tower + embedder and splice results.
         if !pixel_values.is_empty() {
-            let vision_features = model.vision_tower.forward(pixel_values)?;
-            let image_embeds = model
-                .embed_vision
+            let vision_tower = model.vision_tower.as_ref().ok_or_else(|| {
+                Gemma4PipelineError::InvalidInput(
+                    "vision tower not attached — call attach_vision() before passing images".into(),
+                )
+            })?;
+            let embed_vision = model.embed_vision.as_ref().ok_or_else(|| {
+                Gemma4PipelineError::InvalidInput(
+                    "embed_vision not attached — call attach_vision() before passing images".into(),
+                )
+            })?;
+            let vision_features = vision_tower.forward(pixel_values)?;
+            let image_embeds = embed_vision
                 .forward(&vision_features)?
                 .to_dtype(embeds.dtype())?
                 .to_device(&self.gpu_device)?;

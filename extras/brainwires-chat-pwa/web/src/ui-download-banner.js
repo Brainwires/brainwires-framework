@@ -1,8 +1,9 @@
-// brainwires-chat-pwa — persistent download banner
+// brainwires-chat-pwa — persistent status footer
 //
-// Renders a fixed-position strip at the top of the viewport that shows
-// model-download progress regardless of the active view. Subscribes
-// to `state.events`:
+// Renders a strip at the bottom of the viewport that shows model
+// activity (download / verify / load / ready / error) regardless of
+// the active view, and stays visible when idle. Subscribes to
+// `state.events`:
 //   - 'model_progress' { modelId, file, fileBytesDone, totalBytesDone, totalBytesTotal,
 //                        throughputBps, etaSeconds }
 //   - 'model_deleted'  { modelId }
@@ -48,10 +49,11 @@ export function mountBanner(root) {
     if (!root) return;
     _root = root;
     if (!_root.querySelector('#download-banner')) {
-        const banner = el('div', { id: 'download-banner', class: 'download-banner', attrs: { hidden: true, role: 'status', 'aria-live': 'polite' } });
+        const banner = el('div', { id: 'download-banner', class: 'download-banner', attrs: { role: 'status', 'aria-live': 'polite' } });
         _root.appendChild(banner);
     }
     subscribe();
+    render();
 }
 
 function bannerEl() {
@@ -195,22 +197,14 @@ export async function deleteActive(modelId) {
 function render() {
     const node = bannerEl();
     if (!node) return;
-    if (_state === 'idle') {
-        node.hidden = true;
-        clear(node);
-        // Mirror clears too.
-        const mirror = mirrorEl();
-        if (mirror) clear(mirror);
-        return;
-    }
-    node.hidden = false;
     node.dataset.state = _state;
     clear(node);
     node.appendChild(buildContent(/* compact */ false));
     const mirror = mirrorEl();
     if (mirror) {
         clear(mirror);
-        mirror.appendChild(buildContent(/* compact */ true));
+        // Settings mirror stays empty when there's no active task.
+        if (_state !== 'idle') mirror.appendChild(buildContent(/* compact */ true));
     }
 }
 
@@ -219,7 +213,11 @@ function buildContent(compact) {
     const name = m ? m.displayName : 'model';
     const wrap = el('div', { class: `bw-dl bw-dl-${_state}` });
 
-    if (_state === 'downloading') {
+    if (_state === 'idle') {
+        wrap.appendChild(el('div', { class: 'bw-dl-row' },
+            el('span', { class: 'bw-dl-title' }, t('download.idle')),
+        ));
+    } else if (_state === 'downloading') {
         const d = _lastDetail || {};
         const total = d.totalBytesTotal || 0;
         const done = d.totalBytesDone || 0;

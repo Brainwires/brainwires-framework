@@ -175,6 +175,7 @@
     "settings.sync.help": "When enabled, conversations and settings are synced to other paired devices through the home agent.",
     "settings.sync.requiresPairing": "Pair with a home agent first to enable sync.",
 
+    "download.idle": "Idle",
     "download.banner": "Downloading {model}…",
     "download.verifying": "Verifying SHA-256…",
     "download.loading": "Loading model into memory…",

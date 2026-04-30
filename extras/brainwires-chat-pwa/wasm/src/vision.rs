@@ -65,6 +65,21 @@ enum MultimodalInner {
     },
 }
 
+/// Per-handle state that survives init for on-demand `attach_vision` /
+/// `attach_audio` calls. Holds enough context to re-read tensors from the
+/// original safetensors file/blob and merge them into the loaded model.
+///
+/// Lives only on the wasm-bindgen handle (single-threaded), because
+/// [`js_sys::Function`] is not `Send` and cannot sit behind `Arc<Mutex<…>>`.
+struct Gemma4LazyState {
+    read_fn: Function,
+    tensor_meta: Vec<(String, StTensorInfo)>,
+    data_start: u64,
+    cfg: brainwires_providers::gemma4::config::Gemma4Config,
+    device: Device,
+    wgpu_dev: Option<brainwires_providers::WgpuDevice>,
+}
+
 /// Multimodal Gemma handle. Loaded separately from the text-only
 /// [`crate::LocalModelHandle`] because the safetensors file structure differs
 /// (text-only vs full vision-language weights). The JS-side worker tracks
@@ -76,6 +91,9 @@ enum MultimodalInner {
 pub struct LocalMultiModalHandle {
     inner: MultimodalInner,
     model_id: String,
+    /// Present iff this is a Gemma4 handle whose vision and/or audio tower
+    /// was deferred at init. Consumed to drive `attach_vision`/`attach_audio`.
+    lazy: Option<Gemma4LazyState>,
 }
 
 #[wasm_bindgen]
@@ -109,6 +127,139 @@ impl LocalMultiModalHandle {
     pub fn is_multimodal(&self) -> bool {
         true
     }
+
+    /// Whether the vision tower is currently attached. Returns `true` for
+    /// Gemma3 (always loaded eagerly) and reflects actual state for Gemma4.
+    #[wasm_bindgen(getter)]
+    pub fn has_vision(&self) -> bool {
+        match &self.inner {
+            MultimodalInner::Gemma3(_) => true,
+            MultimodalInner::Gemma4 { pipeline, .. } => pipeline.has_vision(),
+        }
+    }
+
+    /// Whether the audio tower is currently attached.
+    #[wasm_bindgen(getter)]
+    pub fn has_audio(&self) -> bool {
+        match &self.inner {
+            MultimodalInner::Gemma3(_) => false,
+            MultimodalInner::Gemma4 { pipeline, .. } => pipeline.has_audio(),
+        }
+    }
+
+    /// Stream the vision-tower tensors from the original safetensors file
+    /// and attach them to the loaded Gemma4 model. Idempotent; a no-op if
+    /// vision is already attached.
+    ///
+    /// Errors if the handle is Gemma3 (vision is always eager there) or if
+    /// no lazy state was retained at init.
+    pub async fn attach_vision(&self) -> Result<(), JsValue> {
+        let pipeline = match &self.inner {
+            MultimodalInner::Gemma3(_) => {
+                return Err(JsValue::from_str(
+                    "attach_vision is only supported for Gemma4 handles",
+                ));
+            }
+            MultimodalInner::Gemma4 { pipeline, .. } => pipeline.clone(),
+        };
+        if pipeline.has_vision() {
+            return Ok(());
+        }
+        let lazy = self.lazy.as_ref().ok_or_else(|| {
+            JsValue::from_str("attach_vision: handle has no retained lazy state")
+        })?;
+        let vb = build_subset_var_builder(lazy, is_vision_tensor)?;
+        pipeline
+            .attach_vision(vb)
+            .map_err(|e| JsValue::from_str(&format!("attach_vision: {e}")))?;
+        web_sys::console::log_1(&"[wasm/mm] vision tower attached".into());
+        Ok(())
+    }
+
+    /// Stream the audio-tower tensors from the original safetensors file
+    /// and attach them to the loaded Gemma4 model. Idempotent.
+    ///
+    /// Currently errors with "audio config not inferred" — `build_gemma4_config`
+    /// synthesizes `audio_config: None`, so the model has no audio shapes
+    /// to validate against. Wiring this end-to-end requires inferring the
+    /// `Gemma4AudioConfig` from `audio_tower.*` tensor shapes; the candle-fork
+    /// side (`Gemma4Model::attach_audio`) is already in place for when that
+    /// inference lands.
+    pub async fn attach_audio(&self) -> Result<(), JsValue> {
+        let pipeline = match &self.inner {
+            MultimodalInner::Gemma3(_) => {
+                return Err(JsValue::from_str(
+                    "attach_audio is only supported for Gemma4 handles",
+                ));
+            }
+            MultimodalInner::Gemma4 { pipeline, .. } => pipeline.clone(),
+        };
+        if pipeline.has_audio() {
+            return Ok(());
+        }
+        let lazy = self.lazy.as_ref().ok_or_else(|| {
+            JsValue::from_str("attach_audio: handle has no retained lazy state")
+        })?;
+        if lazy.cfg.audio_config.is_none() {
+            return Err(JsValue::from_str(
+                "attach_audio: audio_config not inferred from tensor shapes — \
+                 audio support is not yet wired through the Gemma4 config builder",
+            ));
+        }
+        let vb = build_subset_var_builder(lazy, is_audio_tensor)?;
+        pipeline
+            .attach_audio(vb)
+            .map_err(|e| JsValue::from_str(&format!("attach_audio: {e}")))?;
+        web_sys::console::log_1(&"[wasm/mm] audio tower attached".into());
+        Ok(())
+    }
+}
+
+/// Stream the subset of tensors matching `predicate` from the safetensors
+/// file pointed at by `lazy.read_fn`, run them through `gemma4_remap_key`,
+/// and return a `CandleVarBuilder` ready for `Model::attach_vision/audio`.
+fn build_subset_var_builder<'a>(
+    lazy: &'a Gemma4LazyState,
+    predicate: fn(&str) -> bool,
+) -> Result<CandleVarBuilder<'a>, JsValue> {
+    let mut tensors: HashMap<String, Tensor> = HashMap::new();
+    let mut total_bytes: u64 = 0;
+    let mut count: usize = 0;
+    for (name, info) in &lazy.tensor_meta {
+        if !predicate(name) {
+            continue;
+        }
+        if gemma4_skip_reason(name).is_some() {
+            // QAT activation stats etc. — skip even on lazy attach.
+            continue;
+        }
+        let tensor = load_one_tensor(
+            name,
+            info,
+            lazy.data_start,
+            &lazy.read_fn,
+            &lazy.device,
+            lazy.wgpu_dev.as_ref(),
+            false,
+        )?;
+        let key = gemma4_remap_key(name);
+        let length = info.data_offsets.1 - info.data_offsets.0;
+        total_bytes += length;
+        count += 1;
+        tensors.insert(key, tensor);
+    }
+    web_sys::console::log_1(
+        &format!(
+            "[wasm/mm] attach: streamed {count} tensors ({:.2} MB)",
+            total_bytes as f64 / 1_048_576.0,
+        )
+        .into(),
+    );
+    Ok(CandleVarBuilder::from_tensors(
+        tensors,
+        DType::BF16,
+        &lazy.device,
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -182,7 +333,7 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
     let hidden_size = embed_shape[1];
 
     // intermediate_size from first layer's gate_proj [intermediate_size, hidden_size]
-    let intermediate_size = find("language_model.model.layers.0.mlp.gate_proj.weight")
+    let intermediate_size = find("language_model.layers.0.mlp.gate_proj.weight")
         .map(|s| s[0])
         .ok_or("missing layers.0.mlp.gate_proj.weight")?;
 
@@ -190,7 +341,7 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
     let num_hidden_layers = tensor_meta
         .iter()
         .filter_map(|(n, _)| {
-            let rest = n.strip_prefix("model.language_model.model.layers.")?;
+            let rest = n.strip_prefix("model.language_model.layers.")?;
             rest.split('.').next()?.parse::<usize>().ok()
         })
         .max()
@@ -200,9 +351,9 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
     // num_attention_heads from q_proj.weight shape[0] / head_dim
     // For Gemma4, global layers use global_head_dim and sliding layers use head_dim.
     // Detect from layer 0's q_proj.
-    let q_proj_shape = find("language_model.model.layers.0.self_attn.q_proj.weight")
+    let q_proj_shape = find("language_model.layers.0.self_attn.q_proj.weight")
         .ok_or("missing layers.0 q_proj")?;
-    let kv_proj_shape = find("language_model.model.layers.0.self_attn.k_proj.weight")
+    let kv_proj_shape = find("language_model.layers.0.self_attn.k_proj.weight")
         .ok_or("missing layers.0 k_proj")?;
 
     // Infer layer_types by checking each layer's q_proj shape.
@@ -212,7 +363,7 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
     let layer0_q_out = q_proj_shape[0];
 
     // Check a later layer to find the other head_dim
-    let layer1_q_out = find("language_model.model.layers.1.self_attn.q_proj.weight")
+    let layer1_q_out = find("language_model.layers.1.self_attn.q_proj.weight")
         .map(|s| s[0]);
 
     // Determine head_dim and global_head_dim from the two layer types
@@ -242,7 +393,7 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
     let sliding_q_out = num_attention_heads * head_dim;
     let mut layer_types = Vec::with_capacity(num_hidden_layers);
     for i in 0..num_hidden_layers {
-        let key = format!("language_model.model.layers.{i}.self_attn.q_proj.weight");
+        let key = format!("language_model.layers.{i}.self_attn.q_proj.weight");
         let is_sliding = tensor_meta
             .iter()
             .find(|(n, _)| n.ends_with(&key))
@@ -304,6 +455,96 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
         audio_token_id: 258881,
         video_token_id: 258884,
     })
+}
+
+/// Tensors present in the Gemma 3n / Gemma4 QAT safetensors that the
+/// candle-fork [`Gemma4Model`] does not reference. Skipping them avoids:
+/// (a) the 4.7 GB `embed_tokens_per_layer.weight` blowing past the 1 GB
+///     WebGPU buffer cap (PLE is not implemented in the decoder), and
+/// (b) loading the entire audio tower when audio is disabled.
+///
+/// Returns `Some(reason)` if the tensor should be skipped, `None` otherwise.
+fn gemma4_skip_reason(name: &str) -> Option<&'static str> {
+    if name.contains(".audio_tower.") {
+        return Some("audio");
+    }
+    if name.ends_with(".embed_tokens_per_layer.weight")
+        || name.ends_with(".per_layer_input_gate.weight")
+        || name.ends_with(".per_layer_projection.weight")
+        || name.ends_with(".post_per_layer_input_norm.weight")
+        || name.ends_with(".layer_scalar")
+    {
+        return Some("ple");
+    }
+    if name.ends_with(".input_min")
+        || name.ends_with(".input_max")
+        || name.ends_with(".output_min")
+        || name.ends_with(".output_max")
+    {
+        return Some("qat-stat");
+    }
+    None
+}
+
+/// Map a tensor name from the HF Gemma 4 safetensors layout to the path the
+/// vendored candle `gemma4::Model` expects.
+///
+/// Two transformations:
+///
+/// 1. QAT `.linear.weight` → `.weight`. HF QAT layout wraps each `nn.Linear`
+///    so the underlying weight is stored at `.../linear.weight`. The
+///    candle-fork uses plain `linear_no_bias`, which expects `.../weight`.
+///
+/// 2. Insert the missing inner `.model.` segment under `language_model`.
+///    `Gemma4Model::new_partial` applies `vb.pp("model")`, then
+///    `TextModel::new` applies `vb.pp("model")` *again* — so the candle
+///    lookup path for the decoder is `model.language_model.model.<sub>`.
+///    The HF safetensors file omits that inner segment (paths are
+///    `model.language_model.embed_tokens.weight`, `…layers.X.…`,
+///    `…norm.weight`). Insert it here for those three roots. `lm_head` is
+///    loaded one level up (`vb.pp("lm_head")`), so it stays as-is.
+fn gemma4_remap_key(name: &str) -> String {
+    let s = if let Some(stripped) = name.strip_suffix(".linear.weight") {
+        format!("{stripped}.weight")
+    } else {
+        name.to_string()
+    };
+    if let Some(rest) = s.strip_prefix("model.language_model.") {
+        if rest.starts_with("layers.")
+            || rest.starts_with("embed_tokens")
+            || rest.starts_with("norm.")
+        {
+            return format!("model.language_model.model.{rest}");
+        }
+    }
+    s
+}
+
+/// Tensors that belong to the Gemma4 vision tower (encoder + projector).
+/// Used to either skip them at init (lazy) or load them on `attach_vision`.
+fn is_vision_tensor(name: &str) -> bool {
+    name.contains(".vision_tower.") || name.contains(".embed_vision.")
+}
+
+/// Tensors that belong to the Gemma4 audio tower (encoder + projector).
+fn is_audio_tensor(name: &str) -> bool {
+    name.contains(".audio_tower.") || name.contains(".embed_audio.")
+}
+
+/// Options accepted by `init_local_multimodal_chunked`. Defaults to eager
+/// vision (current behavior) and lazy audio (audio is unsupported in the
+/// chat UI today, and `build_gemma4_config` synthesizes a `None` audio
+/// config regardless).
+#[derive(Debug, Clone, Default, Deserialize)]
+struct LoadOptions {
+    #[serde(default)]
+    lazy_vision: bool,
+    #[serde(default = "default_true")]
+    lazy_audio: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 async fn try_webgpu_device() -> Result<Device, String> {
@@ -391,21 +632,86 @@ pub async fn init_local_multimodal(
     Ok(LocalMultiModalHandle {
         inner: MultimodalInner::Gemma3(Arc::new(pipeline)),
         model_id,
+        lazy: None,
     })
+}
+
+/// Read one tensor from the JS-backed safetensors file and materialize it
+/// onto `device` (or stream it directly to GPU for tensors larger than
+/// wasm32's `isize::MAX`). Shared by the bulk init loop and the on-demand
+/// `attach_*` methods so the routing logic stays in one place.
+fn load_one_tensor(
+    name: &str,
+    info: &StTensorInfo,
+    data_start: u64,
+    read_fn: &Function,
+    device: &Device,
+    wgpu_dev: Option<&brainwires_providers::WgpuDevice>,
+    force_cpu: bool,
+) -> Result<Tensor, JsValue> {
+    let offset = data_start + info.data_offsets.0;
+    let length = info.data_offsets.1 - info.data_offsets.0;
+    let src_dtype = st_dtype_to_candle(&info.dtype)
+        .map_err(|e| JsValue::from_str(&format!("tensor {name}: {e}")))?;
+
+    let needs_gpu_stream = length > (isize::MAX as u64);
+
+    if force_cpu && needs_gpu_stream {
+        let w = wgpu_dev.ok_or_else(|| {
+            JsValue::from_str(&format!(
+                "tensor {name} is {length} bytes — too large for CPU and no \
+                 WebGPU device available"
+            ))
+        })?;
+        load_tensor_to_gpu(read_fn, offset, length, src_dtype, &info.shape, w)
+    } else if force_cpu {
+        let bytes = call_read_fn(read_fn, offset, length)?;
+        Tensor::from_raw_buffer(&bytes, src_dtype, &info.shape, &Device::Cpu)
+            .map_err(|e| JsValue::from_str(&format!("tensor {name}: {e}")))
+    } else if needs_gpu_stream {
+        let w = wgpu_dev.ok_or_else(|| {
+            JsValue::from_str(&format!(
+                "tensor {name} is {length} bytes — too large for wasm32 and no \
+                 WebGPU device available for direct upload"
+            ))
+        })?;
+        load_tensor_to_gpu(read_fn, offset, length, src_dtype, &info.shape, w)
+    } else {
+        let bytes = call_read_fn(read_fn, offset, length)?;
+        Tensor::from_raw_buffer(&bytes, src_dtype, &info.shape, device)
+            .map_err(|e| JsValue::from_str(&format!("tensor {name}: {e}")))
+    }
 }
 
 /// Chunked variant of [`init_local_multimodal`]. Reads tensors one at a time
 /// via a JS callback, avoiding a single multi-GB allocation.
+///
+/// `options_js` is an optional JS object: `{lazy_vision?: bool, lazy_audio?: bool}`.
+/// When `lazy_vision` is `true`, the vision tower is not loaded at init time;
+/// call [`LocalMultiModalHandle::attach_vision`] before sending an image.
 #[wasm_bindgen]
 pub async fn init_local_multimodal_chunked(
     read_fn: Function,
     file_size: f64,
     tokenizer_json: Vec<u8>,
     model_id: String,
+    options_js: JsValue,
 ) -> Result<LocalMultiModalHandle, JsValue> {
+    let options: LoadOptions = if options_js.is_null() || options_js.is_undefined() {
+        LoadOptions::default()
+    } else {
+        serde_wasm_bindgen::from_value(options_js)
+            .map_err(|e| JsValue::from_str(&format!("invalid options: {e}")))?
+    };
+
     let file_size = file_size as u64;
     web_sys::console::log_1(
-        &format!("[wasm/mm] chunked load: file_size={file_size}, model={model_id}").into(),
+        &format!(
+            "[wasm/mm] chunked load: file_size={file_size}, model={model_id}, \
+             lazy_vision={}, lazy_audio={}",
+            options.lazy_vision, options.lazy_audio,
+        )
+        .into(),
     );
 
     let header_size_bytes = call_read_fn(&read_fn, 0, 8)?;
@@ -464,60 +770,58 @@ pub async fn init_local_multimodal_chunked(
         &format!("[wasm/mm] detected model type: {model_type:?}").into(),
     );
 
-    // For Gemma4, oversized tensors (embed_tokens ~4.37 GB) go to CPU instead
-    // of GPU-direct streaming, because the decoder's mixed-device path runs
-    // embed_tokens on CPU and decoder layers on GPU.
-    let max_cpu_tensor = isize::MAX as u64;
-
     let mut tensors: HashMap<String, Tensor> = HashMap::with_capacity(total);
+    // (audio_unused, ple, qat-stat, lazy_vision, lazy_audio, total bytes deferred)
+    let mut skipped = (0usize, 0usize, 0usize, 0usize, 0usize, 0u64);
     for (idx, (name, info)) in tensor_meta.iter().enumerate() {
-        let offset = data_start + info.data_offsets.0;
         let length = info.data_offsets.1 - info.data_offsets.0;
 
-        let src_dtype = st_dtype_to_candle(&info.dtype).map_err(|e| {
-            JsValue::from_str(&format!("tensor {name}: {e}"))
-        })?;
+        if model_type == ModelType::Gemma4 {
+            if let Some(reason) = gemma4_skip_reason(name) {
+                match reason {
+                    "audio" => skipped.0 += 1,
+                    "ple" => skipped.1 += 1,
+                    "qat-stat" => skipped.2 += 1,
+                    _ => {}
+                }
+                skipped.5 += length;
+                continue;
+            }
+            if options.lazy_vision && is_vision_tensor(name) {
+                skipped.3 += 1;
+                skipped.5 += length;
+                continue;
+            }
+            if options.lazy_audio && is_audio_tensor(name) {
+                // Audio is also caught by gemma4_skip_reason("audio") above,
+                // but keep this guarded in case that filter is relaxed.
+                skipped.4 += 1;
+                skipped.5 += length;
+                continue;
+            }
+        }
 
-        let needs_gpu_stream = length > max_cpu_tensor;
         let force_cpu = model_type == ModelType::Gemma4
             && (name.ends_with("embed_tokens.weight") || name.ends_with("lm_head.weight"));
 
-        let tensor = if force_cpu && needs_gpu_stream {
-            // Tensor exceeds wasm32 isize::MAX — stream to GPU even though
-            // the mixed-device path wants it on CPU. The pipeline will
-            // transfer slices as needed during embed_tokens / lm_head calls.
-            let w = wgpu_dev.as_ref().ok_or_else(|| {
-                JsValue::from_str(&format!(
-                    "tensor {name} is {length} bytes — too large for CPU \
-                     and no WebGPU device available"
-                ))
-            })?;
-            load_tensor_to_gpu(&read_fn, offset, length, src_dtype, &info.shape, w)?
-        } else if force_cpu {
-            let bytes = call_read_fn(&read_fn, offset, length)?;
-            let t = Tensor::from_raw_buffer(&bytes, src_dtype, &info.shape, &Device::Cpu)
-                .map_err(|e| JsValue::from_str(&format!("tensor {name}: {e}")))?;
-            drop(bytes);
-            t
-        } else if needs_gpu_stream {
-            let w = wgpu_dev.as_ref().ok_or_else(|| {
-                JsValue::from_str(&format!(
-                    "tensor {name} is {length} bytes — too large for wasm32 \
-                     and no WebGPU device available for direct upload"
-                ))
-            })?;
-            load_tensor_to_gpu(&read_fn, offset, length, src_dtype, &info.shape, w)?
-        } else {
-            let bytes = call_read_fn(&read_fn, offset, length)?;
-            let t = Tensor::from_raw_buffer(&bytes, src_dtype, &info.shape, &device)
-                .map_err(|e| JsValue::from_str(&format!("tensor {name}: {e}")))?;
-            drop(bytes);
-            t
-        };
+        let tensor = load_one_tensor(
+            name,
+            info,
+            data_start,
+            &read_fn,
+            &device,
+            wgpu_dev.as_ref(),
+            force_cpu,
+        )?;
 
-        let key = name.strip_prefix("model.").unwrap_or(name).to_string();
+        let key = if model_type == ModelType::Gemma4 {
+            gemma4_remap_key(name)
+        } else {
+            name.strip_prefix("model.").unwrap_or(name).to_string()
+        };
         tensors.insert(key, tensor);
 
+        let needs_gpu_stream = length > (isize::MAX as u64);
         if idx % 20 == 0 || idx == total - 1 || needs_gpu_stream || force_cpu || length > 100_000_000 {
             let tag = if needs_gpu_stream {
                 " [gpu-direct]"
@@ -538,6 +842,19 @@ pub async fn init_local_multimodal_chunked(
         }
     }
 
+    if model_type == ModelType::Gemma4 {
+        let (audio, ple, qat, lazy_v, lazy_a, bytes) = skipped;
+        web_sys::console::log_1(
+            &format!(
+                "[wasm/mm] skipped {} tensors ({} audio-unused, {} PLE, {} QAT-stat, \
+                 {} deferred-vision, {} deferred-audio), saved {:.2} GB",
+                audio + ple + qat + lazy_v + lazy_a,
+                audio, ple, qat, lazy_v, lazy_a,
+                bytes as f64 / 1_073_741_824.0,
+            )
+            .into(),
+        );
+    }
     web_sys::console::log_1(
         &format!("[wasm/mm] all {total} tensors loaded, building {model_type:?} model...").into(),
     );
@@ -545,7 +862,7 @@ pub async fn init_local_multimodal_chunked(
     let tokenizer = Tokenizer::from_bytes(&tokenizer_json)
         .map_err(|e| JsValue::from_str(&format!("tokenizer parse: {e}")))?;
 
-    let inner = match model_type {
+    let (inner, lazy) = match model_type {
         ModelType::Gemma3 => {
             let cfg = default_gemma_e2b_mm_config();
             let hidden_size = cfg.hidden_size;
@@ -571,7 +888,7 @@ pub async fn init_local_multimodal_chunked(
             let pipeline = Gemma3MultiModal::from_components(
                 vision, projector, decoder, tokenizer, device, cfg,
             );
-            MultimodalInner::Gemma3(Arc::new(pipeline))
+            (MultimodalInner::Gemma3(Arc::new(pipeline)), None)
         }
         ModelType::Gemma4 => {
             let cfg = build_gemma4_config(&tensor_meta)
@@ -591,20 +908,44 @@ pub async fn init_local_multimodal_chunked(
 
             let vb = CandleVarBuilder::from_tensors(tensors, DType::BF16, &device);
 
-            let model = Gemma4Model::new(&cfg, vb)
+            // `lazy_audio` defaults to true and `cfg.audio_config` is currently
+            // synthesized as `None`, so audio is never built at init regardless
+            // of the flag. The flag exists for symmetry with vision.
+            let with_vision = !options.lazy_vision;
+            let with_audio = !options.lazy_audio && cfg.audio_config.is_some();
+            let model = Gemma4Model::new_partial(&cfg, vb, with_vision, with_audio)
                 .map_err(|e| JsValue::from_str(&format!("gemma4 model load: {e}")))?;
 
             let pipeline = Gemma4MultiModal::from_components(
-                model, tokenizer, device.clone(), cfg,
+                model,
+                tokenizer,
+                device.clone(),
+                cfg.clone(),
             );
-            MultimodalInner::Gemma4 {
-                pipeline: Arc::new(pipeline),
-                gpu_device: device,
-            }
+            // Retain enough state to honor a later attach_vision/attach_audio call.
+            let lazy_state = Gemma4LazyState {
+                read_fn: read_fn.clone(),
+                tensor_meta: tensor_meta.clone(),
+                data_start,
+                cfg,
+                device: device.clone(),
+                wgpu_dev: wgpu_dev.clone(),
+            };
+            (
+                MultimodalInner::Gemma4 {
+                    pipeline: Arc::new(pipeline),
+                    gpu_device: device,
+                },
+                Some(lazy_state),
+            )
         }
     };
 
-    Ok(LocalMultiModalHandle { inner, model_id })
+    Ok(LocalMultiModalHandle {
+        inner,
+        model_id,
+        lazy,
+    })
 }
 
 // ---------------------------------------------------------------------------

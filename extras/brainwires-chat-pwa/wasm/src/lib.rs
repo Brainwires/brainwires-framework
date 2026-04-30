@@ -205,7 +205,7 @@ async fn try_webgpu_device() -> Result<Device, String> {
 // Chunked safetensors loading (avoids 10 GB single allocation)
 // ---------------------------------------------------------------------------
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub(crate) struct StTensorInfo {
     pub(crate) dtype: String,
     pub(crate) shape: Vec<usize>,

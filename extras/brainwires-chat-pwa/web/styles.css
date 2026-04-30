@@ -88,6 +88,9 @@ html, body {
 body {
     overflow: hidden;
     overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
 }
 
 button {
@@ -127,7 +130,8 @@ a { color: var(--accent); }
 #app {
     display: flex;
     flex-direction: column;
-    height: 100dvh;
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
     padding-top: env(safe-area-inset-top);
     padding-right: env(safe-area-inset-right);
@@ -145,18 +149,19 @@ a { color: var(--accent); }
 }
 
 #download-banner-slot {
-    position: sticky;
-    top: 0;
-    z-index: 50;
+    flex: 0 0 auto;
     background: var(--surface);
     box-shadow: var(--shadow);
 }
 .download-banner {
-    padding: 10px 14px calc(10px + env(safe-area-inset-top));
-    border-bottom: 1px solid var(--border);
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    padding-right: calc(14px + env(safe-area-inset-right));
+    padding-left: calc(14px + env(safe-area-inset-left));
+    border-top: 1px solid var(--border);
     background: var(--surface);
 }
-.download-banner[hidden] { display: none; }
+.download-banner[data-state="idle"] { color: var(--muted); }
+.download-banner[data-state="idle"] .bw-dl-title { font-weight: 500; }
 .bw-dl-row {
     display: flex;
     align-items: center;

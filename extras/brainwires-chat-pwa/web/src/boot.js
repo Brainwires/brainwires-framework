@@ -121,14 +121,13 @@ async function boot() {
     const app = document.getElementById('app');
     const bannerSlot = document.getElementById('download-banner-slot');
 
-    // Mount the persistent banner first — it has no async dependencies and
-    // works correctly with an empty state. This way it's visible during the
-    // brief window before the chat view paints.
-    if (bannerSlot) mountBanner(bannerSlot);
-
     // i18n is fast (single fetch from same-origin); awaiting it before
     // mounting the views means the first render uses translated strings.
     await loadLocale('en').catch(() => {});
+
+    // Mount the persistent footer after i18n so the idle label renders
+    // translated on the first paint.
+    if (bannerSlot) mountBanner(bannerSlot);
 
     // DB + SW in parallel.
     const [dbResult, swResult] = await Promise.allSettled([

@@ -418,7 +418,18 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
             return buf;
         };
 
-        handle = await mod.init_local_multimodal_chunked(readFn, fileSize, tokenizerBytes, modelId);
+        // Defer the vision tower: skip its tensors at init and stream them
+        // in on the first image. Saves ~300 MB of init RAM/VRAM and keeps
+        // the largest single tensor under WebGPU's buffer-size cap. Audio
+        // is also lazy by default — currently unused by the chat UI, and
+        // attach_audio() is gated until config inference is wired.
+        handle = await mod.init_local_multimodal_chunked(
+            readFn,
+            fileSize,
+            tokenizerBytes,
+            modelId,
+            { lazy_vision: true, lazy_audio: true },
+        );
         loadedModelId = modelId;
         handleIsMultimodal = true;
 
@@ -458,6 +469,22 @@ async function handleVisionChat(msg) {
             error: 'model not loaded as multimodal — reload with a vision-capable model',
         });
         return;
+    }
+    // Lazy-load the vision tower the first time an image-bearing chat
+    // arrives. `attach_vision` is idempotent on the wasm side, so calling
+    // it on every vision_chat is fine; the wasm method short-circuits
+    // when the tower is already loaded.
+    if (handle && typeof handle.attach_vision === 'function' && !handle.has_vision) {
+        try {
+            self.postMessage({ type: 'vision_attaching', conversationId, messageId });
+            await handle.attach_vision();
+        } catch (e) {
+            self.postMessage({
+                requestId, type: 'chat_error', conversationId, messageId,
+                error: `failed to attach vision tower: ${e.message || e}`,
+            });
+            return;
+        }
     }
     return runChatStream(msg, 'local_chat_stream_with_image');
 }
