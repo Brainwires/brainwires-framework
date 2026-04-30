@@ -48,8 +48,6 @@ const appConfig = {
     external: [
         './pkg/brainwires_chat_pwa.js',
         './pkg/*',
-        './vendor/rsqlite/*',
-        '../vendor/rsqlite/*',
     ],
     logLevel: 'info',
 };

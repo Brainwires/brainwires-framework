@@ -195,7 +195,10 @@ export function openDb() {
     if (_dbPromise) return _dbPromise;
     _dbPromise = (async () => {
         cleanupLegacyData();
-        const db = await WorkerDatabase.open(DB_NAME, { backend: 'opfs' });
+        const db = await WorkerDatabase.open(DB_NAME, {
+            backend: 'opfs',
+            workerUrl: './vendor/rsqlite/dist/worker.js',
+        });
         await db.execMany(SCHEMA_DDL);
         return db;
     })();
