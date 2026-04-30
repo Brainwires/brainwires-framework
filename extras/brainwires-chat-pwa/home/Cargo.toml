@@ -49,6 +49,9 @@ reqwest = { workspace = true }
 webrtc = { version = "0.20.0-alpha.1", git = "https://github.com/Brainwires/webrtc-rs", rev = "a0c7a51876a44758448e7d5a76dea06aca653203" }
 bytes = { workspace = true }
 
+# Sync store — dogfooding our own pure-Rust SQLite
+rsqlite = { git = "https://github.com/Brainwires/rsqlite-wasm.git", rev = "e6fe729" }
+
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }

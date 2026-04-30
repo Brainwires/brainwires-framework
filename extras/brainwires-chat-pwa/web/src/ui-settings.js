@@ -12,7 +12,7 @@ import { t } from './i18n.js';
 import {
     getSetting,
     setSetting,
-} from './db.js';
+} from './sql-db.js';
 import { listProviders } from './providers/index.js';
 import {
     KNOWN_MODELS,
@@ -37,6 +37,7 @@ import { getTheme, setTheme } from './theme.js';
 import { render as renderRagPanel } from './ui-rag-panel.js';
 import { render as renderMcpPanel } from './ui-mcp-panel.js';
 import { renderHomePairingCard } from './ui-home-pairing.js';
+import * as homeProvider from './home-provider.js';
 
 const PASSPHRASE_SETTING = 'passphraseConfig'; // { salt: base64, verify: encrypted("ok") }
 const ENCRYPT_OPT_OUT_SETTING = 'encryptionOptOut';
@@ -55,6 +56,7 @@ export async function render(root) {
     main.appendChild(await sectionPassphrase());
     main.appendChild(await sectionTheme());
     main.appendChild(await sectionHomeAgent());
+    main.appendChild(await sectionSync());
     main.appendChild(await sectionProviders());
     main.appendChild(await sectionLocalModel());
     main.appendChild(await sectionEmbeddingModels());
@@ -274,6 +276,41 @@ async function sectionTheme() {
 async function sectionHomeAgent() {
     const body = await renderHomePairingCard();
     return sectionWrap(t('settings.home.title'), body);
+}
+
+// ── Cross-device sync ─────────────────────────────────────────
+
+async function sectionSync() {
+    const body = el('div', { class: 'settings-card' });
+
+    const paired = await homeProvider.isAvailable();
+    if (!paired) {
+        body.appendChild(el('p', { class: 'settings-help' }, t('settings.sync.requiresPairing')));
+        return sectionWrap(t('settings.sync.title'), body);
+    }
+
+    const current = await getSetting('sync.enabled');
+    const enabled = current === true || current === 'true';
+
+    const checkbox = el('input', {
+        type: 'checkbox',
+        attrs: { 'aria-label': t('settings.sync.enable') },
+    });
+    checkbox.checked = enabled;
+
+    const label = el('label', { class: 'settings-toggle' },
+        checkbox,
+        el('span', {}, t('settings.sync.enable')),
+    );
+    body.appendChild(label);
+    body.appendChild(el('p', { class: 'settings-help' }, t('settings.sync.help')));
+
+    checkbox.addEventListener('change', async () => {
+        await setSetting('sync.enabled', checkbox.checked);
+        toast(t('settings.saved'), 'success', 1200);
+    });
+
+    return sectionWrap(t('settings.sync.title'), body);
 }
 
 // ── Cloud providers ────────────────────────────────────────────

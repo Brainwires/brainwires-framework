@@ -772,6 +772,8 @@ body.drawer-open .drawer-scrim { opacity: 1; pointer-events: auto; }
 .settings-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .bw-btn-sm { font-size: 13px; padding: 4px 10px; min-height: 32px; }
 .settings-help { margin: 0; color: var(--muted); font-size: 13px; }
+.settings-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 6px; }
+.settings-toggle input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
 .settings-warn { color: var(--warn); }
 .settings-err { color: var(--danger); font-size: 13px; min-height: 18px; }
 .settings-status { font-size: 13px; min-height: 20px; color: var(--muted); }
@@ -815,7 +817,8 @@ body.drawer-open .drawer-scrim { opacity: 1; pointer-events: auto; }
 .pill-err { background: color-mix(in srgb, var(--danger) 25%, var(--surface-2)); color: var(--danger); }
 .pill[hidden] { display: none; }
 .home-status-pill { margin-left: 8px; }
-.home-status-pill::before {
+.home-status-pill::before,
+.sync-status-pill::before {
     content: '';
     display: inline-block;
     width: 6px;
@@ -825,6 +828,9 @@ body.drawer-open .drawer-scrim { opacity: 1; pointer-events: auto; }
     margin-right: 6px;
     vertical-align: middle;
 }
+.sync-status-pill { margin-left: 6px; }
+.sync-status-pill[data-state="syncing"] { animation: sync-pulse 1.2s ease-in-out infinite; }
+@keyframes sync-pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
 
 /* ── Unlock view ─────────────────────────────────────────── */
 

@@ -246,6 +246,9 @@ pub struct AppState {
     /// at server start; never per-request. Held in an `Arc` so cloning
     /// `AppState` (axum does this on every request) is cheap.
     pub http: Arc<reqwest::Client>,
+    /// Sync store for cross-device data synchronization. When set, the
+    /// daemon acts as a store-and-forward hub for `sync/*` JSON-RPC methods.
+    pub sync_store: Option<Arc<crate::sync::SyncStore>>,
 }
 
 impl AppState {
@@ -257,6 +260,7 @@ impl AppState {
             bridge: None,
             turn: TurnConfig::default(),
             http: Arc::new(default_http_client()),
+            sync_store: None,
         }
     }
 
@@ -271,6 +275,12 @@ impl AppState {
     /// Replace the TURN config. The daemon builder calls this once.
     pub fn with_turn(mut self, turn: TurnConfig) -> Self {
         self.turn = turn;
+        self
+    }
+
+    /// Attach a [`crate::sync::SyncStore`] for cross-device sync.
+    pub fn with_sync(mut self, sync: Arc<crate::sync::SyncStore>) -> Self {
+        self.sync_store = Some(sync);
         self
     }
 
@@ -542,9 +552,10 @@ async fn post_offer(
     // exposes `subscribe()`, so we keep ownership of it inside the task.
     let session_state = s.clone();
     let bridge_for_loop = state.bridge.clone();
+    let sync_for_loop = state.sync_store.clone();
     let session_for_loop = s.clone();
     tokio::spawn(async move {
-        match run_a2a_loop_with_session(&peer, bridge_for_loop, Some(session_for_loop)).await {
+        match run_a2a_loop_with_session(&peer, bridge_for_loop, Some(session_for_loop), sync_for_loop).await {
             Ok(dc) => {
                 *session_state.data_channel.write().await = Some(dc);
             }

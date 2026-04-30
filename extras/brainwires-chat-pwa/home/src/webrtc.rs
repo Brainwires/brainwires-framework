@@ -347,7 +347,7 @@ pub async fn run_a2a_loop(
     peer: &HomePeer,
     bridge: Option<Arc<A2aBridge>>,
 ) -> Result<Arc<dyn WrtcDataChannel>> {
-    run_a2a_loop_with_session(peer, bridge, None).await
+    run_a2a_loop_with_session(peer, bridge, None, None).await
 }
 
 /// Variant of [`run_a2a_loop`] that also pushes every reply frame onto the
@@ -360,6 +360,7 @@ pub async fn run_a2a_loop_with_session(
     peer: &HomePeer,
     bridge: Option<Arc<A2aBridge>>,
     session: Option<Arc<SessionState>>,
+    sync_store: Option<Arc<crate::sync::SyncStore>>,
 ) -> Result<Arc<dyn WrtcDataChannel>> {
     let mut rx = peer.subscribe();
     let dc = loop {
@@ -384,7 +385,7 @@ pub async fn run_a2a_loop_with_session(
                 Some(DataChannelEvent::OnMessage(msg)) => {
                     let text = String::from_utf8_lossy(&msg.data).into_owned();
                     if let Some(reply) =
-                        dispatch_jsonrpc(&text, bridge.as_deref(), session.as_deref()).await
+                        dispatch_jsonrpc(&text, bridge.as_deref(), session.as_deref(), sync_store.as_deref()).await
                     {
                         // Push onto the outbox before sending so a successful
                         // send is always reflected in the resume buffer. Worst
@@ -446,6 +447,13 @@ pub const METHOD_BIN_END: &str = "bin/end";
 /// `Part.metadata` so we don't need to extend the typed `Part` struct.
 pub const BIN_ID_METADATA_KEY: &str = "bin_id";
 
+/// Cross-device sync: push local changelog entries to the daemon.
+pub const METHOD_SYNC_PUSH: &str = "sync/push";
+/// Cross-device sync: pull remote changelog entries from the daemon.
+pub const METHOD_SYNC_PULL: &str = "sync/pull";
+/// Cross-device sync: acknowledge received entries (enables compaction).
+pub const METHOD_SYNC_ACK: &str = "sync/ack";
+
 /// Dispatch one inbound text frame and serialize the reply.
 ///
 /// Order of precedence:
@@ -460,6 +468,7 @@ async fn dispatch_jsonrpc(
     text: &str,
     bridge: Option<&A2aBridge>,
     session: Option<&SessionState>,
+    sync_store: Option<&crate::sync::SyncStore>,
 ) -> Option<String> {
     // M10/M11 — transport-level methods. Peek at `method` before dispatching
     // to the bridge so we don't round-trip system/* or bin/* calls through
@@ -471,6 +480,9 @@ async fn dispatch_jsonrpc(
                 METHOD_SYSTEM_RESUME => return handle_resume(v, session).await,
                 METHOD_BIN_BEGIN | METHOD_BIN_CHUNK | METHOD_BIN_END => {
                     return handle_bin(method, v, session).await;
+                }
+                METHOD_SYNC_PUSH | METHOD_SYNC_PULL | METHOD_SYNC_ACK => {
+                    return handle_sync(method, v, sync_store);
                 }
                 _ => {}
             }
@@ -629,6 +641,119 @@ async fn handle_bin(
             }
         }
         _ => unreachable!("handle_bin called with non-bin method"),
+    }
+}
+
+/// Handle `sync/push` and `sync/pull` methods.
+fn handle_sync(
+    method: &str,
+    req: &Value,
+    sync_store: Option<&crate::sync::SyncStore>,
+) -> Option<String> {
+    let id_value = req.get("id").cloned().unwrap_or(Value::Null);
+    let Some(store) = sync_store else {
+        return make_error_reply(
+            &id_value,
+            brainwires_a2a::error::INVALID_PARAMS,
+            "sync not configured on this daemon",
+        );
+    };
+    let params = req.get("params").cloned().unwrap_or(Value::Null);
+
+    match method {
+        METHOD_SYNC_PUSH => {
+            let device_id = params
+                .get("device_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if device_id.is_empty() {
+                return make_error_reply(
+                    &id_value,
+                    brainwires_a2a::error::INVALID_PARAMS,
+                    "sync/push: device_id required",
+                );
+            }
+            let entries: Vec<crate::sync::SyncEntry> = match params.get("entries") {
+                Some(arr) => match serde_json::from_value(arr.clone()) {
+                    Ok(e) => e,
+                    Err(e) => {
+                        return make_error_reply(
+                            &id_value,
+                            brainwires_a2a::error::INVALID_PARAMS,
+                            &format!("sync/push: invalid entries: {e}"),
+                        );
+                    }
+                },
+                None => {
+                    return make_error_reply(
+                        &id_value,
+                        brainwires_a2a::error::INVALID_PARAMS,
+                        "sync/push: entries array required",
+                    );
+                }
+            };
+            match store.push(device_id, &entries) {
+                Ok(seq) => {
+                    let v = serde_json::json!({ "stored": entries.len(), "seq": seq });
+                    make_success_reply(&id_value, v)
+                }
+                Err(e) => make_error_reply(&id_value, -32000, &format!("sync/push failed: {e}")),
+            }
+        }
+        METHOD_SYNC_PULL => {
+            let device_id = params
+                .get("device_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if device_id.is_empty() {
+                return make_error_reply(
+                    &id_value,
+                    brainwires_a2a::error::INVALID_PARAMS,
+                    "sync/pull: device_id required",
+                );
+            }
+            let since = params
+                .get("since")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let limit = params
+                .get("limit")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(100) as usize;
+            match store.pull(device_id, since, limit) {
+                Ok(result) => {
+                    let v = serde_json::json!({
+                        "entries": result.entries,
+                        "has_more": result.has_more,
+                        "latest_seq": result.latest_seq,
+                    });
+                    make_success_reply(&id_value, v)
+                }
+                Err(e) => make_error_reply(&id_value, -32000, &format!("sync/pull failed: {e}")),
+            }
+        }
+        METHOD_SYNC_ACK => {
+            let device_id = params
+                .get("device_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if device_id.is_empty() {
+                return make_error_reply(
+                    &id_value,
+                    brainwires_a2a::error::INVALID_PARAMS,
+                    "sync/ack: device_id required",
+                );
+            }
+            let seq = params
+                .get("seq")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            match store.ack(device_id, seq) {
+                Ok(()) => make_success_reply(&id_value, serde_json::json!({ "ok": true })),
+                Err(e) => make_error_reply(&id_value, -32000, &format!("sync/ack failed: {e}")),
+            }
+        }
+        _ => unreachable!("handle_sync called with non-sync method"),
     }
 }
 
@@ -911,7 +1036,7 @@ mod tests {
                 "total_chunks": 1
             }
         }).to_string();
-        let r = dispatch_jsonrpc(&begin, Some(&bridge), Some(&session)).await.unwrap();
+        let r = dispatch_jsonrpc(&begin, Some(&bridge), Some(&session), None).await.unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["result"]["ok"], json!(true));
 
@@ -922,7 +1047,7 @@ mod tests {
             "method": "bin/chunk",
             "params": { "bin_id": bin_id, "seq": 0, "data": b64 }
         }).to_string();
-        let r = dispatch_jsonrpc(&chunk, Some(&bridge), Some(&session)).await.unwrap();
+        let r = dispatch_jsonrpc(&chunk, Some(&bridge), Some(&session), None).await.unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["result"]["ok"], json!(true));
 
@@ -933,7 +1058,7 @@ mod tests {
             "method": "bin/end",
             "params": { "bin_id": bin_id, "sha256": sha }
         }).to_string();
-        let r = dispatch_jsonrpc(&end, Some(&bridge), Some(&session)).await.unwrap();
+        let r = dispatch_jsonrpc(&end, Some(&bridge), Some(&session), None).await.unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["result"]["ok"], json!(true));
         assert_eq!(v["result"]["size"].as_u64().unwrap(), payload.len() as u64);
@@ -959,7 +1084,7 @@ mod tests {
                 }
             }
         }).to_string();
-        let reply = dispatch_jsonrpc(&msg, Some(&bridge), Some(&session)).await.unwrap();
+        let reply = dispatch_jsonrpc(&msg, Some(&bridge), Some(&session), None).await.unwrap();
         let reply_v: Value = serde_json::from_str(&reply).unwrap();
         assert!(reply_v.get("error").is_none(), "message/send should succeed: {reply_v}");
 
@@ -979,7 +1104,7 @@ mod tests {
             "method": "bin/chunk",
             "params": { "bin_id": "ghost", "seq": 0, "data": "AAA=" }
         }).to_string();
-        let r = dispatch_jsonrpc(&chunk, None, Some(&session)).await.unwrap();
+        let r = dispatch_jsonrpc(&chunk, None, Some(&session), None).await.unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["error"]["code"].as_i64().unwrap(), -32001);
     }
@@ -991,12 +1116,12 @@ mod tests {
             "jsonrpc":"2.0","id":1,"method":"bin/begin",
             "params": { "bin_id": "ooo", "total_size": 100, "total_chunks": 2 }
         }).to_string();
-        dispatch_jsonrpc(&begin, None, Some(&session)).await.unwrap();
+        dispatch_jsonrpc(&begin, None, Some(&session), None).await.unwrap();
         let chunk = json!({
             "jsonrpc":"2.0","id":2,"method":"bin/chunk",
             "params": { "bin_id":"ooo", "seq":1, "data":"AAA=" }
         }).to_string();
-        let r = dispatch_jsonrpc(&chunk, None, Some(&session)).await.unwrap();
+        let r = dispatch_jsonrpc(&chunk, None, Some(&session), None).await.unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["error"]["code"].as_i64().unwrap(), -32002);
     }
@@ -1008,17 +1133,17 @@ mod tests {
             "jsonrpc":"2.0","id":1,"method":"bin/begin",
             "params": { "bin_id": "h", "total_size": 4, "total_chunks": 1 }
         }).to_string();
-        dispatch_jsonrpc(&begin, None, Some(&session)).await.unwrap();
+        dispatch_jsonrpc(&begin, None, Some(&session), None).await.unwrap();
         let chunk = json!({
             "jsonrpc":"2.0","id":2,"method":"bin/chunk",
             "params": { "bin_id":"h", "seq":0, "data": B64.encode(b"abcd") }
         }).to_string();
-        dispatch_jsonrpc(&chunk, None, Some(&session)).await.unwrap();
+        dispatch_jsonrpc(&chunk, None, Some(&session), None).await.unwrap();
         let end = json!({
             "jsonrpc":"2.0","id":3,"method":"bin/end",
             "params": { "bin_id":"h", "sha256": "00".repeat(32) }
         }).to_string();
-        let r = dispatch_jsonrpc(&end, None, Some(&session)).await.unwrap();
+        let r = dispatch_jsonrpc(&end, None, Some(&session), None).await.unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["error"]["code"].as_i64().unwrap(), -32003);
     }

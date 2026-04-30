@@ -12,7 +12,7 @@
 //   8. lazy-init the wasm module in the background — TTS/STT/local
 //      providers wait on `getWasm()` themselves; first paint must not.
 
-import { openDb } from './db.js';
+import { openDb } from './sql-db.js';
 import {
     getWasm,
     setSwRegistration,
@@ -21,7 +21,7 @@ import {
     isSessionUnlocked,
 } from './state.js';
 import { isDownloaded } from './model-store.js';
-import { getSetting } from './db.js';
+import { getSetting } from './sql-db.js';
 import * as views from './views.js';
 import { mountBanner } from './ui-download-banner.js';
 import { loadLocale } from './i18n.js';

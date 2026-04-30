@@ -5,7 +5,7 @@
 // Persisted via the existing settings store. `system` is the default and
 // keeps the original behavior (dark, with prefers-color-scheme: light overrides).
 
-import { getSetting, setSetting } from './db.js';
+import { getSetting, setSetting } from './sql-db.js';
 import { appEvents } from './state.js';
 
 const SETTING_KEY = 'ui.theme';

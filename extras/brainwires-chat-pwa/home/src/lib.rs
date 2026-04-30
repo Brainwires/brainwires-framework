@@ -14,18 +14,21 @@ pub mod a2a;
 pub mod binary;
 pub mod pairing;
 pub mod signaling;
+pub mod sync;
 pub mod turn;
 pub mod webrtc;
 
 use anyhow::{Context, Result};
 use axum::Router;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::a2a::A2aBridge;
 use crate::pairing::{CfAccessConfig, PairingState};
 use crate::signaling::{AppState, CorsConfig, DEFAULT_LONG_POLL, DEFAULT_SESSION_TTL};
+use crate::sync::SyncStore;
 use crate::turn::DEFAULT_TTL_SECS;
 
 /// Server-side TURN credential minting config.
@@ -88,6 +91,7 @@ pub struct HomeServerBuilder {
     cors_explicit: bool,
     turn: TurnConfig,
     pairing: Option<PairingState>,
+    sync_store: Option<Arc<SyncStore>>,
 }
 
 impl HomeServer {
@@ -102,6 +106,7 @@ impl HomeServer {
             cors_explicit: false,
             turn: TurnConfig::default(),
             pairing: None,
+            sync_store: None,
         }
     }
 
@@ -257,6 +262,14 @@ impl HomeServerBuilder {
         self
     }
 
+    /// Attach a [`SyncStore`] for cross-device data synchronization.
+    /// The store is opened (or created) at the given path.
+    pub fn with_sync(mut self, path: impl Into<PathBuf>) -> Result<Self> {
+        let store = SyncStore::new(path.into())?;
+        self.sync_store = Some(Arc::new(store));
+        Ok(self)
+    }
+
     /// Configure pre-provisioned Cloudflare Access service-token creds
     /// (M8). Returned to every PWA that successfully pairs so it can
     /// include them as `CF-Access-Client-Id` / `CF-Access-Client-Secret`
@@ -289,6 +302,9 @@ impl HomeServerBuilder {
             .with_turn(self.turn);
         if let Some(bridge) = self.bridge {
             state = state.with_bridge(bridge);
+        }
+        if let Some(sync) = self.sync_store {
+            state = state.with_sync(sync);
         }
         if !self.cors_explicit {
             tracing::debug!(

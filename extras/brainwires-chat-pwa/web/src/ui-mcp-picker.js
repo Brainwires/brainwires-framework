@@ -14,7 +14,7 @@ import {
     listMcpServers,
     setMcpToolEnabled,
     listMcpToolStateForConversation,
-} from './db.js';
+} from './sql-db.js';
 import * as mcp from './mcp-client.js';
 import { t } from './i18n.js';
 

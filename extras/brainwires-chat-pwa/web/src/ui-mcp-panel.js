@@ -6,7 +6,7 @@
 // alongside provider tool-call serialization in a follow-up.
 
 import { el, clear, toast, genId } from './utils.js';
-import { listMcpServers, putMcpServer, deleteMcpServer } from './db.js';
+import { listMcpServers, putMcpServer, deleteMcpServer } from './sql-db.js';
 import * as mcp from './mcp-client.js';
 import { t } from './i18n.js';
 

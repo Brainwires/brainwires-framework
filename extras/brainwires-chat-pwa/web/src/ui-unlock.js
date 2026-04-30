@@ -11,7 +11,7 @@
 
 import { el, clear, toast } from './utils.js';
 import { t } from './i18n.js';
-import { getSetting, setSetting } from './db.js';
+import { getSetting, setSetting } from './sql-db.js';
 import * as cryptoStore from '../crypto-store.js';
 import { setSessionKey } from './state.js';
 import { mount as mountView } from './views.js';

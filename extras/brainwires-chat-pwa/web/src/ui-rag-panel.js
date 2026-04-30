@@ -7,7 +7,7 @@
 //   - a small progress strip during ingestion
 
 import { el, clear, toast } from './utils.js';
-import { listRagDocs } from './db.js';
+import { listRagDocs } from './sql-db.js';
 import { ingest, deleteRagDoc } from './rag.js';
 import { t } from './i18n.js';
 

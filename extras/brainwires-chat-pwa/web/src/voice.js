@@ -18,7 +18,7 @@
 //   - stt.enabled       — boolean, default true
 
 import { getWasm } from './state.js';
-import { getVoicePref, setVoicePref } from './db.js';
+import { getVoicePref, setVoicePref } from './sql-db.js';
 
 let _tts = null;
 let _stt = null;

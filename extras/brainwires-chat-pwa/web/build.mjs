@@ -48,6 +48,8 @@ const appConfig = {
     external: [
         './pkg/brainwires_chat_pwa.js',
         './pkg/*',
+        './vendor/rsqlite/*',
+        '../vendor/rsqlite/*',
     ],
     logLevel: 'info',
 };
@@ -120,6 +122,11 @@ const STATIC_ASSETS = [
     'icons/icon-192.png',
     'icons/icon-512.png',
     'vendor/katex/katex.min.js',
+    'vendor/rsqlite/pkg/rsqlite_wasm.js',
+    'vendor/rsqlite/pkg/rsqlite_wasm_bg.wasm',
+    'vendor/rsqlite/dist/worker.js',
+    'vendor/rsqlite/dist/worker-proxy.js',
+    'vendor/rsqlite/dist/index.js',
 ];
 
 function sha256Base64(absPath) {
@@ -235,6 +242,44 @@ function generateHljsTheme() {
     writeFileSync(outPath, body);
 }
 
+// Copy rsqlite-wasm dist + pkg from the sibling repo into vendor/rsqlite/.
+// The WASM binary and JS glue are loaded at runtime, not bundled.
+function generateRsqliteAssets() {
+    const rsqliteRoot = join(__dirname, '..', '..', '..', '..', 'rsqlite-wasm');
+    const distSrc = join(rsqliteRoot, 'js', 'dist');
+    const pkgSrc = join(rsqliteRoot, 'pkg');
+    const distDst = join(__dirname, 'vendor', 'rsqlite', 'dist');
+    const pkgDst = join(__dirname, 'vendor', 'rsqlite', 'pkg');
+    if (!existsSync(distSrc) || !existsSync(pkgSrc)) {
+        console.warn('  rsqlite-wasm dist/pkg missing; skipping vendor copy');
+        return;
+    }
+    mkdirSync(distDst, { recursive: true });
+    mkdirSync(pkgDst, { recursive: true });
+    for (const f of ['worker.js', 'worker-proxy.js', 'index.js', 'types.js']) {
+        const p = join(distSrc, f);
+        if (existsSync(p)) copyFileSync(p, join(distDst, f));
+    }
+    for (const f of ['rsqlite_wasm.js', 'rsqlite_wasm_bg.wasm']) {
+        const p = join(pkgSrc, f);
+        if (existsSync(p)) copyFileSync(p, join(pkgDst, f));
+    }
+    // Copy wasm-bindgen snippets (inline JS helpers used by the WASM glue).
+    const snippetsSrc = join(pkgSrc, 'snippets');
+    if (existsSync(snippetsSrc)) {
+        const snippetsDst = join(pkgDst, 'snippets');
+        mkdirSync(snippetsDst, { recursive: true });
+        for (const dir of readdirSync(snippetsSrc)) {
+            const srcDir = join(snippetsSrc, dir);
+            const dstDir = join(snippetsDst, dir);
+            mkdirSync(dstDir, { recursive: true });
+            for (const f of readdirSync(srcDir)) {
+                copyFileSync(join(srcDir, f), join(dstDir, f));
+            }
+        }
+    }
+}
+
 function generateBuildInfo() {
     const ts = new Date().toISOString();
     let sha = 'unknown';
@@ -257,6 +302,7 @@ async function buildAll() {
     generateHljsTheme();
     generateKatexAssets();
     generatePdfjsAssets();
+    generateRsqliteAssets();
     await esbuild.build(appConfig);
     await esbuild.build(workerConfig);
     await esbuild.build(writerWorkerConfig);
@@ -271,6 +317,7 @@ if (isServe) {
     generateHljsTheme();
     generateKatexAssets();
     generatePdfjsAssets();
+    generateRsqliteAssets();
     const ctx = await esbuild.context(appConfig);
     const workerCtx = await esbuild.context(workerConfig);
     const writerCtx = await esbuild.context(writerWorkerConfig);
@@ -295,6 +342,7 @@ if (isServe) {
     generateHljsTheme();
     generateKatexAssets();
     generatePdfjsAssets();
+    generateRsqliteAssets();
     const ctx = await esbuild.context(appConfig);
     const workerCtx = await esbuild.context(workerConfig);
     const writerCtx = await esbuild.context(writerWorkerConfig);

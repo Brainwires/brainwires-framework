@@ -27,7 +27,7 @@ import {
 import { el, clear, formatBytes, formatEta, escapeHtml, toast } from './utils.js';
 import { t } from './i18n.js';
 import * as cryptoStore from '../crypto-store.js';
-import { setSetting, getSetting } from './db.js';
+import { setSetting, getSetting } from './sql-db.js';
 import { getSessionKey } from './state.js';
 
 const HF_TOKEN_SETTING = 'hfTokenEncrypted';

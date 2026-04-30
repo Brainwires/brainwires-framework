@@ -21,7 +21,7 @@
 // algorithm choice is currently opaque to the wire.
 
 import * as cryptoStore from '../crypto-store.js';
-import { getSetting, setSetting } from './db.js';
+import { getSetting, setSetting } from './sql-db.js';
 import { getSessionKey } from './state.js';
 
 /** @typedef {{

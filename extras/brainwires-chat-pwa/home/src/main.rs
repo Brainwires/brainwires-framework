@@ -74,6 +74,11 @@ struct Cli {
     #[arg(long = "state-dir", env = "BRAINWIRES_HOME_STATE_DIR", value_name = "DIR", global = true)]
     state_dir: Option<PathBuf>,
 
+    /// Path to the sync database file for cross-device data sync.
+    /// Defaults to `$STATE_DIR/sync.db`.
+    #[arg(long = "sync-db", env = "BRAINWIRES_HOME_SYNC_DB", value_name = "PATH", global = true)]
+    sync_db: Option<PathBuf>,
+
     /// `tracing-subscriber` env-filter directive.
     #[arg(long, env = "RUST_LOG", default_value = "brainwires_home=info,info", global = true)]
     log: String,
@@ -201,8 +206,20 @@ async fn run_serve(cli: Cli) -> Result<()> {
         "loaded home identity"
     );
 
-    let builder = HomeServer::builder().bind(bind).with_pairing(pairing_state);
-    let builder = apply_common(builder, &cli);
+    let mut builder = HomeServer::builder().bind(bind).with_pairing(pairing_state);
+    builder = apply_common(builder, &cli);
+
+    let sync_path = cli.sync_db.unwrap_or_else(|| {
+        let dir = cli
+            .state_dir
+            .clone()
+            .or_else(pairing::default_state_dir)
+            .unwrap_or_else(|| PathBuf::from("."));
+        dir.join("sync.db")
+    });
+    builder = builder.with_sync(&sync_path)?;
+    tracing::info!(path = %sync_path.display(), "sync store enabled");
+
     let server = builder.build()?;
     tracing::info!(addr = %bind, "brainwires-home: starting");
     server.serve().await

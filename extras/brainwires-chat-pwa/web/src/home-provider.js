@@ -15,6 +15,8 @@
 import { HomeTransport } from './home-transport.js';
 import { SignalingClient } from './home-signaling.js';
 import { loadPairingBundle } from './home-pairing.js';
+import { SyncManager } from './sync-manager.js';
+import { getSetting } from './sql-db.js';
 import { events as stateEvents, appEvents } from './state.js';
 
 // M12 — public observable of the underlying transport state, surfaced
@@ -41,6 +43,7 @@ export const defaultModel = 'default';
 
 let _transport = null;       // connected HomeTransport (singleton across messages)
 let _connecting = null;      // in-flight connect() promise — coalesces concurrent calls
+let _syncManager = null;     // SyncManager — started after transport connects
 // M10 — set by getTransport() so a startChat() in flight when the resume
 // protocol surfaces `dropped: true` can emit a chat_error to the UI.
 let _activeChatContext = null; // { conversationId, messageId } or null
@@ -121,6 +124,16 @@ async function getTransport(opts = {}) {
         });
         await transport.connect();
         _transport = transport;
+
+        const syncEnabled = await getSetting('sync.enabled');
+        if (syncEnabled === true || syncEnabled === 'true') {
+            _syncManager = new SyncManager(transport);
+            _syncManager.onUpdate = (entries) => {
+                appEvents.dispatchEvent(new CustomEvent('sync-update', { detail: { entries } }));
+            };
+            _syncManager.start().catch((e) => console.warn('[sync] start failed:', e));
+        }
+
         return transport;
     })();
 
@@ -441,6 +454,7 @@ export async function startChat({
  * hide. Idempotent — safe to invoke when nothing is connected.
  */
 export async function disconnect() {
+    if (_syncManager) { _syncManager.stop(); _syncManager = null; }
     const t = _transport;
     _transport = null;
     if (t && typeof t.close === 'function') {
@@ -472,6 +486,7 @@ export async function isAvailable() {
 // Test-only: reset the transport singleton so each test starts clean.
 // Not exported via index.js — only the test file imports it directly.
 export function _resetForTests() {
+    if (_syncManager) { _syncManager.stop(); _syncManager = null; }
     _transport = null;
     _connecting = null;
     _activeChatContext = null;

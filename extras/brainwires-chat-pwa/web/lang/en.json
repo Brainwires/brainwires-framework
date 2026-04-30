@@ -165,6 +165,16 @@
     "home.error.pairingExpired": "Pairing expired — pair again from Settings",
     "home.error.sessionReset": "Home agent session reset — please retry your last message",
 
+    "sync.status.idle": "Sync idle",
+    "sync.status.syncing": "Syncing…",
+    "sync.status.synced": "Synced",
+    "sync.status.error": "Sync error",
+    "sync.toast.pulled": "Synced {count} updates from another device",
+    "settings.sync.title": "Cross-device sync",
+    "settings.sync.enable": "Sync conversations across devices",
+    "settings.sync.help": "When enabled, conversations and settings are synced to other paired devices through the home agent.",
+    "settings.sync.requiresPairing": "Pair with a home agent first to enable sync.",
+
     "download.banner": "Downloading {model}…",
     "download.verifying": "Verifying SHA-256…",
     "download.loading": "Loading model into memory…",

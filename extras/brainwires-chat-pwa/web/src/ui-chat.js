@@ -24,7 +24,7 @@ import {
     setSetting,
     getSetting,
     partsToText,
-} from './db.js';
+} from './sql-db.js';
 import { listProviders, startChat } from './providers/index.js';
 import * as localProvider from './providers/local.js';
 import * as homeProvider from './home-provider.js';
@@ -291,6 +291,12 @@ function buildLayout() {
     }, '');
     _ui.homeStatusPill = homeStatusPill;
 
+    const syncStatusPill = el('span', {
+        class: 'pill sync-status-pill',
+        attrs: { hidden: '', 'aria-live': 'polite', 'data-state': 'idle' },
+    }, '');
+    _ui.syncStatusPill = syncStatusPill;
+
     const attachmentStrip = buildAttachmentStrip();
 
     const composer = el('form', {
@@ -310,6 +316,7 @@ function buildLayout() {
         el('div', { class: 'composer-meta' },
             providerChip,
             homeStatusPill,
+            syncStatusPill,
         ),
     );
     _ui.composer = composer;
@@ -854,6 +861,9 @@ function subscribeStreams() {
     stateEvents.addEventListener('home-transport-state', (e) => {
         const d = e.detail || {};
         updateHomeStatusPill();
+        if (d.next === 'failed' || d.next === 'closed') {
+            updateSyncStatusPill('idle');
+        }
         if (d.next === 'failed' && _activeProviderId === homeProvider.id) {
             toast(t('home.status.failed'), 'error');
         }
@@ -862,6 +872,18 @@ function subscribeStreams() {
     stateEvents.addEventListener('home-unpaired', () => {
         refreshActiveProvider().catch(() => {});
         updateHomeStatusPill();
+        updateSyncStatusPill('idle');
+    });
+
+    // Sync status events — update the sync pill and toast on pull.
+    stateEvents.addEventListener('sync-update', (e) => {
+        const entries = e.detail?.entries;
+        const count = Array.isArray(entries) ? entries.length : 0;
+        if (count > 0) {
+            updateSyncStatusPill('synced');
+            toast(t('sync.toast.pulled', { count }), 'info', 3000);
+            refreshConversations().catch(() => {});
+        }
     });
 }
 
@@ -1072,6 +1094,37 @@ function updateHomeStatusPill() {
         // Unknown state — show muted with the raw label so we don't lie.
         pill.classList.add('pill-warn');
         pill.textContent = state;
+    }
+}
+
+let _syncAutoHideTimer = null;
+function updateSyncStatusPill(syncState) {
+    const pill = _ui.syncStatusPill;
+    if (!pill) return;
+    if (_syncAutoHideTimer) { clearTimeout(_syncAutoHideTimer); _syncAutoHideTimer = null; }
+    const activeIsHome = _activeProviderId === homeProvider.id;
+    const transportUp = homeProvider.getTransportState?.() === 'connected';
+    if (!activeIsHome || !transportUp || syncState === 'idle') {
+        pill.setAttribute('hidden', '');
+        pill.textContent = '';
+        pill.dataset.state = 'idle';
+        pill.classList.remove('pill-ok', 'pill-warn', 'pill-err');
+        return;
+    }
+    pill.removeAttribute('hidden');
+    pill.dataset.state = syncState;
+    pill.classList.remove('pill-ok', 'pill-warn', 'pill-err');
+    if (syncState === 'syncing') {
+        pill.classList.add('pill-warn');
+        pill.textContent = t('sync.status.syncing');
+    } else if (syncState === 'synced') {
+        pill.classList.add('pill-ok');
+        pill.textContent = t('sync.status.synced');
+        _syncAutoHideTimer = setTimeout(() => updateSyncStatusPill('idle'), 4000);
+    } else if (syncState === 'error') {
+        pill.classList.add('pill-err');
+        pill.textContent = t('sync.status.error');
+        _syncAutoHideTimer = setTimeout(() => updateSyncStatusPill('idle'), 6000);
     }
 }
 

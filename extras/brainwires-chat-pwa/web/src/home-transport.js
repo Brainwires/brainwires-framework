@@ -47,10 +47,15 @@ export class JsonRpcDispatcher {
     constructor() {
         this._nextId = 1;
         this._pending = new Map(); // id -> { resolve, reject, timer }
+        this._notificationHandlers = new Map(); // method -> callback
         // M10 — high-water mark of inbound numeric reply ids. Used as the
         // `last_seen_id` cursor for `system/resume` after an ICE restart.
         // Notifications and string-id replies don't update this.
         this._lastSeenReplyId = 0;
+    }
+
+    onNotification(method, handler) {
+        this._notificationHandlers.set(method, handler);
     }
 
     /** Last numeric JSON-RPC reply id observed (M10 resume cursor). */
@@ -83,7 +88,12 @@ export class JsonRpcDispatcher {
         try { msg = JSON.parse(text); }
         catch (_) { return false; }
         if (!msg || typeof msg !== 'object') return false;
-        // Only request/response replies have an id; notifications don't.
+        // Server-push notifications: method present, no id.
+        if (msg.id == null && msg.method) {
+            const handler = this._notificationHandlers.get(msg.method);
+            if (handler) { try { handler(msg.params); } catch (_) { /* swallow */ } }
+            return !!handler;
+        }
         if (msg.id == null) return false;
         // M10 — bump the resume cursor for every observed numeric reply id,
         // even one that doesn't match a pending slot (replay frames after
