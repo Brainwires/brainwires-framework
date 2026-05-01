@@ -332,7 +332,12 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
     let vocab_size = embed_shape[0];
     let hidden_size = embed_shape[1];
 
-    // intermediate_size from first layer's gate_proj [intermediate_size, hidden_size]
+    // intermediate_size from first layer's gate_proj [intermediate_size, hidden_size].
+    // Gemma4-E2B (Gemma 3n) ships with elastic MLP widths — some layers
+    // are 6144-wide, others 12288-wide — so we also build a per-layer
+    // override table below. The scalar `intermediate_size` is the layer-0
+    // value and is used as a fallback for any layer whose gate_proj is
+    // missing from the safetensors index (shouldn't happen in practice).
     let intermediate_size = find("language_model.layers.0.mlp.gate_proj.weight")
         .map(|s| s[0])
         .ok_or("missing layers.0.mlp.gate_proj.weight")?;
@@ -406,6 +411,31 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
         });
     }
 
+    // Build the per-layer intermediate_size table by reading each layer's
+    // gate_proj.weight shape — the first dim is that layer's MLP width.
+    // Required for Gemma4-E2B's elastic MLP layout (mix of 6144 and 12288).
+    let mut intermediate_sizes_vec = Vec::with_capacity(num_hidden_layers);
+    for i in 0..num_hidden_layers {
+        let key = format!("language_model.layers.{i}.mlp.gate_proj.weight");
+        let size = tensor_meta
+            .iter()
+            .find(|(n, _)| n.ends_with(&key))
+            .map(|(_, info)| info.shape[0])
+            .unwrap_or(intermediate_size);
+        intermediate_sizes_vec.push(size);
+    }
+    // Only populate the override when widths actually vary; otherwise the
+    // scalar field carries the same information and we keep the config
+    // payload smaller.
+    let intermediate_sizes = if intermediate_sizes_vec
+        .iter()
+        .any(|&s| s != intermediate_size)
+    {
+        Some(intermediate_sizes_vec)
+    } else {
+        None
+    };
+
     use brainwires_providers::gemma4::config::*;
 
     Ok(Gemma4Config {
@@ -415,6 +445,7 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
             hidden_activation: Activation::GeluPytorchTanh,
             hidden_size,
             intermediate_size,
+            intermediate_sizes,
             num_attention_heads,
             num_hidden_layers,
             num_key_value_heads,
