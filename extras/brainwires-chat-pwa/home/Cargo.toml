@@ -50,7 +50,7 @@ webrtc = { version = "0.20.0-alpha.1", git = "https://github.com/Brainwires/webr
 bytes = { workspace = true }
 
 # Sync store — dogfooding our own pure-Rust SQLite
-rsqlite = { git = "https://github.com/Brainwires/rsqlite-wasm.git", rev = "20c28f6" }
+rsqlite = { git = "https://github.com/Brainwires/rsqlite-wasm.git", rev = "3e08226" }
 
 # Serialization
 serde = { workspace = true }
