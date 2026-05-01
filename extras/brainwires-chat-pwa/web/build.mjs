@@ -108,6 +108,17 @@ const swConfig = {
 // Files pinned with SRI hashes. sw.js is excluded — a service worker
 // cannot meaningfully verify its own bytes against a hash that lives
 // inside it.
+//
+// The language list mirrors `SUPPORTED_LANGS` in `src/i18n.js`. Keep
+// them in sync — a missing catalog here means runtime fetches go to
+// the network instead of the cache.
+const SUPPORTED_LANGS = [
+    'en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'pl', 'ru', 'uk',
+    'cs', 'hu', 'ro', 'el', 'sv', 'da', 'no', 'fi', 'tr', 'ar',
+    'he', 'fa', 'ur', 'hi', 'bn', 'ta', 'mr', 'zh-CN', 'zh-TW', 'ja',
+    'ko', 'id', 'ms', 'vi', 'th',
+];
+
 const STATIC_ASSETS = [
     'index.html',
     'manifest.json',
@@ -125,6 +136,7 @@ const STATIC_ASSETS = [
     'vendor/rsqlite/dist/worker.js',
     'vendor/rsqlite/dist/worker-proxy.js',
     'vendor/rsqlite/dist/index.js',
+    ...SUPPORTED_LANGS.map((code) => `lang/${code}.json`),
 ];
 
 function sha256Base64(absPath) {

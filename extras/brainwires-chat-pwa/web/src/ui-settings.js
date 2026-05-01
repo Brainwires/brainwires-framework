@@ -8,7 +8,7 @@
 //   - About
 
 import { el, clear, toast, escapeHtml } from './utils.js';
-import { t } from './i18n.js';
+import { t, SUPPORTED_LANGS, LANG_NAMES, getCurrentLang } from './i18n.js';
 import {
     getSetting,
     setSetting,
@@ -55,6 +55,7 @@ export async function render(root) {
 
     main.appendChild(await sectionPassphrase());
     main.appendChild(await sectionTheme());
+    main.appendChild(await sectionLanguage());
     main.appendChild(await sectionHomeAgent());
     main.appendChild(await sectionSync());
     main.appendChild(await sectionProviders());
@@ -269,6 +270,32 @@ async function sectionTheme() {
     });
     body.appendChild(el('label', { class: 'bw-label' }, t('settings.theme.label'), sel));
     return sectionWrap(t('settings.theme.title'), body);
+}
+
+// ── Language ───────────────────────────────────────────────────
+
+async function sectionLanguage() {
+    const body = el('div', { class: 'settings-card' });
+    const current = getCurrentLang();
+    const sel = el('select', {
+        class: 'bw-input',
+        attrs: { 'aria-label': t('settings.language.label') },
+    });
+    for (const code of SUPPORTED_LANGS) {
+        const o = el('option', { attrs: { value: code } }, LANG_NAMES[code] || code);
+        if (code === current) o.setAttribute('selected', '');
+        sel.appendChild(o);
+    }
+    sel.addEventListener('change', async () => {
+        try {
+            await setSetting('language', sel.value);
+            location.reload();
+        } catch (e) {
+            toast(e && e.message ? e.message : String(e), 'error');
+        }
+    });
+    body.appendChild(el('label', { class: 'bw-label' }, t('settings.language.label'), sel));
+    return sectionWrap(t('settings.language.title'), body);
 }
 
 // ── Home agent (M8 pairing) ────────────────────────────────────
@@ -758,6 +785,16 @@ async function sectionAbout() {
 
     body.appendChild(el('p', {}, el('strong', {}, t('settings.about.version') + ': '), String(version)));
     body.appendChild(el('p', {}, el('strong', {}, t('settings.about.build') + ': '), `${buildTime} (${buildGit})`));
+    body.appendChild(el('p', {},
+        el('strong', {}, t('settings.about.source') + ': '),
+        el('a', {
+            attrs: {
+                href: 'https://github.com/Brainwires/brainwires-framework',
+                target: '_blank',
+                rel: 'noopener noreferrer',
+            },
+        }, 'github.com/Brainwires/brainwires-framework'),
+    ));
     return sectionWrap(t('settings.about.title'), body);
 }
 

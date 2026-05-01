@@ -24,7 +24,7 @@ import { isDownloaded } from './model-store.js';
 import { getSetting } from './sql-db.js';
 import * as views from './views.js';
 import { mountBanner } from './ui-download-banner.js';
-import { loadLocale } from './i18n.js';
+import { initI18n } from './i18n.js';
 import { loadTheme } from './theme.js';
 import * as uiChat from './ui-chat.js';
 import * as uiSettings from './ui-settings.js';
@@ -121,9 +121,13 @@ async function boot() {
     const app = document.getElementById('app');
     const bannerSlot = document.getElementById('download-banner-slot');
 
-    // i18n is fast (single fetch from same-origin); awaiting it before
-    // mounting the views means the first render uses translated strings.
-    await loadLocale('en').catch(() => {});
+    // i18n: read the saved language (settings store), fall back to the
+    // detected system locale on first run. Awaiting before view mount so
+    // the first paint uses translated strings and `<html lang/dir>` is
+    // already set when stylesheets evaluate `[dir="rtl"]` selectors.
+    let savedLang = null;
+    try { savedLang = (await getSetting('language')) || null; } catch { /* db not open yet */ }
+    await initI18n(savedLang).catch(() => {});
 
     // Mount the persistent footer after i18n so the idle label renders
     // translated on the first paint.

@@ -129,12 +129,16 @@
     "settings.about.title": "About",
     "settings.about.version": "Version",
     "settings.about.build": "Build",
+    "settings.about.source": "Source code",
 
     "settings.theme.title": "Appearance",
     "settings.theme.label": "Theme",
     "settings.theme.system": "System",
     "settings.theme.light": "Light",
     "settings.theme.dark": "Dark",
+
+    "settings.language.title": "Language",
+    "settings.language.label": "Display language",
 
     "settings.home.title": "Home agent",
     "settings.home.notPaired": "Not paired",

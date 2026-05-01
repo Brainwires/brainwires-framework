@@ -963,3 +963,25 @@ body.drawer-open .drawer-scrim { opacity: 1; pointer-events: auto; }
     .chat-messages { padding: 16px 24px; }
     .bubble { font-size: 15px; }
 }
+
+/* ── RTL ──────────────────────────────────────────────────────
+ * Activated by `<html dir="rtl">`, set in `i18n.js applyToDOM()`
+ * for ar / he / fa / ur. Goal is "readable, not perfect" — flip
+ * text alignment + horizontal-pin auto-margins on elements where
+ * the LTR design implicitly assumes the start edge is on the left.
+ */
+[dir="rtl"] body { direction: rtl; }
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select { text-align: right; }
+[dir="rtl"] .bw-slider-value { text-align: left; }
+[dir="rtl"] .home-status-pill { margin-left: 0; margin-right: 8px; }
+[dir="rtl"] .sync-status-pill { margin-left: 0; margin-right: 6px; }
+[dir="rtl"] .settings-card-header { flex-direction: row-reverse; }
+[dir="rtl"] .composer { direction: rtl; }
+[dir="rtl"] .composer-input { text-align: right; }
+[dir="rtl"] .bubble { direction: rtl; text-align: right; }
+[dir="rtl"] .bubble.user { margin-left: 0; margin-right: auto; }
+[dir="rtl"] .bubble.assistant { margin-right: 0; margin-left: auto; }
+[dir="rtl"] .icon-btn { transform: scaleX(-1); }
+
