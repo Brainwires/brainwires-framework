@@ -537,20 +537,30 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
 }
 
 /// Tensors present in the Gemma 3n / Gemma4 QAT safetensors that the
-/// candle-fork [`Gemma4Model`] does not reference. Skipping them avoids
-/// loading audio tower weights when audio is disabled and dropping the
-/// QAT input/output min/max statistics (training-time only — they don't
-/// participate in the forward pass).
+/// candle-fork [`Gemma4Model`] either does not reference or cannot
+/// physically load on this target. Skipping them avoids loading audio
+/// tower weights when audio is disabled, dropping the QAT input/output
+/// min/max statistics (training-time only), and dropping the multi-GB
+/// `embed_tokens_per_layer` tensor that exceeds WebGPU's 1 GB
+/// max-buffer-size and wasm32's 2 GB `isize::MAX` Vec limit.
 ///
-/// Per-Layer Embeddings (PLE) used to be skipped here too, but Phase 2
-/// of the Gemma 3n implementation now consumes those tensors via the
-/// new `PerLayerEmbedding` module and per-layer side-channel into each
-/// decoder layer. They flow through the loader normally.
+/// PLE companion tensors (`per_layer_input_gate`, `per_layer_projection`,
+/// `post_per_layer_input_norm`, `per_layer_model_projection`,
+/// `per_layer_projection_norm`, `layer_scalar`) flow through the loader
+/// normally — only the giant per-layer embedding *table* is dropped.
+/// The candle-fork `PerLayerEmbedding` handles the missing table by
+/// degrading the merge to `per_layer_input = per_layer_proj * rsqrt(2)`.
 ///
 /// Returns `Some(reason)` if the tensor should be skipped, `None` otherwise.
 fn gemma4_skip_reason(name: &str) -> Option<&'static str> {
     if name.contains(".audio_tower.") {
         return Some("audio");
+    }
+    // The per-layer embedding table is `vocab × num_layers × hidden_per_layer`
+    // — ~4.7 GB bf16 on the E2B checkpoint. wasm32 + WebGPU can't hold it
+    // as a single contiguous buffer.
+    if name.ends_with(".embed_tokens_per_layer.weight") {
+        return Some("ple-table-oversize");
     }
     if name.ends_with(".input_min")
         || name.ends_with(".input_max")
@@ -855,8 +865,8 @@ pub async fn init_local_multimodal_chunked(
     );
 
     let mut tensors: HashMap<String, Tensor> = HashMap::with_capacity(total);
-    // (audio_unused, qat-stat, lazy_vision, lazy_audio, total bytes deferred)
-    let mut skipped = (0usize, 0usize, 0usize, 0usize, 0u64);
+    // (audio_unused, qat-stat, ple-table-oversize, lazy_vision, lazy_audio, total bytes deferred)
+    let mut skipped = (0usize, 0usize, 0usize, 0usize, 0usize, 0u64);
     for (idx, (name, info)) in tensor_meta.iter().enumerate() {
         let length = info.data_offsets.1 - info.data_offsets.0;
 
@@ -865,39 +875,40 @@ pub async fn init_local_multimodal_chunked(
                 match reason {
                     "audio" => skipped.0 += 1,
                     "qat-stat" => skipped.1 += 1,
+                    "ple-table-oversize" => skipped.2 += 1,
                     _ => {}
                 }
-                skipped.4 += length;
+                skipped.5 += length;
                 continue;
             }
             if options.lazy_vision && is_vision_tensor(name) {
-                skipped.2 += 1;
-                skipped.4 += length;
+                skipped.3 += 1;
+                skipped.5 += length;
                 continue;
             }
             if options.lazy_audio && is_audio_tensor(name) {
                 // Audio is also caught by gemma4_skip_reason("audio") above,
                 // but keep this guarded in case that filter is relaxed.
-                skipped.3 += 1;
-                skipped.4 += length;
+                skipped.4 += 1;
+                skipped.5 += length;
                 continue;
             }
         }
 
         // Force-CPU keeps these tensors in host memory so they don't
         // try to occupy WebGPU buffers. embed_tokens.weight (~800 MB)
-        // and embed_tokens_per_layer.weight (~4.7 GB) both blow past
-        // the 1 GB WebGPU max-buffer-size limit. lm_head shares
-        // embed_tokens via tied weights so it tags along. The PLE
-        // companion tensors (per_layer_model_projection +
-        // per_layer_projection_norm) stay on CPU as well so the
-        // PerLayerEmbedding.forward merge happens entirely on CPU
-        // (Gemma4MultiModal::generate_greedy moves the resulting table
-        // to GPU in one shot).
+        // exceeds the 1 GB WebGPU max-buffer-size limit; lm_head shares
+        // it via tied weights so it tags along. PLE companion tensors
+        // (per_layer_model_projection + per_layer_projection_norm) stay
+        // on CPU as well so the PerLayerEmbedding.forward merge happens
+        // entirely on CPU and Gemma4MultiModal::generate_greedy moves
+        // the resulting table to GPU in one shot.
+        // `embed_tokens_per_layer.weight` itself is *skipped* by
+        // gemma4_skip_reason — it's too big for both WebGPU buffers
+        // (1 GB) and wasm32 Vec (2 GB).
         let force_cpu = model_type == ModelType::Gemma4
             && (name.ends_with("embed_tokens.weight")
                 || name.ends_with("lm_head.weight")
-                || name.ends_with("embed_tokens_per_layer.weight")
                 || name.ends_with("per_layer_model_projection.weight")
                 || name.ends_with("per_layer_projection_norm.weight"));
 
@@ -940,13 +951,14 @@ pub async fn init_local_multimodal_chunked(
     }
 
     if model_type == ModelType::Gemma4 {
-        let (audio, qat, lazy_v, lazy_a, bytes) = skipped;
+        let (audio, qat, ple_oversize, lazy_v, lazy_a, bytes) = skipped;
         web_sys::console::log_1(
             &format!(
                 "[wasm/mm] skipped {} tensors ({} audio-unused, {} QAT-stat, \
-                 {} deferred-vision, {} deferred-audio), saved {:.2} GB",
-                audio + qat + lazy_v + lazy_a,
-                audio, qat, lazy_v, lazy_a,
+                 {} PLE-table-oversize, {} deferred-vision, {} deferred-audio), \
+                 saved {:.2} GB",
+                audio + qat + ple_oversize + lazy_v + lazy_a,
+                audio, qat, ple_oversize, lazy_v, lazy_a,
                 bytes as f64 / 1_073_741_824.0,
             )
             .into(),
@@ -1024,15 +1036,14 @@ pub async fn init_local_multimodal_chunked(
             // .pp("model").pp("embed_tokens")`) lands at exactly the same
             // string. With `tie_word_embeddings: true` (the Gemma4-E2B
             // default) `lm_head` shares this same tensor — pinning it once
-            // covers both. embed_tokens_per_layer is the 4.7 GB PLE
-            // table that exceeds WebGPU's 1 GB max-buffer-size limit;
-            // its companions (per_layer_model_projection,
-            // per_layer_projection_norm) are kept on CPU so the PLE
-            // forward merge happens entirely host-side and the result
-            // is moved to GPU in one shot.
+            // covers both. PLE projection / norm tensors are also pinned
+            // so the merge in `PerLayerEmbedding.forward` happens
+            // entirely host-side. (`embed_tokens_per_layer.weight` itself
+            // is dropped by `gemma4_skip_reason` — too big for any
+            // single buffer — and the candle-fork PLE module degrades
+            // gracefully when the table is absent.)
             let cpu_pinned: HashSet<String> = [
                 "model.language_model.model.embed_tokens.weight",
-                "model.language_model.model.embed_tokens_per_layer.weight",
                 "model.language_model.model.per_layer_model_projection.weight",
                 "model.language_model.model.per_layer_projection_norm.weight",
             ]
