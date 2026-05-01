@@ -488,6 +488,22 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
                 .map(|s| s[1] / num_hidden_layers),
             vocab_size_per_layer_input: find("language_model.embed_tokens_per_layer.weight")
                 .map(|s| s[0]),
+            // Gemma 3n AltUp — 4 parallel hidden streams. When the
+            // safetensors index includes the `altup_projections.0.weight`
+            // tensor we know the model carries AltUp; otherwise we
+            // disable it (`altup_num_inputs = 1` collapses the stack
+            // path back to the classic single-stream forward).
+            altup_num_inputs: find("language_model.altup_projections.0.weight")
+                .map(|_| 4)
+                .unwrap_or(1),
+            altup_active_idx: 0,
+            altup_correct_scale: true,
+            altup_coef_clip: Some(120.0),
+            // Gemma 3n LAuReL low-rank residual — `laurel_rank: 64` per
+            // the canonical config.
+            laurel_rank: find("language_model.layers.0.laurel.linear_left.weight")
+                .map(|s| s[0])
+                .unwrap_or(64),
         },
         vision_config: Gemma4VisionConfig {
             hidden_size: 768,
@@ -562,10 +578,18 @@ fn gemma4_remap_key(name: &str) -> String {
         name.to_string()
     };
     if let Some(rest) = s.strip_prefix("model.language_model.") {
-        if rest.starts_with("layers.")
+        // Anything that lives directly on `Gemma3nTextModel` in HF needs
+        // the inner `.model.` segment inserted to match the candle
+        // double-`vb.pp("model")` nesting.
+        let needs_remap = rest.starts_with("layers.")
             || rest.starts_with("embed_tokens")
             || rest.starts_with("norm.")
-        {
+            // Gemma 3n top-level tensors (Phase 2 PLE + Phase 3 AltUp).
+            || rest.starts_with("per_layer_model_projection")
+            || rest.starts_with("per_layer_projection_norm")
+            || rest.starts_with("altup_projections.")
+            || rest.starts_with("altup_unembed_projections.");
+        if needs_remap {
             return format!("model.language_model.model.{rest}");
         }
     }
