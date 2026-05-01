@@ -27,7 +27,8 @@ candle-transformers = { version = "0.10", default-features = false }
 # Candle NN — needed for the multimodal vision path which references
 # `candle_nn::Activation` when constructing the `gemma3_mm::Config`. The
 # providers crate re-exports `VarBuilder` but not the full `candle_nn`
-# surface, so we depend on it directly here.
+# surface, so we depend on it directly here. The `wgpu` feature is
+# pulled in transitively via `brainwires-providers/candle-wgpu`.
 candle-nn = { version = "0.10", default-features = false }
 
 # HF tokenizer with `unstable_wasm` for wasm32 target. The provider crate

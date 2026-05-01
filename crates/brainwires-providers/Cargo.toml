@@ -148,8 +148,18 @@ web-speech = [
     "dep:web-sys",
     "dep:wasm-bindgen-futures",
 ]
-# WebGPU acceleration for local-llm-candle. Forwards to candle-core/wgpu.
-candle-wgpu = ["local-llm-candle", "candle-core/wgpu"]
+# WebGPU acceleration for local-llm-candle. Forwards to candle-core/wgpu
+# *and* candle-nn/wgpu + candle-transformers/wgpu so the
+# `#[cfg(feature = "wgpu")]`-gated `wgpu_fwd` impls on `CustomOp*`
+# implementations (rope, softmax-last-dim, …) land in the build.
+# Without those, the runtime falls back to the default trait impl that
+# returns "no wgpu implementation for <name>".
+candle-wgpu = [
+    "local-llm-candle",
+    "candle-core/wgpu",
+    "candle-nn/wgpu",
+    "candle-transformers/wgpu",
+]
 
 [dev-dependencies]
 serde_json = { workspace = true }
