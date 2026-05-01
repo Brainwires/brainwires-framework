@@ -423,12 +423,35 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
         // the largest single tensor under WebGPU's buffer-size cap. Audio
         // is also lazy by default — currently unused by the chat UI, and
         // attach_audio() is gated until config inference is wired.
+        //
+        // Bisection kill-switches for the Gemma 3n modules (AltUp /
+        // LAuReL / per-layer-input gate) read from a global. Set them
+        // via the browser console before loading, e.g.:
+        //
+        //     globalThis.__bw_disable_altup = true;
+        //
+        // and reload the page.
+        const disableAltup = !!globalThis.__bw_disable_altup;
+        const disableLaurel = !!globalThis.__bw_disable_laurel;
+        const disablePerLayerInputGate = !!globalThis.__bw_disable_per_layer_input_gate;
+        if (disableAltup || disableLaurel || disablePerLayerInputGate) {
+            console.warn(
+                '[local-worker] Gemma 3n kill-switches active:',
+                { disableAltup, disableLaurel, disablePerLayerInputGate },
+            );
+        }
         handle = await mod.init_local_multimodal_chunked(
             readFn,
             fileSize,
             tokenizerBytes,
             modelId,
-            { lazy_vision: true, lazy_audio: true },
+            {
+                lazy_vision: true,
+                lazy_audio: true,
+                disable_altup: disableAltup,
+                disable_laurel: disableLaurel,
+                disable_per_layer_input_gate: disablePerLayerInputGate,
+            },
         );
         loadedModelId = modelId;
         handleIsMultimodal = true;

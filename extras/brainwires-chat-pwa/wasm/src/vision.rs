@@ -318,7 +318,10 @@ fn detect_model_type(tensor_meta: &[(String, StTensorInfo)]) -> ModelType {
 }
 
 /// Build a [`Gemma4Config`] by inspecting tensor shapes in the safetensors header.
-fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4Config, String> {
+fn build_gemma4_config(
+    tensor_meta: &[(String, StTensorInfo)],
+    options: &LoadOptions,
+) -> Result<Gemma4Config, String> {
     let find = |suffix: &str| -> Option<&Vec<usize>> {
         tensor_meta
             .iter()
@@ -512,6 +515,11 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
                     }
                     v
                 }),
+            // Bisection kill-switches default off; surfaced via LoadOptions
+            // so the JS side can flip them in-browser when chasing a regression.
+            disable_altup: options.disable_altup,
+            disable_laurel: options.disable_laurel,
+            disable_per_layer_input_gate: options.disable_per_layer_input_gate,
         },
         vision_config: Gemma4VisionConfig {
             hidden_size: 768,
@@ -635,6 +643,17 @@ struct LoadOptions {
     lazy_vision: bool,
     #[serde(default = "default_true")]
     lazy_audio: bool,
+    /// Bisection kill-switches for the Gemma 3n modules. JS callers can
+    /// flip these (e.g. via a `?disable_altup=1` URL hack handed into
+    /// the worker's load message) to bypass AltUp / LAuReL / per-layer-
+    /// input-gate at construction time. Defaults all-off so existing
+    /// callers see no change.
+    #[serde(default)]
+    disable_altup: bool,
+    #[serde(default)]
+    disable_laurel: bool,
+    #[serde(default)]
+    disable_per_layer_input_gate: bool,
 }
 
 fn default_true() -> bool {
@@ -1000,7 +1019,7 @@ pub async fn init_local_multimodal_chunked(
             (MultimodalInner::Gemma3(Arc::new(pipeline)), None)
         }
         ModelType::Gemma4 => {
-            let cfg = build_gemma4_config(&tensor_meta)
+            let cfg = build_gemma4_config(&tensor_meta, &options)
                 .map_err(|e| JsValue::from_str(&format!("gemma4 config: {e}")))?;
 
             web_sys::console::log_1(
