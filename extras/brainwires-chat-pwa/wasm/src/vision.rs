@@ -13,7 +13,7 @@
 //!
 //! Model type is auto-detected from safetensors tensor names during chunked loading.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use base64::Engine as _;
@@ -937,7 +937,41 @@ pub async fn init_local_multimodal_chunked(
                 .into(),
             );
 
-            let vb = CandleVarBuilder::from_tensors(tensors, DType::BF16, &device);
+            // Gemma4-E2B's embed_tokens / lm_head weights weigh ~800 MB
+            // each in bf16. They were loaded onto CPU above (force_cpu in
+            // load_one_tensor) so they don't eat WebGPU memory, but the
+            // default `HashMap`-backed VarBuilder always calls
+            // `tensor.to_device(dev)` on every fetch — silently undoing the
+            // CPU placement and causing the runtime device-mismatch we hit
+            // in `index_select` (`embed_tokens` weight on Wgpu, the input
+            // ids constructed on Cpu in `Gemma4MultiModal::generate_greedy`).
+            //
+            // `Gemma4MultiModal::generate_greedy` is built around mixed-
+            // device execution: embed_tokens / lm_head on CPU, decoder on
+            // GPU, with explicit `to_device` shuffles around `forward_embeds_hidden`.
+            // To make that design actually take effect we route the
+            // VarBuilder through a small backend that honors the loaded
+            // device for a pinned set of names and falls back to the
+            // default to-device behavior for everything else.
+            // The HashMap key is the post-`gemma4_remap_key` name; the
+            // VarBuilder path (`vb.pp("model").pp("language_model")
+            // .pp("model").pp("embed_tokens")`) lands at exactly the same
+            // string. With `tie_word_embeddings: true` (the Gemma4-E2B
+            // default) `lm_head` shares this same tensor — pinning it once
+            // covers both, so we only need a single entry.
+            let cpu_pinned: HashSet<String> =
+                ["model.language_model.model.embed_tokens.weight"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
+            let vb = CandleVarBuilder::from_backend(
+                Box::new(CpuPinnedBackend {
+                    inner: tensors,
+                    cpu_pinned,
+                }),
+                DType::BF16,
+                device.clone(),
+            );
 
             // `lazy_audio` defaults to true and `cfg.audio_config` is currently
             // synthesized as `None`, so audio is never built at init regardless
@@ -1294,4 +1328,76 @@ fn enqueue_vision_chunk(
     bytes.push(b'\n');
     let view = Uint8Array::from(bytes.as_slice());
     let _ = controller.enqueue_with_chunk(&view);
+}
+
+// ── Per-tensor device-pinning VarBuilder backend ─────────────────────
+//
+// `candle_nn`'s default `SimpleBackend for HashMap<String, Tensor>` calls
+// `tensor.to_device(dev)` on every fetch, which silently moves CPU-loaded
+// weights onto the VarBuilder's GPU device — defeating the chat-pwa's
+// `force_cpu` placement for Gemma4-E2B's 800 MB embed_tokens / lm_head
+// table. This backend honors the loaded device for a small allow-list of
+// pinned names so the table stays where it was loaded; everything else
+// keeps the default to-device behavior.
+struct CpuPinnedBackend {
+    inner: HashMap<String, Tensor>,
+    cpu_pinned: HashSet<String>,
+}
+
+impl candle_nn::var_builder::SimpleBackend for CpuPinnedBackend {
+    fn get(
+        &self,
+        s: candle_core::Shape,
+        name: &str,
+        _: candle_nn::Init,
+        dtype: DType,
+        dev: &Device,
+    ) -> candle_core::Result<Tensor> {
+        let tensor = self
+            .inner
+            .get(name)
+            .ok_or_else(|| {
+                candle_core::Error::CannotFindTensor {
+                    path: name.to_string(),
+                }
+                .bt()
+            })?
+            .clone();
+        if tensor.shape() != &s {
+            Err(candle_core::Error::UnexpectedShape {
+                msg: format!("shape mismatch for {name}"),
+                expected: s,
+                got: tensor.shape().clone(),
+            }
+            .bt())?
+        }
+        if self.cpu_pinned.contains(name) {
+            // Honor the loaded device; don't move to `dev`.
+            tensor.to_dtype(dtype)
+        } else {
+            tensor.to_device(dev)?.to_dtype(dtype)
+        }
+    }
+
+    fn get_unchecked(&self, name: &str, dtype: DType, dev: &Device) -> candle_core::Result<Tensor> {
+        let tensor = self
+            .inner
+            .get(name)
+            .ok_or_else(|| {
+                candle_core::Error::CannotFindTensor {
+                    path: name.to_string(),
+                }
+                .bt()
+            })?
+            .clone();
+        if self.cpu_pinned.contains(name) {
+            tensor.to_dtype(dtype)
+        } else {
+            tensor.to_device(dev)?.to_dtype(dtype)
+        }
+    }
+
+    fn contains_tensor(&self, name: &str) -> bool {
+        self.inner.contains_key(name)
+    }
 }
