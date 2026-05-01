@@ -1136,6 +1136,7 @@ async fn run_vision_stream(
         }
         StreamInner::Gemma4(pipeline) => {
             build_and_generate_gemma4(pipeline, &messages, &params)
+                .await
                 .map_err(|e| format!("{e}"))
         }
     };
@@ -1234,7 +1235,7 @@ fn build_and_generate_gemma3(
 }
 
 /// Gemma-4 generation: extract text/images, run native vision tower + embedder + decoder.
-fn build_and_generate_gemma4(
+async fn build_and_generate_gemma4(
     pipeline: &Gemma4MultiModal,
     messages: &[JsMessage],
     params: &VisionStreamParams,
@@ -1286,7 +1287,9 @@ fn build_and_generate_gemma4(
     let max_new = params.max_tokens.unwrap_or(256) as usize;
     let eos: Option<u32> = Some(1); // Gemma EOS token
 
-    pipeline.generate_greedy(&prompt_text, &pixel_tensors, max_new, eos)
+    pipeline
+        .generate_greedy(&prompt_text, &pixel_tensors, max_new, eos)
+        .await
 }
 
 /// Build a `<role>: <text>\n…` prefix from earlier turns. Plain join — same

@@ -141,7 +141,7 @@ impl Gemma4MultiModal {
     /// `pixel_values`: preprocessed `[1, 3, H, W]` f32 tensors in `[0, 1]`.
     /// The prompt should contain `<start_of_image>` tokens (id 258880) where
     /// images are expected — the tokenizer template handles this.
-    pub fn generate_greedy(
+    pub async fn generate_greedy(
         &self,
         prompt_text: &str,
         pixel_values: &[Tensor],
@@ -207,8 +207,10 @@ impl Gemma4MultiModal {
         let hidden = model
             .language_model
             .forward_embeds_hidden(&embeds, 0, 1, prompt_len)?;
-        // Transfer to CPU for lm_head.
-        let hidden_cpu = hidden.to_device(&Device::Cpu)?;
+        // Transfer to CPU for lm_head. `to_device_async` routes through
+        // `WgpuStorage::read_to_cpu_async` when the source is Wgpu so the
+        // wasm32 worker doesn't deadlock on the GPU map callback.
+        let hidden_cpu = hidden.to_device_async(&Device::Cpu).await?;
         let logits = model.language_model.lm_head(&hidden_cpu)?;
         let mut next_id = argmax_last(&logits)?;
 
@@ -227,7 +229,7 @@ impl Gemma4MultiModal {
             let hidden = model
                 .language_model
                 .forward_embeds_hidden(&single_embed, prompt_len + step, 1, 1)?;
-            let hidden_cpu = hidden.to_device(&Device::Cpu)?;
+            let hidden_cpu = hidden.to_device_async(&Device::Cpu).await?;
             let logits = model.language_model.lm_head(&hidden_cpu)?;
             next_id = argmax_last(&logits)?;
 
