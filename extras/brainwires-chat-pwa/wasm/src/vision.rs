@@ -367,36 +367,32 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
     // The first layer is typically sliding in Gemma4's alternating pattern.
     let layer0_q_out = q_proj_shape[0];
 
-    // Check a later layer to find the other head_dim
-    let layer1_q_out = find("language_model.layers.1.self_attn.q_proj.weight")
-        .map(|s| s[0]);
-
-    // Determine head_dim and global_head_dim from the two layer types.
-    // Gemma 3n's canonical config has a single uniform `head_dim: 256` —
-    // there is no separate `global_head_dim`. The "two layers carry
-    // different sizes" branch below is left in place for variants that
-    // genuinely vary, but if both layers report equal q_proj widths we
-    // honor that uniform value rather than fabricating `global_head_dim
-    // = 512` from thin air (which produced a 1/√2 attention-scale drift
-    // and could shape-mismatch the projections under the right config).
+    // Gemma 3n's layer alternation is 4 sliding + 1 full. Layer 0 /
+    // layer 1 are both sliding, so comparing just those two q_proj
+    // widths can't distinguish sliding `head_dim` from the global
+    // `head_dim` used by full_attention layers. Instead, fix layer 0
+    // as the sliding sample and scan every other layer's q_proj for
+    // the first one whose width differs — that's the global. If no
+    // layer differs, the model is uniformly head_dim and there is no
+    // separate `global_head_dim`.
     const NUM_HEADS: usize = 8; // Gemma 3n / Gemma 4 default
-    let (head_dim, global_head_dim, num_attention_heads) = if let Some(l1_out) = layer1_q_out {
-        if layer0_q_out < l1_out {
-            // layer 0 is sliding (smaller head_dim), layer 1 is global
-            (layer0_q_out / NUM_HEADS, l1_out / NUM_HEADS, NUM_HEADS)
-        } else if layer0_q_out > l1_out {
-            (l1_out / NUM_HEADS, layer0_q_out / NUM_HEADS, NUM_HEADS)
-        } else {
-            // Uniform across layer 0 / layer 1 — most likely a Gemma 3n
-            // config with `head_dim: 256` everywhere. Use the actual
-            // inferred value for both rather than the (256, 512) default.
-            let hd = layer0_q_out / NUM_HEADS;
-            (hd, hd, NUM_HEADS)
+    let head_dim = layer0_q_out / NUM_HEADS;
+    let mut global_head_dim = head_dim;
+    for i in 1..num_hidden_layers {
+        let key = format!("language_model.layers.{i}.self_attn.q_proj.weight");
+        if let Some(shape) = tensor_meta
+            .iter()
+            .find(|(n, _)| n.ends_with(&key))
+            .map(|(_, info)| &info.shape)
+        {
+            let q_out = shape[0];
+            if q_out != layer0_q_out {
+                global_head_dim = q_out / NUM_HEADS;
+                break;
+            }
         }
-    } else {
-        // Single-layer model (shouldn't happen) — fall back to defaults.
-        (256, 256, NUM_HEADS)
-    };
+    }
+    let num_attention_heads = NUM_HEADS;
 
     let num_key_value_heads = kv_proj_shape[0] / head_dim;
 
@@ -888,8 +884,22 @@ pub async fn init_local_multimodal_chunked(
             }
         }
 
+        // Force-CPU keeps these tensors in host memory so they don't
+        // try to occupy WebGPU buffers. embed_tokens.weight (~800 MB)
+        // and embed_tokens_per_layer.weight (~4.7 GB) both blow past
+        // the 1 GB WebGPU max-buffer-size limit. lm_head shares
+        // embed_tokens via tied weights so it tags along. The PLE
+        // companion tensors (per_layer_model_projection +
+        // per_layer_projection_norm) stay on CPU as well so the
+        // PerLayerEmbedding.forward merge happens entirely on CPU
+        // (Gemma4MultiModal::generate_greedy moves the resulting table
+        // to GPU in one shot).
         let force_cpu = model_type == ModelType::Gemma4
-            && (name.ends_with("embed_tokens.weight") || name.ends_with("lm_head.weight"));
+            && (name.ends_with("embed_tokens.weight")
+                || name.ends_with("lm_head.weight")
+                || name.ends_with("embed_tokens_per_layer.weight")
+                || name.ends_with("per_layer_model_projection.weight")
+                || name.ends_with("per_layer_projection_norm.weight"));
 
         let tensor = load_one_tensor(
             name,
@@ -1014,12 +1024,21 @@ pub async fn init_local_multimodal_chunked(
             // .pp("model").pp("embed_tokens")`) lands at exactly the same
             // string. With `tie_word_embeddings: true` (the Gemma4-E2B
             // default) `lm_head` shares this same tensor — pinning it once
-            // covers both, so we only need a single entry.
-            let cpu_pinned: HashSet<String> =
-                ["model.language_model.model.embed_tokens.weight"]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect();
+            // covers both. embed_tokens_per_layer is the 4.7 GB PLE
+            // table that exceeds WebGPU's 1 GB max-buffer-size limit;
+            // its companions (per_layer_model_projection,
+            // per_layer_projection_norm) are kept on CPU so the PLE
+            // forward merge happens entirely host-side and the result
+            // is moved to GPU in one shot.
+            let cpu_pinned: HashSet<String> = [
+                "model.language_model.model.embed_tokens.weight",
+                "model.language_model.model.embed_tokens_per_layer.weight",
+                "model.language_model.model.per_layer_model_projection.weight",
+                "model.language_model.model.per_layer_projection_norm.weight",
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
             let vb = CandleVarBuilder::from_backend(
                 Box::new(CpuPinnedBackend {
                     inner: tensors,
