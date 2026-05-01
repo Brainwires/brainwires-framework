@@ -21,6 +21,66 @@ use crate::CandleDType as DType;
 use crate::CandleDevice as Device;
 use crate::CandleTensor as Tensor;
 
+/// Best-effort diagnostic log. On wasm32 forwards to `console.log`; on
+/// native, writes to stderr. Used by the gemma4 pipeline to surface
+/// per-step generation state when the user reports "no output".
+fn diag_log(msg: &str) {
+    #[cfg(target_arch = "wasm32")]
+    web_sys::console::log_1(&msg.into());
+    #[cfg(not(target_arch = "wasm32"))]
+    eprintln!("{msg}");
+}
+
+/// Per-token diagnostic emitted for the first 5 generation steps and at
+/// step 0. Logs `next_id`, decoded text for that single token, and the
+/// top-5 logit values so we can tell whether the model is producing
+/// reasonable distributions vs collapsing to NaN/Inf vs always picking
+/// EOS.
+fn log_step_diag(step: usize, logits: &Tensor, next_id: u32, tokenizer: &Tokenizer) {
+    if step > 5 {
+        return;
+    }
+    // logits: [B, N, vocab]; take the last row.
+    let last_row = match logits
+        .dims3()
+        .ok()
+        .and_then(|(_, n, _)| logits.narrow(1, n - 1, 1).ok())
+        .and_then(|t| t.squeeze(1).ok())
+        .and_then(|t| t.squeeze(0).ok())
+    {
+        Some(row) => row,
+        None => return,
+    };
+    let row_f32 = match last_row.dtype() {
+        DType::F32 => last_row,
+        _ => match last_row.to_dtype(DType::F32) {
+            Ok(t) => t,
+            Err(_) => return,
+        },
+    };
+    let v: Vec<f32> = match row_f32.to_vec1::<f32>() {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+
+    // Top-5 by magnitude
+    let mut idx: Vec<usize> = (0..v.len()).collect();
+    idx.sort_unstable_by(|&a, &b| v[b].partial_cmp(&v[a]).unwrap_or(std::cmp::Ordering::Equal));
+    let top5: Vec<String> = idx
+        .iter()
+        .take(5)
+        .map(|&i| format!("{i}={:.3}", v[i]))
+        .collect();
+    let any_nan = v.iter().any(|x| x.is_nan());
+    let any_inf = v.iter().any(|x| x.is_infinite());
+    let decoded = tokenizer.decode(&[next_id], false).unwrap_or_default();
+    diag_log(&format!(
+        "[gemma4] step {step}: next_id={next_id} decoded={decoded:?} \
+         top5=[{}] nan={any_nan} inf={any_inf}",
+        top5.join(", "),
+    ));
+}
+
 /// Image token id for Gemma-4 (from config defaults).
 pub const GEMMA4_IMAGE_TOKEN_ID: u32 = 258_880;
 
@@ -213,9 +273,13 @@ impl Gemma4MultiModal {
         let hidden_cpu = hidden.to_device_async(&Device::Cpu).await?;
         let logits = model.language_model.lm_head(&hidden_cpu)?;
         let mut next_id = argmax_last(&logits)?;
+        log_step_diag(0, &logits, next_id, &self.tokenizer);
 
         let mut generated: Vec<u32> = Vec::with_capacity(max_new_tokens);
         if Some(next_id) == eos_token_id {
+            diag_log(&format!(
+                "[gemma4] step 0 produced EOS ({next_id}) — generation terminated immediately"
+            ));
             return self.decode_tokens(&generated);
         }
         generated.push(next_id);
@@ -232,6 +296,7 @@ impl Gemma4MultiModal {
             let hidden_cpu = hidden.to_device_async(&Device::Cpu).await?;
             let logits = model.language_model.lm_head(&hidden_cpu)?;
             next_id = argmax_last(&logits)?;
+            log_step_diag(step + 1, &logits, next_id, &self.tokenizer);
 
             if Some(next_id) == eos_token_id {
                 break;

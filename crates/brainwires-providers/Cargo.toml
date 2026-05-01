@@ -101,9 +101,15 @@ hf-hub = { version = "0.4", default-features = false, features = ["tokio", "rust
 # wasm32 needs the JS-backed `getrandom` for any RNG-using transitive deps
 # (uuid, candle/tokenizers via rand). We enable both 0.2 (`js`) and 0.3
 # (`wasm_js`) since the dep graph includes both major versions.
+#
+# `web-sys` (with the `console` feature) is also pulled in unconditionally
+# on wasm32 so the local-llm pipeline can emit per-step diagnostics into
+# the browser console without forcing every wasm caller to opt into the
+# `web-speech` feature gate.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 getrandom_v3 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+web-sys = { version = "0.3", features = ["console"] }
 
 [features]
 # No default features. Native callers must opt into `native` (the workspace

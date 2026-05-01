@@ -371,25 +371,31 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
     let layer1_q_out = find("language_model.layers.1.self_attn.q_proj.weight")
         .map(|s| s[0]);
 
-    // Determine head_dim and global_head_dim from the two layer types
+    // Determine head_dim and global_head_dim from the two layer types.
+    // Gemma 3n's canonical config has a single uniform `head_dim: 256` —
+    // there is no separate `global_head_dim`. The "two layers carry
+    // different sizes" branch below is left in place for variants that
+    // genuinely vary, but if both layers report equal q_proj widths we
+    // honor that uniform value rather than fabricating `global_head_dim
+    // = 512` from thin air (which produced a 1/√2 attention-scale drift
+    // and could shape-mismatch the projections under the right config).
+    const NUM_HEADS: usize = 8; // Gemma 3n / Gemma 4 default
     let (head_dim, global_head_dim, num_attention_heads) = if let Some(l1_out) = layer1_q_out {
         if layer0_q_out < l1_out {
             // layer 0 is sliding (smaller head_dim), layer 1 is global
-            let num_heads = 8; // Gemma4 default
-            let hd = layer0_q_out / num_heads;
-            let ghd = l1_out / num_heads;
-            (hd, ghd, num_heads)
+            (layer0_q_out / NUM_HEADS, l1_out / NUM_HEADS, NUM_HEADS)
         } else if layer0_q_out > l1_out {
-            let num_heads = 8;
-            let hd = l1_out / num_heads;
-            let ghd = layer0_q_out / num_heads;
-            (hd, ghd, num_heads)
+            (l1_out / NUM_HEADS, layer0_q_out / NUM_HEADS, NUM_HEADS)
         } else {
-            // Same size — use defaults
-            (256, 512, 8)
+            // Uniform across layer 0 / layer 1 — most likely a Gemma 3n
+            // config with `head_dim: 256` everywhere. Use the actual
+            // inferred value for both rather than the (256, 512) default.
+            let hd = layer0_q_out / NUM_HEADS;
+            (hd, hd, NUM_HEADS)
         }
     } else {
-        (256, 512, 8)
+        // Single-layer model (shouldn't happen) — fall back to defaults.
+        (256, 256, NUM_HEADS)
     };
 
     let num_key_value_heads = kv_proj_shape[0] / head_dim;
@@ -452,12 +458,21 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
             rms_norm_eps: 1e-6,
             rope_theta: 1_000_000.0,
             vocab_size,
-            sliding_window: 4096,
-            final_logit_softcapping: None,
+            // Per the canonical Gemma 3n / Gemma 4 config.json. The earlier
+            // value (4096) was a Gemma 2 carry-over and over-extended the
+            // RotatingKvCache + sliding-attention mask span on local layers.
+            sliding_window: 512,
+            // Real config: `final_logit_softcapping: 30.0` (the Gemma 2
+            // soft-cap returned in 3n alongside QK-norm). Without it the
+            // last-layer logits aren't squashed to the trained range and
+            // the sampler sees out-of-distribution magnitudes.
+            final_logit_softcapping: Some(30.0),
             query_pre_attn_scalar: head_dim,
-            max_position_embeddings: 131072,
+            max_position_embeddings: 32768,
             tie_word_embeddings: true,
-            sliding_window_pattern: 6,
+            // 4 sliding + 1 full per group (Gemma 3n / Gemma 4 layer_types
+            // pattern), down from Gemma 3's 5+1.
+            sliding_window_pattern: 5,
             layer_types,
             global_head_dim,
             num_global_key_value_heads: None,
