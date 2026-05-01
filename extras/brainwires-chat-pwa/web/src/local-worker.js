@@ -450,6 +450,16 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
 }
 
 async function handleChat(msg) {
+    // The text-only `local_chat_stream` takes a `LocalModelHandle`; when
+    // we've loaded a multimodal model the handle is `LocalMultiModalHandle`
+    // and that wasm-bindgen `instanceof` check fails with
+    //   "expected instance of LocalModelHandle".
+    // Route through the multimodal stream fn instead — it accepts text-only
+    // messages (no image parts → no vision tower needed) and emits the same
+    // NDJSON wire shape, so `runChatStream` is unchanged.
+    if (handleIsMultimodal) {
+        return runChatStream(msg, 'local_chat_stream_with_image');
+    }
     return runChatStream(msg, 'local_chat_stream');
 }
 
