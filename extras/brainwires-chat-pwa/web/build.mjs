@@ -24,7 +24,7 @@ import * as esbuild from 'esbuild';
 import { createHash } from 'node:crypto';
 import {
     readFileSync, writeFileSync, existsSync,
-    mkdirSync, readdirSync, copyFileSync,
+    mkdirSync, readdirSync, copyFileSync, statSync,
 } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
@@ -136,6 +136,10 @@ const STATIC_ASSETS = [
     'vendor/rsqlite/dist/worker.js',
     'vendor/rsqlite/dist/worker-proxy.js',
     'vendor/rsqlite/dist/index.js',
+    // worker.js dynamically imports `./wasm/rsqlite_wasm.js`; pre-cache
+    // those so the SQLite worker boots offline.
+    'vendor/rsqlite/dist/wasm/rsqlite_wasm.js',
+    'vendor/rsqlite/dist/wasm/rsqlite_wasm_bg.wasm',
     ...SUPPORTED_LANGS.map((code) => `lang/${code}.json`),
 ];
 
@@ -269,6 +273,36 @@ function generateRsqliteAssets() {
     for (const f of ['worker.js', 'worker-proxy.js', 'index.js', 'types.js']) {
         const p = join(distSrc, f);
         if (existsSync(p)) copyFileSync(p, join(distDst, f));
+    }
+    // worker.js imports `./wasm/rsqlite_wasm.js` relative to itself, so the
+    // wasm glue + binary must live at `dist/wasm/`. Upstream stages them
+    // there (next to dist/worker.js); mirror that into vendor/.
+    const distWasmSrc = join(distSrc, 'wasm');
+    const distWasmDst = join(distDst, 'wasm');
+    if (existsSync(distWasmSrc)) {
+        mkdirSync(distWasmDst, { recursive: true });
+        for (const f of readdirSync(distWasmSrc)) {
+            const srcEntry = join(distWasmSrc, f);
+            // Copy the inline-snippets dir recursively; everything else is flat.
+            if (statSync(srcEntry).isDirectory()) {
+                const dstDir = join(distWasmDst, f);
+                mkdirSync(dstDir, { recursive: true });
+                for (const dir of readdirSync(srcEntry)) {
+                    const innerSrc = join(srcEntry, dir);
+                    if (statSync(innerSrc).isDirectory()) {
+                        const innerDst = join(dstDir, dir);
+                        mkdirSync(innerDst, { recursive: true });
+                        for (const inner of readdirSync(innerSrc)) {
+                            copyFileSync(join(innerSrc, inner), join(innerDst, inner));
+                        }
+                    } else {
+                        copyFileSync(innerSrc, join(dstDir, dir));
+                    }
+                }
+            } else {
+                copyFileSync(srcEntry, join(distWasmDst, f));
+            }
+        }
     }
     for (const f of ['rsqlite_wasm.js', 'rsqlite_wasm_bg.wasm']) {
         const p = join(pkgSrc, f);
