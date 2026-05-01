@@ -277,19 +277,21 @@ impl Gemma4MultiModal {
             }
         }
 
-        // 3. Initial forward pass through decoder layers on GPU.
-        let hidden = model.language_model.forward_embeds_hidden_with_per_layer(
+        // 3. Initial forward pass — decoder + lm_head all on GPU.
+        // `forward_embeds_with_per_layer` applies lm_head + final logit
+        // softcapping on the device the lm_head weight lives on, which
+        // is the GPU device per the candle-fork untie-on-vb.device()
+        // change. Per-token cost: one GPU matmul + a ~1 MB
+        // [1, 1, vocab_size] readback (vs ~hundreds of ms of CPU bf16
+        // matmul before).
+        let logits_gpu = model.language_model.forward_embeds_with_per_layer(
             &embeds,
             per_layer_inputs_gpu.as_ref(),
             0,
             1,
             prompt_len,
         )?;
-        // Transfer to CPU for lm_head. `to_device_async` routes through
-        // `WgpuStorage::read_to_cpu_async` when the source is Wgpu so the
-        // wasm32 worker doesn't deadlock on the GPU map callback.
-        let hidden_cpu = hidden.to_device_async(&Device::Cpu).await?;
-        let logits = model.language_model.lm_head(&hidden_cpu)?;
+        let logits = logits_gpu.to_device_async(&Device::Cpu).await?;
         let mut next_id = argmax_last(&logits)?;
         log_step_diag(0, &logits, next_id, &self.tokenizer);
 
@@ -316,15 +318,14 @@ impl Gemma4MultiModal {
                 None => None,
             };
 
-            let hidden = model.language_model.forward_embeds_hidden_with_per_layer(
+            let logits_gpu = model.language_model.forward_embeds_with_per_layer(
                 &single_embed,
                 per_layer_step_gpu.as_ref(),
                 prompt_len + step,
                 1,
                 1,
             )?;
-            let hidden_cpu = hidden.to_device_async(&Device::Cpu).await?;
-            let logits = model.language_model.lm_head(&hidden_cpu)?;
+            let logits = logits_gpu.to_device_async(&Device::Cpu).await?;
             next_id = argmax_last(&logits)?;
             log_step_diag(step + 1, &logits, next_id, &self.tokenizer);
 
