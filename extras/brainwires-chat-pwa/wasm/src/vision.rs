@@ -504,6 +504,18 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
             laurel_rank: find("language_model.layers.0.laurel.linear_left.weight")
                 .map(|s| s[0])
                 .unwrap_or(64),
+            // Gemma 3n activation sparsity — first 10 layers train at
+            // 0.95 (zero the bottom 95% of gate_proj per-token), the
+            // rest run dense. Only enable when AltUp is also wired
+            // (i.e. we're loading a real Gemma 3n checkpoint).
+            activation_sparsity_pattern: find("language_model.altup_projections.0.weight")
+                .map(|_| {
+                    let mut v = Vec::with_capacity(num_hidden_layers);
+                    for i in 0..num_hidden_layers {
+                        v.push(if i < 10 { 0.95 } else { 0.0 });
+                    }
+                    v
+                }),
         },
         vision_config: Gemma4VisionConfig {
             hidden_size: 768,
