@@ -234,7 +234,21 @@ impl Gemma4MultiModal {
         let input_ids_tensor =
             Tensor::from_vec(input_ids.clone(), (1, prompt_len), &Device::Cpu)?;
         let mut embeds = model.language_model.embed_tokens(&input_ids_tensor)?;
+
+        // Compute the Gemma 3n per-layer-input table (if PLE is wired).
+        // The table is `[B, T, num_layers, hidden_per_layer]` — small
+        // relative to the main embed (hidden_per_layer is typically 256
+        // vs hidden=2048-ish). Built on CPU using the CPU input_ids +
+        // CPU embeds, then moved to GPU alongside the main embeds.
+        let per_layer_inputs_cpu = model
+            .language_model
+            .compute_per_layer_inputs(&input_ids_tensor, &embeds)?;
+
         embeds = embeds.to_device(&self.gpu_device)?;
+        let per_layer_inputs_gpu = match per_layer_inputs_cpu {
+            Some(t) => Some(t.to_device(&self.gpu_device)?),
+            None => None,
+        };
 
         // 2. If we have images, run vision tower + embedder and splice results.
         if !pixel_values.is_empty() {
@@ -264,9 +278,13 @@ impl Gemma4MultiModal {
         }
 
         // 3. Initial forward pass through decoder layers on GPU.
-        let hidden = model
-            .language_model
-            .forward_embeds_hidden(&embeds, 0, 1, prompt_len)?;
+        let hidden = model.language_model.forward_embeds_hidden_with_per_layer(
+            &embeds,
+            per_layer_inputs_gpu.as_ref(),
+            0,
+            1,
+            prompt_len,
+        )?;
         // Transfer to CPU for lm_head. `to_device_async` routes through
         // `WgpuStorage::read_to_cpu_async` when the source is Wgpu so the
         // wasm32 worker doesn't deadlock on the GPU map callback.
@@ -288,11 +306,23 @@ impl Gemma4MultiModal {
         for step in 0..max_new_tokens.saturating_sub(1) {
             let token_tensor = Tensor::from_vec(vec![next_id], (1, 1), &Device::Cpu)?;
             let single_embed = model.language_model.embed_tokens(&token_tensor)?;
-            let single_embed = single_embed.to_device(&self.gpu_device)?;
-
-            let hidden = model
+            // Single-token PLE table: same shape rules but with T=1.
+            let per_layer_step_cpu = model
                 .language_model
-                .forward_embeds_hidden(&single_embed, prompt_len + step, 1, 1)?;
+                .compute_per_layer_inputs(&token_tensor, &single_embed)?;
+            let single_embed = single_embed.to_device(&self.gpu_device)?;
+            let per_layer_step_gpu = match per_layer_step_cpu {
+                Some(t) => Some(t.to_device(&self.gpu_device)?),
+                None => None,
+            };
+
+            let hidden = model.language_model.forward_embeds_hidden_with_per_layer(
+                &single_embed,
+                per_layer_step_gpu.as_ref(),
+                prompt_len + step,
+                1,
+                1,
+            )?;
             let hidden_cpu = hidden.to_device_async(&Device::Cpu).await?;
             let logits = model.language_model.lm_head(&hidden_cpu)?;
             next_id = argmax_last(&logits)?;

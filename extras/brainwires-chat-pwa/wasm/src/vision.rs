@@ -479,6 +479,15 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
             rope_parameters: None,
             use_bidirectional_attention: None,
             use_flash_attn: false,
+            // Gemma 3n PLE — width of the per-layer auxiliary input
+            // (256 for E2B / E4B per the canonical config). When the
+            // safetensors index includes `embed_tokens_per_layer.weight`
+            // we infer the actual width from its shape; otherwise we
+            // disable PLE so non-Gemma3n configs keep working.
+            hidden_size_per_layer_input: find("language_model.embed_tokens_per_layer.weight")
+                .map(|s| s[1] / num_hidden_layers),
+            vocab_size_per_layer_input: find("language_model.embed_tokens_per_layer.weight")
+                .map(|s| s[0]),
         },
         vision_config: Gemma4VisionConfig {
             hidden_size: 768,
@@ -504,23 +513,20 @@ fn build_gemma4_config(tensor_meta: &[(String, StTensorInfo)]) -> Result<Gemma4C
 }
 
 /// Tensors present in the Gemma 3n / Gemma4 QAT safetensors that the
-/// candle-fork [`Gemma4Model`] does not reference. Skipping them avoids:
-/// (a) the 4.7 GB `embed_tokens_per_layer.weight` blowing past the 1 GB
-///     WebGPU buffer cap (PLE is not implemented in the decoder), and
-/// (b) loading the entire audio tower when audio is disabled.
+/// candle-fork [`Gemma4Model`] does not reference. Skipping them avoids
+/// loading audio tower weights when audio is disabled and dropping the
+/// QAT input/output min/max statistics (training-time only — they don't
+/// participate in the forward pass).
+///
+/// Per-Layer Embeddings (PLE) used to be skipped here too, but Phase 2
+/// of the Gemma 3n implementation now consumes those tensors via the
+/// new `PerLayerEmbedding` module and per-layer side-channel into each
+/// decoder layer. They flow through the loader normally.
 ///
 /// Returns `Some(reason)` if the tensor should be skipped, `None` otherwise.
 fn gemma4_skip_reason(name: &str) -> Option<&'static str> {
     if name.contains(".audio_tower.") {
         return Some("audio");
-    }
-    if name.ends_with(".embed_tokens_per_layer.weight")
-        || name.ends_with(".per_layer_input_gate.weight")
-        || name.ends_with(".per_layer_projection.weight")
-        || name.ends_with(".post_per_layer_input_norm.weight")
-        || name.ends_with(".layer_scalar")
-    {
-        return Some("ple");
     }
     if name.ends_with(".input_min")
         || name.ends_with(".input_max")
@@ -817,8 +823,8 @@ pub async fn init_local_multimodal_chunked(
     );
 
     let mut tensors: HashMap<String, Tensor> = HashMap::with_capacity(total);
-    // (audio_unused, ple, qat-stat, lazy_vision, lazy_audio, total bytes deferred)
-    let mut skipped = (0usize, 0usize, 0usize, 0usize, 0usize, 0u64);
+    // (audio_unused, qat-stat, lazy_vision, lazy_audio, total bytes deferred)
+    let mut skipped = (0usize, 0usize, 0usize, 0usize, 0u64);
     for (idx, (name, info)) in tensor_meta.iter().enumerate() {
         let length = info.data_offsets.1 - info.data_offsets.0;
 
@@ -826,23 +832,22 @@ pub async fn init_local_multimodal_chunked(
             if let Some(reason) = gemma4_skip_reason(name) {
                 match reason {
                     "audio" => skipped.0 += 1,
-                    "ple" => skipped.1 += 1,
-                    "qat-stat" => skipped.2 += 1,
+                    "qat-stat" => skipped.1 += 1,
                     _ => {}
                 }
-                skipped.5 += length;
+                skipped.4 += length;
                 continue;
             }
             if options.lazy_vision && is_vision_tensor(name) {
-                skipped.3 += 1;
-                skipped.5 += length;
+                skipped.2 += 1;
+                skipped.4 += length;
                 continue;
             }
             if options.lazy_audio && is_audio_tensor(name) {
                 // Audio is also caught by gemma4_skip_reason("audio") above,
                 // but keep this guarded in case that filter is relaxed.
-                skipped.4 += 1;
-                skipped.5 += length;
+                skipped.3 += 1;
+                skipped.4 += length;
                 continue;
             }
         }
@@ -889,13 +894,13 @@ pub async fn init_local_multimodal_chunked(
     }
 
     if model_type == ModelType::Gemma4 {
-        let (audio, ple, qat, lazy_v, lazy_a, bytes) = skipped;
+        let (audio, qat, lazy_v, lazy_a, bytes) = skipped;
         web_sys::console::log_1(
             &format!(
-                "[wasm/mm] skipped {} tensors ({} audio-unused, {} PLE, {} QAT-stat, \
+                "[wasm/mm] skipped {} tensors ({} audio-unused, {} QAT-stat, \
                  {} deferred-vision, {} deferred-audio), saved {:.2} GB",
-                audio + ple + qat + lazy_v + lazy_a,
-                audio, ple, qat, lazy_v, lazy_a,
+                audio + qat + lazy_v + lazy_a,
+                audio, qat, lazy_v, lazy_a,
                 bytes as f64 / 1_073_741_824.0,
             )
             .into(),
