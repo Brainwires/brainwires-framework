@@ -797,6 +797,11 @@ fn build_opfs_per_layer_table(
         DType::F16 | DType::BF16 | DType::I16 => 2,
         DType::F64 | DType::I64 => 8,
         DType::U8 => 1,
+        other => {
+            return Err(format!(
+                "PLE table: unsupported dtype {other:?} for OPFS streaming"
+            ));
+        }
     };
     let row_bytes = (row_elements * elem_bytes) as u64;
     let table_offset = data_start + info.data_offsets.0;
