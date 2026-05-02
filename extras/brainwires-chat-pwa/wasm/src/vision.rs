@@ -562,6 +562,16 @@ fn build_gemma4_config(
             default_output_length: 280,
             standardize: false,
             rope_parameters: None,
+            // Canonical Gemma 3n vision encoder is MobileNetV5 (300M).
+            // Read the value from safetensors `__metadata__` if the
+            // trainer embedded it, otherwise default to the canonical
+            // string so `attach_vision` can route by architecture.
+            architecture: Some(
+                metadata
+                    .get("vision_architecture")
+                    .cloned()
+                    .unwrap_or_else(|| "mobilenetv5_300m_enc".to_string()),
+            ),
         },
         audio_config: None,
         image_token_id: 258880,
