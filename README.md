@@ -114,6 +114,8 @@ The Brainwires Framework is a workspace of 16 framework crates plus 25 extras (i
 
 **Forbidden:** `crates/ → extras/` (the framework cannot depend on its consumers) and `extras/ → extras/` (extras are siblings of equal standing, not a hierarchy). If an `extras/` library starts being depended on by another `extras/` entry, that's a signal it belongs in `crates/`.
 
+Enforcement: `cargo xtask lint-deps` walks every `Cargo.toml` and rejects forbidden arrows. See [`docs/adr/ADR-0004-framework-extras-boundary.md`](docs/adr/ADR-0004-framework-extras-boundary.md) for the rationale.
+
 The `deprecated/` directory holds historical crates that have been merged or retired; nothing in the active workspace depends on it.
 
 ## Getting Started

@@ -95,11 +95,14 @@ brainwires-resilience = { path = "crates/brainwires-resilience", version = "0.10
 brainwires-session = { path = "crates/brainwires-session", version = "0.10.0" }
 brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.10.0" }
 brainwires-training = { path = "crates/brainwires-training", version = "0.10.0" }
-brainwires-autonomy = { path = "extras/brainwires-autonomy", version = "0.10.0", default-features = false }
 brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.10.0", default-features = false }
 brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.10.0" }
 brainwires-telemetry  = { path = "crates/brainwires-telemetry",  version = "0.10.0", default-features = false }
-brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.10.0" }
+# `brainwires-autonomy` and `brainwires-proxy` live in `extras/`. They are
+# workspace-only (publish = false) and no `crates/` member depends on them, so
+# they intentionally do NOT appear in [workspace.dependencies] — that table is
+# the API surface of the framework. See ADR-0004 (framework / extras boundary)
+# and `cargo xtask lint-deps`.
 
 # Tokenizer dependencies
 tokenizers = "0.22"
