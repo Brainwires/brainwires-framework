@@ -119,7 +119,7 @@ impl BuiltinToolExecutor {
 
                 // Validation
                 "check_duplicates" | "verify_build" | "check_syntax" => {
-                    return crate::ValidationTool::execute(tool_use_id, tool_name, input, context)
+                    return brainwires_tool_runtime::ValidationTool::execute(tool_use_id, tool_name, input, context)
                         .await;
                 }
 
@@ -136,7 +136,7 @@ impl BuiltinToolExecutor {
         #[cfg(any(feature = "orchestrator", feature = "orchestrator-wasm"))]
         {
             if tool_name == "execute_script" {
-                let orchestrator = crate::OrchestratorTool::new();
+                let orchestrator = brainwires_tool_runtime::OrchestratorTool::new();
                 return orchestrator
                     .execute(tool_use_id, tool_name, input, context)
                     .await;
