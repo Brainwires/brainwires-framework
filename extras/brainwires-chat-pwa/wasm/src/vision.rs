@@ -654,6 +654,154 @@ fn is_vision_tensor(name: &str) -> bool {
     name.contains(".vision_tower.") || name.contains(".embed_vision.")
 }
 
+// ── OPFS-backed per-layer-embedding table ──────────────────────────────────
+//
+// The Gemma 3n `embed_tokens_per_layer.weight` tensor for the E2B
+// checkpoint is `~262_144 × 30 × 256 × bf16 ≈ 4.7 GB` — too big for a
+// single WebGPU buffer (1 GB cap) or a wasm32 `Vec` (`isize::MAX` ≈
+// 2 GB cap). We can't load it into RAM at all on this target.
+//
+// Instead, we keep the safetensors `read_fn` callback alive past
+// `init_local_multimodal_chunked` and read the matching row on every
+// PLE lookup. Per-token cost is one OPFS sync read of
+// `num_layers * hidden_per_layer * sizeof(dtype)` bytes (≈ 15 KB for E2B),
+// which is well below the per-step budget. Memory cost is exactly zero
+// — rows are decoded into a per-call buffer and then into the merge
+// tensor, with no caching.
+
+/// Streaming `PerLayerEmbedTable` impl backed by OPFS sync-access reads
+/// against the original safetensors blob.
+///
+/// `Send`/`Sync` are unsafely asserted because `js_sys::Function` is
+/// `!Send`/`!Sync` by default. wasm32 is single-threaded — there is no
+/// scenario where the table can be read from another thread, so the
+/// asserts are sound for the only target this type compiles for.
+struct OpfsPerLayerEmbedTable {
+    read_fn: Function,
+    /// Absolute byte offset of the PLE table inside the safetensors file
+    /// (`data_start + entry.data_offsets.0`).
+    table_offset: u64,
+    vocab_size: usize,
+    /// `num_hidden_layers * hidden_per_layer` — the row width in
+    /// elements (not bytes).
+    row_elements: usize,
+    /// Bytes per row (`row_elements * sizeof(dtype)`).
+    row_bytes: u64,
+    /// The dtype the safetensors file stores the table as. Typically
+    /// `BF16` for Gemma 3n.
+    src_dtype: DType,
+    /// The dtype the merge in `PerLayerEmbedding::forward` expects —
+    /// matches the model's compute dtype (BF16). Cast on lookup if
+    /// `src_dtype != target_dtype`.
+    target_dtype: DType,
+}
+
+unsafe impl Send for OpfsPerLayerEmbedTable {}
+unsafe impl Sync for OpfsPerLayerEmbedTable {}
+
+impl std::fmt::Debug for OpfsPerLayerEmbedTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpfsPerLayerEmbedTable")
+            .field("vocab_size", &self.vocab_size)
+            .field("row_elements", &self.row_elements)
+            .field("src_dtype", &self.src_dtype)
+            .field("target_dtype", &self.target_dtype)
+            .finish()
+    }
+}
+
+impl candle_transformers::models::gemma4::PerLayerEmbedTable
+    for OpfsPerLayerEmbedTable
+{
+    fn lookup(
+        &self,
+        input_ids: &Tensor,
+    ) -> candle_core::Result<Tensor> {
+        let ids_cpu = input_ids.to_device(&Device::Cpu)?;
+        let (b, t) = ids_cpu.dims2()?;
+        let ids: Vec<i64> = ids_cpu.flatten_all()?.to_vec1::<i64>()?;
+
+        let total_bytes = (b * t) * (self.row_bytes as usize);
+        let mut buf: Vec<u8> = Vec::with_capacity(total_bytes);
+        for id in &ids {
+            // Clamp into vocab range — out-of-range ids in PLE tables get
+            // the sentinel row (matches `candle_nn::Embedding::forward`'s
+            // behavior; SQLAlchemy-style clamp at the lookup boundary).
+            let id_u = (*id).max(0) as u64;
+            let id_clamped = id_u.min(self.vocab_size as u64 - 1);
+            let offset = self.table_offset + id_clamped * self.row_bytes;
+            let row = call_read_fn(&self.read_fn, offset, self.row_bytes)
+                .map_err(|e| candle_core::Error::Msg(format!(
+                    "OPFS PLE row read failed at id={id_clamped}: {}",
+                    e.as_string().unwrap_or_else(|| "<no msg>".into()),
+                )))?;
+            buf.extend_from_slice(&row);
+        }
+
+        let raw = Tensor::from_raw_buffer(
+            &buf,
+            self.src_dtype,
+            &[b, t, self.row_elements],
+            &Device::Cpu,
+        )?;
+        if raw.dtype() == self.target_dtype {
+            Ok(raw)
+        } else {
+            raw.to_dtype(self.target_dtype)
+        }
+    }
+}
+
+/// Build an `OpfsPerLayerEmbedTable` from the parsed safetensors header,
+/// or `None` when the checkpoint doesn't carry the PLE table at all.
+///
+/// The companion `gemma4_skip_reason("ple-table-oversize")` filter
+/// already drops this tensor at load time so it never enters the
+/// VarBuilder — this function reads the same `tensor_meta` entry that
+/// the loader skipped to build a streaming-source replacement.
+fn build_opfs_per_layer_table(
+    tensor_meta: &[(String, StTensorInfo)],
+    read_fn: Function,
+    data_start: u64,
+    target_dtype: DType,
+) -> Result<Option<Arc<dyn candle_transformers::models::gemma4::PerLayerEmbedTable>>, String> {
+    let entry = tensor_meta
+        .iter()
+        .find(|(n, _)| n.ends_with(".embed_tokens_per_layer.weight"));
+    let (_, info) = match entry {
+        Some(e) => e,
+        None => return Ok(None),
+    };
+    if info.shape.len() != 2 {
+        return Err(format!(
+            "embed_tokens_per_layer.weight: expected rank-2 shape, got {:?}",
+            info.shape,
+        ));
+    }
+    let vocab_size = info.shape[0];
+    let row_elements = info.shape[1];
+    let src_dtype = st_dtype_to_candle(&info.dtype)
+        .map_err(|e| format!("PLE table dtype: {e}"))?;
+    let elem_bytes: usize = match src_dtype {
+        DType::F32 | DType::I32 | DType::U32 => 4,
+        DType::F16 | DType::BF16 | DType::I16 => 2,
+        DType::F64 | DType::I64 => 8,
+        DType::U8 => 1,
+    };
+    let row_bytes = (row_elements * elem_bytes) as u64;
+    let table_offset = data_start + info.data_offsets.0;
+
+    Ok(Some(Arc::new(OpfsPerLayerEmbedTable {
+        read_fn,
+        table_offset,
+        vocab_size,
+        row_elements,
+        row_bytes,
+        src_dtype,
+        target_dtype,
+    })))
+}
+
 /// Tensors that belong to the Gemma4 audio tower (encoder + projector).
 fn is_audio_tensor(name: &str) -> bool {
     name.contains(".audio_tower.") || name.contains(".embed_audio.")
@@ -961,7 +1109,10 @@ pub async fn init_local_multimodal_chunked(
         // the resulting table to GPU in one shot.
         // `embed_tokens_per_layer.weight` itself is *skipped* by
         // gemma4_skip_reason — it's too big for both WebGPU buffers
-        // (1 GB) and wasm32 Vec (2 GB).
+        // (1 GB) and wasm32 Vec (2 GB). The PLE signal is restored via
+        // `OpfsPerLayerEmbedTable` (see `build_opfs_per_layer_table` and
+        // the `set_per_layer_embed_table` injection in the loader tail);
+        // rows are streamed on every forward pass.
         let force_cpu = model_type == ModelType::Gemma4
             && (name.ends_with("embed_tokens.weight")
                 || name.ends_with("lm_head.weight")
@@ -1120,8 +1271,46 @@ pub async fn init_local_multimodal_chunked(
             // of the flag. The flag exists for symmetry with vision.
             let with_vision = !options.lazy_vision;
             let with_audio = !options.lazy_audio && cfg.audio_config.is_some();
-            let model = Gemma4Model::new_partial(&cfg, vb, with_vision, with_audio)
+            let mut model = Gemma4Model::new_partial(&cfg, vb, with_vision, with_audio)
                 .map_err(|e| JsValue::from_str(&format!("gemma4 model load: {e}")))?;
+
+            // Restore the per-layer-embedding signal via OPFS-backed
+            // streaming. The 4.7 GB PLE table is too big to load (filtered
+            // out by `gemma4_skip_reason("ple-table-oversize")`); we read
+            // matching rows on every forward pass through `read_fn`,
+            // which the lazy state keeps alive past load.
+            match build_opfs_per_layer_table(
+                &tensor_meta,
+                read_fn.clone(),
+                data_start,
+                DType::BF16,
+            ) {
+                Ok(Some(table)) => {
+                    if let Err(e) =
+                        model.language_model.set_per_layer_embed_table(table)
+                    {
+                        web_sys::console::warn_1(&format!(
+                            "[wasm/mm] PLE OPFS table not attached: {e}"
+                        ).into());
+                    } else {
+                        web_sys::console::log_1(
+                            &"[wasm/mm] PLE table backed by OPFS streaming".into(),
+                        );
+                    }
+                }
+                Ok(None) => {
+                    web_sys::console::log_1(
+                        &"[wasm/mm] no embed_tokens_per_layer.weight in checkpoint; \
+                          per-layer merge degrades to projection-only"
+                            .into(),
+                    );
+                }
+                Err(e) => {
+                    web_sys::console::warn_1(&format!(
+                        "[wasm/mm] PLE OPFS table build failed: {e}"
+                    ).into());
+                }
+            }
 
             let pipeline = Gemma4MultiModal::from_components(
                 model,
