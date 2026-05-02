@@ -8,21 +8,44 @@
 //! - that the `expected_path_prefixes` allowlist flags out-of-scope targets.
 //!
 //! Events are fabricated with explicit timestamps so window aging is
-//! deterministic — no `sleep` involved.
+//! deterministic — no `sleep` involved. The fixture implements
+//! `ObservedEvent` directly so the test does not depend on
+//! `brainwires-permissions` (where the canonical `AuditEvent` impl lives).
 
-use brainwires_permissions::anomaly::{AnomalyConfig, AnomalyDetector, AnomalyKind};
-use brainwires_permissions::audit::{ActionOutcome, AuditEvent, AuditEventType};
+use brainwires_telemetry::anomaly::{
+    AnomalyConfig, AnomalyDetector, AnomalyKind, EventCategory, ObservedEvent,
+};
 use chrono::{DateTime, TimeZone, Utc};
 
-fn at(epoch_secs: i64, kind: AuditEventType, agent: &str) -> AuditEvent {
-    let mut ev = AuditEvent::new(kind)
-        .with_agent(agent)
-        .with_outcome(ActionOutcome::Success);
-    ev.timestamp = Utc
-        .timestamp_opt(epoch_secs, 0)
-        .single()
-        .expect("valid epoch");
-    ev
+struct Ev {
+    ts: i64,
+    agent: String,
+    cat: EventCategory,
+    target: Option<String>,
+}
+
+impl ObservedEvent for Ev {
+    fn timestamp_secs(&self) -> i64 {
+        self.ts
+    }
+    fn agent_id(&self) -> Option<&str> {
+        Some(&self.agent)
+    }
+    fn category(&self) -> EventCategory {
+        self.cat
+    }
+    fn target(&self) -> Option<&str> {
+        self.target.as_deref()
+    }
+}
+
+fn at(epoch_secs: i64, cat: EventCategory, agent: &str) -> Ev {
+    Ev {
+        ts: epoch_secs,
+        agent: agent.to_string(),
+        cat,
+        target: None,
+    }
 }
 
 fn base_ts() -> DateTime<Utc> {
@@ -43,7 +66,7 @@ fn violation_below_threshold_does_not_fire() {
     let t = base_ts().timestamp();
 
     for i in 0..2 {
-        det.observe(&at(t + i, AuditEventType::PolicyViolation, "a1"));
+        det.observe(&at(t + i, EventCategory::PolicyViolation, "a1"));
     }
     assert_eq!(det.pending_count(), 0);
     assert!(det.drain_anomalies().is_empty());
@@ -62,7 +85,7 @@ fn violation_at_threshold_fires_and_keeps_firing_until_window_clears() {
     // Events 1 and 2: no fire. Event 3: hits threshold → fire. Event 4: still
     // inside window (count=4) → fire again. Event 5: count=5 → fire again.
     for i in 0..5 {
-        det.observe(&at(t + i, AuditEventType::PolicyViolation, "a1"));
+        det.observe(&at(t + i, EventCategory::PolicyViolation, "a1"));
     }
     let anomalies = det.drain_anomalies();
     assert_eq!(anomalies.len(), 3, "events 3/4/5 should each emit");
@@ -88,10 +111,10 @@ fn violation_events_outside_window_are_forgotten() {
 
     // Two violations, then a long gap, then two more. Second burst must not
     // see the first — only 2 events in the window, no anomaly.
-    det.observe(&at(t, AuditEventType::PolicyViolation, "a1"));
-    det.observe(&at(t + 1, AuditEventType::PolicyViolation, "a1"));
-    det.observe(&at(t + 1000, AuditEventType::PolicyViolation, "a1"));
-    det.observe(&at(t + 1001, AuditEventType::PolicyViolation, "a1"));
+    det.observe(&at(t, EventCategory::PolicyViolation, "a1"));
+    det.observe(&at(t + 1, EventCategory::PolicyViolation, "a1"));
+    det.observe(&at(t + 1000, EventCategory::PolicyViolation, "a1"));
+    det.observe(&at(t + 1001, EventCategory::PolicyViolation, "a1"));
     assert_eq!(det.pending_count(), 0);
 }
 
@@ -108,8 +131,8 @@ fn violations_are_counted_per_agent() {
     // Two agents each at 2 violations — neither should cross the threshold
     // individually, even though the total is 4.
     for i in 0..2 {
-        det.observe(&at(t + i, AuditEventType::PolicyViolation, "alice"));
-        det.observe(&at(t + i, AuditEventType::PolicyViolation, "bob"));
+        det.observe(&at(t + i, EventCategory::PolicyViolation, "alice"));
+        det.observe(&at(t + i, EventCategory::PolicyViolation, "bob"));
     }
     assert_eq!(det.pending_count(), 0);
 }
@@ -127,11 +150,11 @@ fn tool_call_rate_fires_only_once_window_threshold_reached() {
     let t = base_ts().timestamp();
 
     for i in 0..4 {
-        det.observe(&at(t + i, AuditEventType::ToolExecution, "a1"));
+        det.observe(&at(t + i, EventCategory::ToolExecution, "a1"));
     }
     assert_eq!(det.pending_count(), 0);
 
-    det.observe(&at(t + 4, AuditEventType::ToolExecution, "a1"));
+    det.observe(&at(t + 4, EventCategory::ToolExecution, "a1"));
     let anomalies = det.drain_anomalies();
     assert_eq!(anomalies.len(), 1);
     assert!(matches!(
@@ -154,12 +177,20 @@ fn unusual_path_scope_is_flagged_when_allowlist_is_set() {
     let det = AnomalyDetector::new(cfg);
     let t = base_ts().timestamp();
 
-    let mut ev = at(t, AuditEventType::ToolExecution, "a1");
-    ev.target = Some("/etc/passwd".into());
+    let ev = Ev {
+        ts: t,
+        agent: "a1".to_string(),
+        cat: EventCategory::ToolExecution,
+        target: Some("/etc/passwd".to_string()),
+    };
     det.observe(&ev);
 
-    let mut ok = at(t + 1, AuditEventType::ToolExecution, "a1");
-    ok.target = Some("/workspace/src/main.rs".into());
+    let ok = Ev {
+        ts: t + 1,
+        agent: "a1".to_string(),
+        cat: EventCategory::ToolExecution,
+        target: Some("/workspace/src/main.rs".to_string()),
+    };
     det.observe(&ok);
 
     let anomalies = det.drain_anomalies();
@@ -185,8 +216,12 @@ fn path_scope_check_is_noop_when_allowlist_empty() {
     let det = AnomalyDetector::new(AnomalyConfig::default());
     let t = base_ts().timestamp();
 
-    let mut ev = at(t, AuditEventType::ToolExecution, "a1");
-    ev.target = Some("/etc/passwd".into());
+    let ev = Ev {
+        ts: t,
+        agent: "a1".to_string(),
+        cat: EventCategory::ToolExecution,
+        target: Some("/etc/passwd".to_string()),
+    };
     det.observe(&ev);
 
     assert_eq!(det.pending_count(), 0);
@@ -201,7 +236,7 @@ fn drain_empties_the_queue() {
         ..Default::default()
     });
     let t = base_ts().timestamp();
-    det.observe(&at(t, AuditEventType::PolicyViolation, "a1"));
+    det.observe(&at(t, EventCategory::PolicyViolation, "a1"));
     assert_eq!(det.pending_count(), 1);
     let drained = det.drain_anomalies();
     assert_eq!(drained.len(), 1);

@@ -1,27 +1,32 @@
-//! Anomaly detection for the audit system.
+//! Anomaly detection over observed audit-style events.
 //!
-//! [`AnomalyDetector`] tracks statistical baselines for tool call frequency,
-//! policy violation rate, and trust level changes.  When observed values exceed
-//! configurable thresholds an [`AnomalyEvent`] is emitted and held in an
-//! in-memory queue until the caller drains it via [`AnomalyDetector::drain_anomalies`].
+//! [`AnomalyDetector`] tracks statistical baselines for tool-call frequency,
+//! policy-violation rate, trust-level changes, and out-of-scope path access.
+//! When observed values exceed configurable thresholds an [`AnomalyEvent`]
+//! is queued; callers drain the queue via [`AnomalyDetector::drain_anomalies`].
 //!
-//! # Example
+//! This module is consumer-agnostic: it operates on any type that implements
+//! [`ObservedEvent`]. The canonical implementation lives in
+//! `brainwires-permissions::audit::AuditEvent`, but other crates can plug in
+//! their own event types without dragging in the permissions crate.
+//!
+//! # Example (with a synthetic event)
 //!
 //! ```rust,ignore
-//! use brainwires_permissions::anomaly::{AnomalyConfig, AnomalyDetector};
+//! use brainwires_telemetry::anomaly::{
+//!     AnomalyConfig, AnomalyDetector, EventCategory, ObservedEvent,
+//! };
 //!
-//! let detector = AnomalyDetector::new(AnomalyConfig {
-//!     violation_threshold: 3,
-//!     ..Default::default()
-//! });
-//!
-//! // Feed events as they are logged
-//! detector.observe(&audit_event);
-//!
-//! // Drain any flagged anomalies
-//! for anomaly in detector.drain_anomalies() {
-//!     eprintln!("ANOMALY: {}", anomaly.description);
+//! struct MyEvent { ts: i64, agent: String, cat: EventCategory }
+//! impl ObservedEvent for MyEvent {
+//!     fn timestamp_secs(&self) -> i64 { self.ts }
+//!     fn agent_id(&self) -> Option<&str> { Some(&self.agent) }
+//!     fn category(&self) -> EventCategory { self.cat }
+//!     fn target(&self) -> Option<&str> { None }
 //! }
+//!
+//! let detector = AnomalyDetector::new(AnomalyConfig::default());
+//! detector.observe(&MyEvent { ts: 0, agent: "a1".into(), cat: EventCategory::PolicyViolation });
 //! ```
 
 use chrono::{DateTime, Utc};
@@ -29,7 +34,42 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
-use crate::audit::{AuditEvent, AuditEventType};
+// ── Public traits & types ─────────────────────────────────────────────────────
+
+/// Category of event the anomaly detector branches on.
+///
+/// Concrete event-type enums (e.g., `AuditEventType` in `brainwires-permissions`)
+/// project onto this small set when implementing [`ObservedEvent::category`].
+/// The `Other` variant captures anything the detector should ignore.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EventCategory {
+    /// A policy violation — feeds the violation-window counter.
+    PolicyViolation,
+    /// A tool execution — feeds the tool-call rate counter and path-scope check.
+    ToolExecution,
+    /// A trust-level change — feeds the trust-change counter.
+    TrustChange,
+    /// Anything the detector should ignore.
+    Other,
+}
+
+/// Minimum surface required by [`AnomalyDetector::observe`].
+///
+/// Implementations exist out-of-crate (e.g., for `AuditEvent` in
+/// `brainwires-permissions`); telemetry itself does not depend on permissions.
+pub trait ObservedEvent {
+    /// Unix timestamp in seconds when the event occurred.
+    fn timestamp_secs(&self) -> i64;
+    /// Agent that produced the event, if known.
+    fn agent_id(&self) -> Option<&str>;
+    /// Category of the event (drives which detector branch runs).
+    fn category(&self) -> EventCategory;
+    /// Target path / URL / resource of the event, if applicable.
+    /// Used by the path-scope check on `ToolExecution` events.
+    fn target(&self) -> Option<&str>;
+}
+
+// ── AnomalyKind / AnomalyEvent ────────────────────────────────────────────────
 
 /// The kind of anomaly that was detected.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -92,6 +132,8 @@ impl AnomalyEvent {
     }
 }
 
+// ── AnomalyConfig ─────────────────────────────────────────────────────────────
+
 /// Configuration for the anomaly detector.
 ///
 /// All thresholds use a sliding-window model: if the count within the last
@@ -134,8 +176,6 @@ impl Default for AnomalyConfig {
 
 // ── Sliding-window counter ────────────────────────────────────────────────────
 
-/// Tracks event timestamps in a sliding window and returns the current count
-/// within the window after each new event.
 #[derive(Debug)]
 struct WindowCounter {
     timestamps: VecDeque<i64>,
@@ -172,10 +212,10 @@ struct AnomalyDetectorInner {
     pending: Vec<AnomalyEvent>,
 }
 
-/// Stateful, thread-safe anomaly detector for the audit system.
+/// Stateful, thread-safe anomaly detector.
 ///
 /// Wrap in `Arc` if sharing across threads; the inner state is `Mutex`-protected
-/// so a plain `AnomalyDetector` can be stored as-is in `AuditLogger`.
+/// so a plain `AnomalyDetector` can be stored as-is in an audit logger.
 #[derive(Clone, Debug)]
 pub struct AnomalyDetector {
     inner: Arc<Mutex<AnomalyDetectorInner>>,
@@ -195,22 +235,22 @@ impl AnomalyDetector {
         }
     }
 
-    /// Observe an [`AuditEvent`] and emit anomaly events if thresholds are breached.
+    /// Observe an event and emit anomaly events if thresholds are breached.
     ///
-    /// This is designed to be called inside `AuditLogger::log()` before the event
-    /// is moved into the buffer.
-    pub fn observe(&self, event: &AuditEvent) {
+    /// Designed to be called from inside the audit-logging hot path before
+    /// the event is moved into a buffer.
+    pub fn observe(&self, event: &dyn ObservedEvent) {
         let mut inner = self
             .inner
             .lock()
             .expect("anomaly detector state lock poisoned");
-        let now_secs = event.timestamp.timestamp();
+        let now_secs = event.timestamp_secs();
         let agent_key = event
-            .agent_id
-            .clone()
+            .agent_id()
+            .map(|s| s.to_string())
             .unwrap_or_else(|| "unknown".to_string());
 
-        // Extract config values before any mutable borrows to satisfy the borrow checker
+        // Snapshot config values before the mutable borrows on `inner.*_windows`.
         let violation_threshold = inner.config.violation_threshold;
         let violation_window_secs = inner.config.violation_window_secs;
         let tool_call_threshold = inner.config.tool_call_threshold;
@@ -219,8 +259,10 @@ impl AnomalyDetector {
         let trust_change_window_secs = inner.config.trust_change_window_secs;
         let expected_prefixes = inner.config.expected_path_prefixes.clone();
 
-        match event.event_type {
-            AuditEventType::PolicyViolation => {
+        let agent_id_owned = event.agent_id().map(|s| s.to_string());
+
+        match event.category() {
+            EventCategory::PolicyViolation => {
                 let window = inner
                     .violation_windows
                     .entry(agent_key.clone())
@@ -228,7 +270,7 @@ impl AnomalyDetector {
                 let count = window.record_and_count(now_secs);
                 if count >= violation_threshold {
                     inner.pending.push(AnomalyEvent::new(
-                        event.agent_id.clone(),
+                        agent_id_owned.clone(),
                         AnomalyKind::RepeatedPolicyViolation {
                             count,
                             window_secs: violation_window_secs,
@@ -241,7 +283,7 @@ impl AnomalyDetector {
                 }
             }
 
-            AuditEventType::ToolExecution => {
+            EventCategory::ToolExecution => {
                 // Rate check
                 let window = inner
                     .tool_call_windows
@@ -250,7 +292,7 @@ impl AnomalyDetector {
                 let count = window.record_and_count(now_secs);
                 if count >= tool_call_threshold {
                     inner.pending.push(AnomalyEvent::new(
-                        event.agent_id.clone(),
+                        agent_id_owned.clone(),
                         AnomalyKind::HighFrequencyToolCalls {
                             count,
                             window_secs: tool_call_window_secs,
@@ -264,16 +306,16 @@ impl AnomalyDetector {
 
                 // Path-scope check
                 if !expected_prefixes.is_empty()
-                    && let Some(ref target) = event.target
+                    && let Some(target) = event.target()
                 {
                     let is_expected = expected_prefixes
                         .iter()
                         .any(|prefix| target.starts_with(prefix.as_str()));
                     if !is_expected {
                         inner.pending.push(AnomalyEvent::new(
-                            event.agent_id.clone(),
+                            agent_id_owned.clone(),
                             AnomalyKind::UnusualFileScopeRequest {
-                                path: target.clone(),
+                                path: target.to_string(),
                             },
                             format!(
                                 "Agent '{}' requested path '{}' outside expected scope",
@@ -284,7 +326,7 @@ impl AnomalyDetector {
                 }
             }
 
-            AuditEventType::TrustChange => {
+            EventCategory::TrustChange => {
                 let window = inner
                     .trust_change_windows
                     .entry(agent_key.clone())
@@ -292,7 +334,7 @@ impl AnomalyDetector {
                 let count = window.record_and_count(now_secs);
                 if count >= trust_change_threshold {
                     inner.pending.push(AnomalyEvent::new(
-                        event.agent_id.clone(),
+                        agent_id_owned.clone(),
                         AnomalyKind::RapidTrustChange {
                             changes: count,
                             window_secs: trust_change_window_secs,
@@ -305,7 +347,7 @@ impl AnomalyDetector {
                 }
             }
 
-            _ => {}
+            EventCategory::Other => {}
         }
     }
 
@@ -333,20 +375,37 @@ impl AnomalyDetector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audit::{ActionOutcome, AuditEvent, AuditEventType};
 
-    fn make_event(event_type: AuditEventType, agent: &str) -> AuditEvent {
-        AuditEvent::new(event_type)
-            .with_agent(agent)
-            .with_action("test_action")
+    /// Minimal `ObservedEvent` impl for unit tests — no audit-event coupling.
+    struct TestEvent {
+        ts: i64,
+        agent: Option<String>,
+        cat: EventCategory,
+        target: Option<String>,
     }
 
-    fn make_event_with_target(event_type: AuditEventType, agent: &str, target: &str) -> AuditEvent {
-        AuditEvent::new(event_type)
-            .with_agent(agent)
-            .with_action("test_action")
-            .with_target(target)
-            .with_outcome(ActionOutcome::Success)
+    impl ObservedEvent for TestEvent {
+        fn timestamp_secs(&self) -> i64 {
+            self.ts
+        }
+        fn agent_id(&self) -> Option<&str> {
+            self.agent.as_deref()
+        }
+        fn category(&self) -> EventCategory {
+            self.cat
+        }
+        fn target(&self) -> Option<&str> {
+            self.target.as_deref()
+        }
+    }
+
+    fn ev(cat: EventCategory, agent: &str) -> TestEvent {
+        TestEvent {
+            ts: 0,
+            agent: Some(agent.to_string()),
+            cat,
+            target: None,
+        }
     }
 
     #[test]
@@ -355,7 +414,7 @@ mod tests {
             violation_threshold: 3,
             ..Default::default()
         });
-        let e = make_event(AuditEventType::PolicyViolation, "agent-1");
+        let e = ev(EventCategory::PolicyViolation, "agent-1");
         detector.observe(&e);
         detector.observe(&e);
         assert_eq!(detector.pending_count(), 0);
@@ -368,7 +427,7 @@ mod tests {
             violation_window_secs: 60,
             ..Default::default()
         });
-        let e = make_event(AuditEventType::PolicyViolation, "agent-1");
+        let e = ev(EventCategory::PolicyViolation, "agent-1");
         detector.observe(&e);
         detector.observe(&e);
         detector.observe(&e);
@@ -387,7 +446,7 @@ mod tests {
             tool_call_window_secs: 60,
             ..Default::default()
         });
-        let e = make_event(AuditEventType::ToolExecution, "agent-2");
+        let e = ev(EventCategory::ToolExecution, "agent-2");
         for _ in 0..5 {
             detector.observe(&e);
         }
@@ -403,11 +462,15 @@ mod tests {
     fn test_unusual_file_scope_request() {
         let detector = AnomalyDetector::new(AnomalyConfig {
             expected_path_prefixes: vec!["/workspace/".to_string()],
-            // Set tool_call_threshold very high so rate limit doesn't trigger
             tool_call_threshold: 1_000,
             ..Default::default()
         });
-        let e = make_event_with_target(AuditEventType::ToolExecution, "agent-3", "/etc/secrets");
+        let e = TestEvent {
+            ts: 0,
+            agent: Some("agent-3".to_string()),
+            cat: EventCategory::ToolExecution,
+            target: Some("/etc/secrets".to_string()),
+        };
         detector.observe(&e);
         let anomalies = detector.drain_anomalies();
         assert!(anomalies.iter().any(|a| matches!(
@@ -423,11 +486,12 @@ mod tests {
             tool_call_threshold: 1_000,
             ..Default::default()
         });
-        let e = make_event_with_target(
-            AuditEventType::ToolExecution,
-            "agent-3",
-            "/workspace/src/main.rs",
-        );
+        let e = TestEvent {
+            ts: 0,
+            agent: Some("agent-3".to_string()),
+            cat: EventCategory::ToolExecution,
+            target: Some("/workspace/src/main.rs".to_string()),
+        };
         detector.observe(&e);
         let anomalies = detector.drain_anomalies();
         assert!(
@@ -444,7 +508,7 @@ mod tests {
             trust_change_window_secs: 60,
             ..Default::default()
         });
-        let e = make_event(AuditEventType::TrustChange, "agent-4");
+        let e = ev(EventCategory::TrustChange, "agent-4");
         for _ in 0..3 {
             detector.observe(&e);
         }
@@ -462,7 +526,7 @@ mod tests {
             violation_threshold: 1,
             ..Default::default()
         });
-        let e = make_event(AuditEventType::PolicyViolation, "agent-5");
+        let e = ev(EventCategory::PolicyViolation, "agent-5");
         detector.observe(&e);
         assert_eq!(detector.pending_count(), 1);
         detector.drain_anomalies();
@@ -475,9 +539,8 @@ mod tests {
             violation_threshold: 3,
             ..Default::default()
         });
-        let e1 = make_event(AuditEventType::PolicyViolation, "agent-A");
-        let e2 = make_event(AuditEventType::PolicyViolation, "agent-B");
-        // 2 violations each — neither reaches threshold 3
+        let e1 = ev(EventCategory::PolicyViolation, "agent-A");
+        let e2 = ev(EventCategory::PolicyViolation, "agent-B");
         detector.observe(&e1);
         detector.observe(&e1);
         detector.observe(&e2);
@@ -491,7 +554,7 @@ mod tests {
             violation_threshold: 1,
             ..Default::default()
         });
-        let e = make_event(AuditEventType::PolicyViolation, "my-agent");
+        let e = ev(EventCategory::PolicyViolation, "my-agent");
         detector.observe(&e);
         let anomalies = detector.drain_anomalies();
         assert_eq!(anomalies[0].agent_id.as_deref(), Some("my-agent"));

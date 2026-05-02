@@ -217,6 +217,27 @@ impl AuditEvent {
     }
 }
 
+impl brainwires_telemetry::anomaly::ObservedEvent for AuditEvent {
+    fn timestamp_secs(&self) -> i64 {
+        self.timestamp.timestamp()
+    }
+    fn agent_id(&self) -> Option<&str> {
+        self.agent_id.as_deref()
+    }
+    fn category(&self) -> brainwires_telemetry::anomaly::EventCategory {
+        use brainwires_telemetry::anomaly::EventCategory;
+        match self.event_type {
+            AuditEventType::PolicyViolation => EventCategory::PolicyViolation,
+            AuditEventType::ToolExecution => EventCategory::ToolExecution,
+            AuditEventType::TrustChange => EventCategory::TrustChange,
+            _ => EventCategory::Other,
+        }
+    }
+    fn target(&self) -> Option<&str> {
+        self.target.as_deref()
+    }
+}
+
 /// Query parameters for searching audit logs
 #[derive(Debug, Clone, Default)]
 pub struct AuditQuery {
@@ -332,7 +353,7 @@ pub struct AuditLogger {
     /// Whether logging is enabled
     enabled: bool,
     /// Optional anomaly detector; when present, every logged event is observed.
-    anomaly_detector: Option<crate::anomaly::AnomalyDetector>,
+    anomaly_detector: Option<brainwires_telemetry::anomaly::AnomalyDetector>,
 }
 
 impl AuditLogger {
@@ -376,15 +397,15 @@ impl AuditLogger {
     ///
     /// Every event passed to [`Self::log`] will be fed to the detector.
     /// Call [`Self::drain_anomalies`] to retrieve any flagged events.
-    pub fn with_anomaly_detection(mut self, config: crate::anomaly::AnomalyConfig) -> Self {
-        self.anomaly_detector = Some(crate::anomaly::AnomalyDetector::new(config));
+    pub fn with_anomaly_detection(mut self, config: brainwires_telemetry::anomaly::AnomalyConfig) -> Self {
+        self.anomaly_detector = Some(brainwires_telemetry::anomaly::AnomalyDetector::new(config));
         self
     }
 
     /// Drain all accumulated anomaly events.
     ///
     /// Returns `None` if no anomaly detector is attached.
-    pub fn drain_anomalies(&self) -> Option<Vec<crate::anomaly::AnomalyEvent>> {
+    pub fn drain_anomalies(&self) -> Option<Vec<brainwires_telemetry::anomaly::AnomalyEvent>> {
         self.anomaly_detector.as_ref().map(|d| d.drain_anomalies())
     }
 
@@ -1052,7 +1073,7 @@ mod tests {
 
     #[test]
     fn test_logger_with_anomaly_detection_violation() {
-        use crate::anomaly::AnomalyConfig;
+        use brainwires_telemetry::anomaly::AnomalyConfig;
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();

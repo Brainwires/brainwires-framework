@@ -64,6 +64,9 @@ pub mod usage;
 /// Outcome metric counters + Prometheus text exposition.
 pub mod metrics;
 
+/// Anomaly detection over observed audit-style events (consumer-agnostic via `ObservedEvent` trait).
+pub mod anomaly;
+
 /// SQL-backed analytics queries (cost by model, tool frequency, daily summaries).
 #[cfg(feature = "sqlite")]
 pub mod query;
@@ -75,6 +78,9 @@ pub use layer::AnalyticsLayer;
 pub use sink::{AnalyticsSink, BoxedSink};
 pub use sinks::memory::{DEFAULT_CAPACITY, MemoryAnalyticsSink};
 
+pub use anomaly::{
+    AnomalyConfig, AnomalyDetector, AnomalyEvent, AnomalyKind, EventCategory, ObservedEvent,
+};
 pub use billing_hook::{BillingError, BillingHook};
 pub use metrics::{MetricsRegistry, OutcomeMetrics};
 pub use usage::UsageEvent;

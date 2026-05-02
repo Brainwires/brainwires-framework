@@ -16,6 +16,7 @@ categories = ["development-tools"]
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
+brainwires-telemetry = { workspace = true, default-features = false }
 
 # Serialization
 serde = { workspace = true }
