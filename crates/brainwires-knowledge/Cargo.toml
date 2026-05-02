@@ -97,8 +97,9 @@ zip = { version = "8", optional = true }
 [features]
 default = ["knowledge", "prompting"]
 
-# Dream — offline memory consolidation, summarization, fact extraction
-dream = ["dep:futures", "dep:async-trait"]
+# Dream (offline memory consolidation) lives in the standalone
+# `brainwires-dream` crate as of Phase 6 of the layout refactor.
+# Consumers should depend on `brainwires-dream` directly.
 
 # Analytics integration — enables DreamCycle event recording
 telemetry = ["dep:brainwires-telemetry"]
@@ -173,7 +174,7 @@ stack-graphs = []
 native = [
     "knowledge", "prompting", "prompting-storage", "spectral",
     "rag", "code-analysis", "tree-sitter-languages",
-    "documents", "pdf-extract-feature", "dream", "telemetry",
+    "documents", "pdf-extract-feature", "telemetry",
 ]
 
 # WASM = lightweight

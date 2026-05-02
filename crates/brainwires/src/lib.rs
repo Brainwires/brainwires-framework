@@ -230,9 +230,13 @@ pub mod system {
 }
 
 /// Offline memory consolidation — summarization, fact extraction, hot/warm/cold tier transitions.
+///
+/// Folded into `brainwires-memory` in Phase 6 (it's the consolidation
+/// engine that writes to the same tiers). Re-exported here for backward
+/// compat — `brainwires::dream::*` keeps working.
 #[cfg(feature = "dream")]
 pub mod dream {
-    pub use brainwires_knowledge::dream::*;
+    pub use brainwires_memory::dream::*;
 }
 
 /// Telemetry — analytics events, billing hooks, SQLite persistence, and cost/usage queries.

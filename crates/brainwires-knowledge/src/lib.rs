@@ -39,12 +39,6 @@
 // Re-export core types
 pub use brainwires_core;
 
-// ── Dream (from brainwires-autonomy) ───────────────────────────────────────
-
-/// Offline memory consolidation — summarization, fact extraction, hot/warm/cold tier transitions.
-#[cfg(feature = "dream")]
-pub mod dream;
-
 // ── Knowledge (from brainwires-brain) ──────────────────────────────────────
 
 /// Knowledge graph, entities, thoughts, BKS/PKS, brain client.

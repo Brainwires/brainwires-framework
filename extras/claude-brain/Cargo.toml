@@ -20,7 +20,8 @@ doc = false
 
 [dependencies]
 # Core brainwires subsystems
-brainwires-knowledge = { workspace = true, features = ["knowledge", "dream"] }
+brainwires-knowledge = { workspace = true, features = ["knowledge"] }
+brainwires-memory = { workspace = true, features = ["dream"] }
 brainwires-core = { workspace = true }
 brainwires-storage = { workspace = true }
 

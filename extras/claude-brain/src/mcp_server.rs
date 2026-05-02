@@ -235,7 +235,7 @@ impl ClaudeBrainMcpServer {
         Parameters(req): Parameters<ConsolidateRequest>,
     ) -> Result<String, String> {
         use crate::session_adapter::BrainSessionAdapter;
-        use brainwires_knowledge::dream::consolidator::DreamSessionStore;
+        use brainwires_memory::dream::consolidator::DreamSessionStore;
 
         let adapter = BrainSessionAdapter::new(self.ctx.client());
 

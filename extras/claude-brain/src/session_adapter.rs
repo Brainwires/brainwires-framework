@@ -6,7 +6,7 @@ use anyhow::Result;
 use tokio::sync::Mutex;
 
 use brainwires_core::Message;
-use brainwires_knowledge::dream::consolidator::DreamSessionStore;
+use brainwires_memory::dream::consolidator::DreamSessionStore;
 use brainwires_knowledge::knowledge::brain_client::BrainClient;
 use brainwires_knowledge::knowledge::types::*;
 

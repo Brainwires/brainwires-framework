@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-memory"
-description = "Tiered hot/warm/cold agent memory primitives for the Brainwires Agent Framework"
+description = "Tiered hot/warm/cold agent memory for the Brainwires Agent Framework — message/summary/fact stores, tier orchestration, plus the `dream` offline consolidation engine that demotes tiers and produces summaries/facts"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -42,9 +42,23 @@ async-trait.workspace = true
 # Logging
 tracing.workspace = true
 
+# Offline-consolidation deps (dream feature)
+futures = { workspace = true, optional = true }
+
+# Optional telemetry hook for dream (DreamCycle event recording)
+brainwires-telemetry = { workspace = true, optional = true }
+
 [features]
 default = ["native"]
 native = ["dep:arrow-schema"]
+
+# Offline consolidation engine (folded in from brainwires-knowledge in Phase 6).
+# Pulls `futures` for the async cycle plumbing; everything else is already in
+# the always-on dep set (tokio sync/time, async-trait, anyhow, serde, chrono).
+dream = ["dep:futures"]
+
+# Wire dream's `with_analytics` hook to brainwires-telemetry's AnalyticsCollector.
+telemetry = ["dream", "dep:brainwires-telemetry"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
