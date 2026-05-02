@@ -3,7 +3,7 @@
 //! These conversions allow channel messages to be routed through the
 //! agent network as standard message envelopes and vice versa.
 
-use crate::network::{MessageEnvelope, Payload};
+use crate::{MessageEnvelope, Payload};
 use uuid::Uuid;
 
 use super::message::{ChannelMessage, MessageContent};
@@ -76,7 +76,7 @@ mod tests {
     use super::super::identity::ConversationId;
     use super::super::message::{ChannelMessage, MessageContent, MessageId};
     use super::*;
-    use crate::network::MessageTarget;
+    use crate::MessageTarget;
     use chrono::Utc;
     use std::collections::HashMap;
 

@@ -4,7 +4,7 @@ use brainwires_mcp::CallToolResult;
 use serde_json::Value;
 
 use crate::connection::RequestContext;
-use crate::error::AgentNetworkError;
+use crate::mcp_error::AgentNetworkError;
 
 /// Definition of an MCP tool.
 #[derive(Debug, Clone)]

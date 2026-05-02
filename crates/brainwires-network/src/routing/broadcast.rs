@@ -3,7 +3,7 @@ use async_trait::async_trait;
 
 use super::peer_table::PeerTable;
 use super::traits::{Router, RoutingStrategy};
-use crate::network::MessageEnvelope;
+use crate::MessageEnvelope;
 use crate::transport::TransportAddress;
 
 /// Broadcast router.
@@ -51,7 +51,7 @@ impl Router for BroadcastRouter {
 mod tests {
     use super::*;
     use crate::identity::AgentIdentity;
-    use crate::network::Payload;
+    use crate::Payload;
     use uuid::Uuid;
 
     #[tokio::test]

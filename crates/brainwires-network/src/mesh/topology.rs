@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::identity::AgentIdentity;
-use crate::network::NetworkError;
+use crate::NetworkError;
 
 /// Supported mesh topology shapes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

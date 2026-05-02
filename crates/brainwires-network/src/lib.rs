@@ -66,19 +66,26 @@ pub mod mesh;
 pub mod discovery;
 /// Agent identity, capability advertisement, and credentials.
 pub mod identity;
-/// Core network types: message envelopes, events, and errors.
-pub mod network;
 /// Message routing — direct, broadcast, and content-based routing.
 pub mod routing;
+
+/// Message envelopes and payload types exchanged across the network.
+pub mod envelope;
+/// Network lifecycle events and connection state.
+pub mod event;
+/// Application-layer entry point: `NetworkManager` + builder.
+pub mod manager;
+/// Errors emitted by the protocol-stack layers (identity / transport / routing / discovery / application).
+pub mod network_error;
 
 /// Universal messaging channels (absorbed from brainwires-channels).
 pub mod channels;
 
+pub use envelope::{MessageEnvelope, MessageTarget, Payload};
+pub use event::{ConnectionState, NetworkEvent, TransportType};
 pub use identity::{AgentCard, AgentIdentity, ProtocolId};
-pub use network::{
-    ConnectionState, MessageEnvelope, MessageTarget, NetworkError, NetworkEvent, NetworkManager,
-    NetworkManagerBuilder, Payload, TransportType,
-};
+pub use manager::{NetworkManager, NetworkManagerBuilder};
+pub use network_error::NetworkError;
 pub use transport::{Transport, TransportAddress};
 
 #[cfg(feature = "ipc-transport")]

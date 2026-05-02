@@ -3,7 +3,7 @@ use async_trait::async_trait;
 
 use super::peer_table::PeerTable;
 use super::traits::{Router, RoutingStrategy};
-use crate::network::{MessageEnvelope, MessageTarget};
+use crate::{MessageEnvelope, MessageTarget};
 use crate::transport::TransportAddress;
 
 /// Point-to-point router.
@@ -50,7 +50,7 @@ impl Router for DirectRouter {
 mod tests {
     use super::*;
     use crate::identity::AgentIdentity;
-    use crate::network::Payload;
+    use crate::Payload;
     use uuid::Uuid;
 
     #[tokio::test]

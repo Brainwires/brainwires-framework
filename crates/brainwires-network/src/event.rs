@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use super::envelope::MessageEnvelope;
-use super::error::NetworkError;
+use crate::envelope::MessageEnvelope;
 use crate::identity::AgentIdentity;
+use crate::network_error::NetworkError;
 
 /// The connection state of a transport.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use tokio::sync::{Mutex, broadcast};
 
 use super::traits::{Transport, TransportAddress};
-use crate::network::{MessageEnvelope, MessageTarget, Payload, TransportType};
+use crate::{MessageEnvelope, MessageTarget, Payload, TransportType};
 
 /// A2A protocol transport for inter-agent communication.
 ///

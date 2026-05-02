@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use tracing;
 
 use crate::connection::{ClientInfo, RequestContext};
-use crate::error::AgentNetworkError;
+use crate::mcp_error::AgentNetworkError;
 use crate::handler::McpHandler;
 use crate::mcp_transport::{ServerTransport, StdioServerTransport};
 use crate::middleware::{Middleware, MiddlewareChain};

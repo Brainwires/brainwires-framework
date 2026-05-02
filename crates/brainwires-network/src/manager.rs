@@ -7,8 +7,8 @@ use uuid::Uuid;
 
 use crate::discovery::Discovery;
 use crate::identity::AgentIdentity;
-use crate::network::event::TransportType;
-use crate::network::{MessageEnvelope, MessageTarget, NetworkEvent, Payload};
+use crate::event::TransportType;
+use crate::{MessageEnvelope, MessageTarget, NetworkEvent, Payload};
 use crate::routing::{BroadcastRouter, ContentRouter, DirectRouter, PeerTable, Router};
 use crate::transport::{Transport, TransportAddress};
 

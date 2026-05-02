@@ -2,7 +2,7 @@
 //! and message envelopes work together correctly across modules.
 
 use brainwires_network::identity::{AgentCard, AgentIdentity};
-use brainwires_network::network::{MessageEnvelope, Payload};
+use brainwires_network::{MessageEnvelope, Payload};
 use brainwires_network::routing::{
     BroadcastRouter, ContentRouter, DirectRouter, PeerTable, Router, RoutingStrategy,
 };
