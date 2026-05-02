@@ -729,16 +729,33 @@ impl candle_transformers::models::gemma4::PerLayerEmbedTable
     ) -> candle_core::Result<Tensor> {
         let ids_cpu = input_ids.to_device(&Device::Cpu)?;
         let (b, t) = ids_cpu.dims2()?;
-        let ids: Vec<i64> = ids_cpu.flatten_all()?.to_vec1::<i64>()?;
+        // Different chat paths build input_ids in different integer
+        // dtypes (U32 from the chat-pwa, I64 from native). Read as
+        // whichever dtype the caller supplied; everything else converts
+        // to a common `u64` index space below.
+        let flat = ids_cpu.flatten_all()?;
+        let ids_u64: Vec<u64> = match flat.dtype() {
+            DType::U32 => flat.to_vec1::<u32>()?.into_iter().map(|x| x as u64).collect(),
+            DType::I64 => flat
+                .to_vec1::<i64>()?
+                .into_iter()
+                .map(|x| x.max(0) as u64)
+                .collect(),
+            other => {
+                return Err(candle_core::Error::Msg(format!(
+                    "OPFS PLE lookup: unsupported input_ids dtype {other:?} \
+                     (expected U32 or I64)"
+                )));
+            }
+        };
 
         let total_bytes = (b * t) * (self.row_bytes as usize);
         let mut buf: Vec<u8> = Vec::with_capacity(total_bytes);
-        for id in &ids {
+        for id in &ids_u64 {
             // Clamp into vocab range — out-of-range ids in PLE tables get
             // the sentinel row (matches `candle_nn::Embedding::forward`'s
-            // behavior; SQLAlchemy-style clamp at the lookup boundary).
-            let id_u = (*id).max(0) as u64;
-            let id_clamped = id_u.min(self.vocab_size as u64 - 1);
+            // behavior; clamp at the lookup boundary).
+            let id_clamped = (*id).min(self.vocab_size as u64 - 1);
             let offset = self.table_offset + id_clamped * self.row_bytes;
             let row = call_read_fn(&self.read_fn, offset, self.row_bytes)
                 .map_err(|e| candle_core::Error::Msg(format!(
