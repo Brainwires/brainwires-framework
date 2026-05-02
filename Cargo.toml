@@ -27,7 +27,7 @@ members = [
 
     "crates/brainwires-telemetry",
     "extras/brainwires-billing",
-    "extras/brainwires-memory-service",
+    "extras/brainwires-memory-server",
     "extras/brainwires-scheduler",
     "extras/brainwires-proxy",
     "extras/brainwires-brain-server",

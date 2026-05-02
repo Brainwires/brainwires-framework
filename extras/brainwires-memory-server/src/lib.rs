@@ -1,4 +1,4 @@
-//! # brainwires-memory-service
+//! # brainwires-memory-server
 //!
 //! A Mem0-compatible memory REST API server for Brainwires agents.
 //!

@@ -1,4 +1,4 @@
-//! brainwires-memory — Mem0-compatible memory service backed by
+//! brainwires-memory-server — Mem0-compatible memory REST server backed by
 //! `brainwires-knowledge`.
 //!
 //! Configuration is via environment variables:
@@ -11,14 +11,14 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use brainwires_memory_service::{AppState, build_app, build_client};
+use brainwires_memory_server::{AppState, build_app, build_client};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| "brainwires_memory_service=info,tower_http=debug".to_string()),
+                .unwrap_or_else(|_| "brainwires_memory_server=info,tower_http=debug".to_string()),
         )
         .init();
 
@@ -37,14 +37,14 @@ async fn main() -> anyhow::Result<()> {
         });
 
     tracing::info!(
-        "brainwires-memory-service storage directory: {}",
+        "brainwires-memory-server storage directory: {}",
         storage_dir.display()
     );
     let client = build_client(&storage_dir).await?;
     let app = build_app(AppState::new(client));
 
     let addr: SocketAddr = format!("{host}:{port}").parse()?;
-    tracing::info!("brainwires-memory listening on http://{addr}");
+    tracing::info!("brainwires-memory-server listening on http://{addr}");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

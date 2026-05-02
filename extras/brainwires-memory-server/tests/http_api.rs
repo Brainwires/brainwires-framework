@@ -1,11 +1,11 @@
-//! HTTP integration tests for the Mem0-compatible memory service.
+//! HTTP integration tests for the Mem0-compatible memory server.
 //!
 //! Each test spins up the Axum app in-process on an ephemeral port with a
 //! fresh [`TempDir`] so tests do not share state.
 
 use std::net::SocketAddr;
 
-use brainwires_memory_service::{AppState, build_app, build_client};
+use brainwires_memory_server::{AppState, build_app, build_client};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 use tempfile::TempDir;
