@@ -93,6 +93,7 @@ chrono = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
 brainwires-sandbox = { workspace = true, optional = true }
+brainwires-session = { workspace = true, optional = true }
 
 # ── System deps (absorbed from brainwires-system) ─────────────────────────
 notify = { version = "7", optional = true }
@@ -172,7 +173,7 @@ sandbox = ["dep:brainwires-sandbox", "native"]
 # sessions_send / sessions_spawn) + `SessionBroker` trait. The host crate
 # (e.g. BrainClaw gateway) implements `SessionBroker` over its real session
 # registry.
-sessions = ["native", "dep:chrono"]
+sessions = ["native", "dep:chrono", "dep:brainwires-session"]
 full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser", "oauth", "system", "sandbox", "sessions"]
 
 [[bench]]

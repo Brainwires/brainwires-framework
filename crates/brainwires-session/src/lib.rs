@@ -6,6 +6,8 @@
 //! by tests and ephemeral sessions, and [`SqliteSessionStore`] (behind the
 //! `sqlite` feature) provides disk-backed persistence.
 
+/// Interactive session-broker surface (live registry, spawn/list/send/history).
+pub mod broker;
 mod error;
 mod memory;
 #[cfg(feature = "sqlite")]
@@ -18,6 +20,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 pub use brainwires_core::Message;
+pub use broker::{SessionBroker, SessionMessage, SessionSummary, SpawnRequest, SpawnedSession};
 pub use error::SessionError;
 pub use memory::InMemorySessionStore;
 #[cfg(feature = "sqlite")]
