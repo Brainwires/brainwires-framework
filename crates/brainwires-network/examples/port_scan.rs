@@ -19,11 +19,11 @@ async fn main() {
     println!("Scanning common ports on {target}...");
 
     let results =
-        brainwires_hardware::network::scan_common_ports(target, Duration::from_millis(500)).await;
+        brainwires_network::lan::scan_common_ports(target, Duration::from_millis(500)).await;
 
     let open: Vec<_> = results
         .iter()
-        .filter(|r| r.state == brainwires_hardware::network::PortState::Open)
+        .filter(|r| r.state == brainwires_network::lan::PortState::Open)
         .collect();
 
     if open.is_empty() {

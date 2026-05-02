@@ -81,6 +81,14 @@ pub mod network_error;
 /// Universal messaging channels (absorbed from brainwires-channels).
 pub mod channels;
 
+/// LAN inspection tooling — NIC enumeration, IP config, ARP discovery, port scanning.
+///
+/// These are **operator** tools (akin to `ip`, `ifconfig`, `arp`, `nmap`), distinct
+/// from the agent-discovery primitives in [`mod@discovery`]. Originally lived in
+/// `brainwires-hardware::network`.
+#[cfg(feature = "lan")]
+pub mod lan;
+
 pub use envelope::{MessageEnvelope, MessageTarget, Payload};
 pub use event::{ConnectionState, NetworkEvent, TransportType};
 pub use identity::{AgentCard, AgentIdentity, ProtocolId};

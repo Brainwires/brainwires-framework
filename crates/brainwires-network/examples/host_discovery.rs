@@ -18,7 +18,7 @@ async fn main() {
         .expect("Invalid subnet (use CIDR notation, e.g. 192.168.1.0/24)");
 
     println!("ARP scanning {subnet}...");
-    let hosts = brainwires_hardware::network::arp_scan(subnet).await;
+    let hosts = brainwires_network::lan::arp_scan(subnet).await;
 
     if hosts.is_empty() {
         println!("No hosts discovered. (Note: requires CAP_NET_RAW / root)");

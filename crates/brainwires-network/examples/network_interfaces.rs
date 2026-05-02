@@ -6,7 +6,7 @@
 //! ```
 
 fn main() {
-    let interfaces = brainwires_hardware::network::list_interfaces();
+    let interfaces = brainwires_network::lan::list_interfaces();
     println!("Network interfaces ({}):", interfaces.len());
     for iface in &interfaces {
         println!(
@@ -19,7 +19,7 @@ fn main() {
     }
 
     println!("\nIP configuration (with gateways):");
-    for cfg in brainwires_hardware::network::get_ip_configs() {
+    for cfg in brainwires_network::lan::get_ip_configs() {
         println!(
             "  {:10} gateway={:?}  addrs={:?}",
             cfg.interface, cfg.gateway, cfg.addrs

@@ -123,7 +123,7 @@ mesh = ["agent-network", "brainwires-network/mesh"]
 audio = ["dep:brainwires-hardware", "brainwires-hardware/audio"]
 gpio = ["dep:brainwires-hardware", "brainwires-hardware/gpio"]
 bluetooth = ["dep:brainwires-hardware", "brainwires-hardware/bluetooth"]
-network-hardware = ["dep:brainwires-hardware", "brainwires-hardware/network"]
+lan-tools = ["dep:brainwires-network", "brainwires-network/lan"]
 camera = ["dep:brainwires-hardware", "brainwires-hardware/camera"]
 usb = ["dep:brainwires-hardware", "brainwires-hardware/usb"]
 vad = ["dep:brainwires-hardware", "brainwires-hardware/vad"]
@@ -156,7 +156,7 @@ full = [
     "providers", "chat", "reasoning", "seal", "agent-network",
     "brainwires-agents/seal-knowledge", "brainwires-agents/seal-mdap", "brainwires-agents/seal-feedback",
     "llama-cpp-2", "mcp-server", "skills", "eval",
-    "a2a", "mesh", "audio", "gpio", "bluetooth", "network-hardware", "camera", "usb",
+    "a2a", "mesh", "audio", "gpio", "bluetooth", "lan-tools", "camera", "usb",
     "vad", "wake-word", "voice-assistant", "mcp-server-framework",
     "training-cloud", "datasets",
     "system",

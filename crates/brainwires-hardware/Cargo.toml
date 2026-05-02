@@ -10,7 +10,7 @@ homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
 documentation = "https://docs.rs/brainwires-hardware"
-keywords = ["hardware", "audio", "gpio", "bluetooth", "network"]
+keywords = ["hardware", "audio", "gpio", "bluetooth", "camera"]
 categories = ["hardware-support", "multimedia::audio"]
 
 [dependencies]
@@ -54,12 +54,6 @@ sysfs_gpio = { version = "0.6", optional = true }
 # Bluetooth (cross-platform BLE via btleplug)
 btleplug = { version = "0.11", optional = true }
 uuid = { workspace = true, optional = true }
-
-# Network hardware
-network-interface = { version = "2", optional = true }
-ipnetwork = { version = "0.21", optional = true, features = ["serde"] }
-pnet = { version = "0.35", optional = true }
-pnet_datalink = { version = "0.35", optional = true }
 
 # Camera capture (cross-platform: V4L2 / AVFoundation / Media Foundation)
 nokhwa = { version = "0.10", optional = true, features = ["input-native"] }
@@ -134,9 +128,6 @@ gpio = ["dep:gpio-cdev", "dep:sysfs_gpio"]
 # Bluetooth discovery and scanning
 bluetooth = ["dep:btleplug", "dep:uuid"]
 
-# Network interface enumeration, discovery, port scanning
-network = ["dep:network-interface", "dep:ipnetwork", "dep:pnet", "dep:pnet_datalink"]
-
 # Camera / webcam capture via nokhwa (cross-platform)
 camera = ["dep:nokhwa", "dep:image"]
 
@@ -208,7 +199,7 @@ homeauto = ["zigbee", "zwave", "thread", "matter"]
 homeauto-full = ["homeauto", "matter-ble"]
 
 # Convenience: everything
-full = ["audio", "gpio", "bluetooth", "network", "camera", "usb", "vad", "wake-word", "voice-assistant", "homeauto-full"]
+full = ["audio", "gpio", "bluetooth", "camera", "usb", "vad", "wake-word", "voice-assistant", "homeauto-full"]
 
 [dev-dependencies]
 tokio = { workspace = true }
@@ -231,18 +222,6 @@ required-features = ["audio"]
 [[example]]
 name = "bluetooth_scan"
 required-features = ["bluetooth"]
-
-[[example]]
-name = "network_interfaces"
-required-features = ["network"]
-
-[[example]]
-name = "port_scan"
-required-features = ["network"]
-
-[[example]]
-name = "host_discovery"
-required-features = ["network"]
 
 [[example]]
 name = "wake_word_demo"

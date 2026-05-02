@@ -151,12 +151,11 @@ pub mod mesh {
     pub use brainwires_network::mesh::*;
 }
 
-/// Hardware I/O — audio, GPIO, Bluetooth, network, camera, USB, voice assistant.
+/// Hardware I/O — audio, GPIO, Bluetooth, camera, USB, voice assistant.
 #[cfg(any(
     feature = "audio",
     feature = "gpio",
     feature = "bluetooth",
-    feature = "network-hardware",
     feature = "camera",
     feature = "usb",
     feature = "vad",
@@ -165,6 +164,12 @@ pub mod mesh {
 ))]
 pub mod hardware {
     pub use brainwires_hardware::*;
+}
+
+/// LAN inspection tooling — moved from `brainwires-hardware::network` into `brainwires-network::lan`.
+#[cfg(feature = "lan-tools")]
+pub mod lan {
+    pub use brainwires_network::lan::*;
 }
 
 /// Audio — capture, playback, speech-to-text, text-to-speech.
