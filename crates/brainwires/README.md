@@ -150,7 +150,10 @@ interop, and `seal + knowledge` when you want self-improving behavior.
 `AgentRuntime`, `AgentExecutionResult`, `run_agent_loop`, `CommunicationHub`, `FileLockManager`, `TaskManager`, `TaskQueue`, `ValidationConfig`, `AccessControlManager`, `GitCoordinator`, `PlanExecutorAgent`
 
 **Storage** (`storage` feature):
-`TieredMemory`
+`CachedEmbeddingProvider`
+
+**Memory** (`memory` feature):
+`TieredMemory` (re-exported from `brainwires-memory`)
 
 **MCP** (`mcp` feature):
 `McpClient`, `McpConfigManager`, `McpServerConfig`

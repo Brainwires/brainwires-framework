@@ -393,15 +393,22 @@ LanceDB-backed persistent storage with semantic search.
 - **LockStore** — Cross-process lock coordination with statistics
 - **ImageStore** — Image analysis storage with semantic search
 
-### Tiered Memory
+### Tiered Memory  *(crate: `brainwires-memory`)*
 
 - **TieredMemory** — Three-tier memory hierarchy:
-  - **Hot** — Recent messages, full fidelity
+  - **Hot** — Recent messages, full fidelity (`MessageStore`)
   - **Warm** — `SummaryStore` with compressed message summaries
   - **Cold** — `FactStore` with extracted key facts
-- **TierMetadataStore** — Tier tracking metadata
+- **MentalModelStore** — Synthesised behavioural / structural / causal /
+  procedural beliefs the agent built up
+- **TierMetadataStore** — Tier tracking metadata, access counts,
+  importance scoring
 - **MemoryAuthority** — Canonical write tokens (`CanonicalWriteToken`)
 - **MultiFactorScore** — Multi-factor relevance scoring for search
+
+> Originally part of `brainwires-storage`; moved into the dedicated
+> `brainwires-memory` crate in v0.10.x so the storage crate stays focused
+> on generic primitives.
 
 ### File Context
 

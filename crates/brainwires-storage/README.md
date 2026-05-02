@@ -4,11 +4,30 @@
 [![Documentation](https://img.shields.io/docsrs/brainwires-storage)](https://docs.rs/brainwires-storage)
 [![License](https://img.shields.io/crates/l/brainwires-storage.svg)](LICENSE)
 
-Backend-agnostic storage, tiered memory, and document management for the Brainwires Agent Framework.
+Backend-agnostic storage primitives — `StorageBackend` trait, embeddings,
+BM25 keyword search, file-context primitives, and image-storage types —
+for the Brainwires Agent Framework.
+
+> **Recent split (v0.10.x).** Domain-shaped stores moved out of this
+> crate so the surface stays focused on primitives:
+>
+> - **`brainwires-memory`** — tiered hot/warm/cold agent memory:
+>   `MessageStore`, `SummaryStore`, `FactStore`, `MentalModelStore`,
+>   `TierMetadataStore`, `TieredMemory`.
+> - **`brainwires-cli` `crate::storage`** — CLI-domain stores:
+>   `ConversationStore`, `TaskStore`/`AgentStateStore`, `PlanStore`,
+>   `TemplateStore`, `LockStore`, `ImageStore`, `PersistentTaskManager`.
 
 ## Overview
 
-`brainwires-storage` is the persistent backend for the Brainwires Agent Framework's infinite context memory system. The crate provides conversation storage with semantic search, document ingestion with hybrid retrieval, three-tier memory hierarchy, image analysis storage, entity extraction with contradiction detection, cross-process lock coordination, and reusable plan templates — enabling agents to maintain unbounded context, coordinate safely, and retrieve relevant knowledge across sessions.
+`brainwires-storage` is the persistent-backend foundation: a generic
+trait-and-types layer that other crates build their domain stores on
+top of. It provides the `StorageBackend` and `VectorDatabase` traits
+plus their concrete backend impls (LanceDB, Postgres, MySQL, Surreal,
+Qdrant, Pinecone, Milvus, Weaviate, NornicDB), text embeddings via
+FastEmbed (LRU-cached), BM25 keyword search, file-context primitives,
+and image-storage types reused by the concrete `ImageStore` in
+`brainwires-cli`.
 
 **Design principles:**
 
@@ -53,19 +72,13 @@ Backend-agnostic storage, tiered memory, and document management for the Brainwi
   |  |  CachedEmbeddingProvider -- all-MiniLM-L6-v2 w/ LRU cache (1000) |  |
   |  +------------------------------------------------------------------+  |
   |                                                                        |
-  |  +--- Domain Stores (stores/) --------------------------------------+  |
-  |  |  MessageStore --- vector search, TTL expiry, batch ops            |  |
-  |  |  ConversationStore --- metadata, listing by recency               |  |
-  |  |  TaskStore / AgentStateStore --- task & agent persistence          |  |
-  |  |  PlanStore --- execution plans with markdown export               |  |
-  |  +------------------------------------------------------------------+  |
-  |                                                                        |
-  |  +--- Tiered Memory System -----------------------------------------+  |
-  |  |  Hot --- full messages (MessageStore, session TTL)                |  |
-  |  |  Warm --- compressed summaries (SummaryStore)                     |  |
-  |  |  Cold --- extracted facts (FactStore)                             |  |
-  |  |  TierMetadataStore --- access tracking, importance scoring        |  |
-  |  |  TieredMemory --- adaptive search, demotion/promotion             |  |
+  |  +--- Domain Stores (moved out of this crate) ----------------------+  |
+  |  |  See `brainwires-memory`  --- MessageStore, SummaryStore,         |  |
+  |  |                                FactStore, MentalModelStore,        |  |
+  |  |                                TierMetadataStore, TieredMemory     |  |
+  |  |  See `brainwires-cli`     --- ConversationStore, TaskStore,        |  |
+  |  |                                PlanStore, TemplateStore,           |  |
+  |  |                                LockStore, ImageStore               |  |
   |  +------------------------------------------------------------------+  |
   |                                                                        |
   |  +--- Document Management ------------------------------------------+  |

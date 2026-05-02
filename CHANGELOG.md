@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Pre-1.0 hygiene pass: remove backwards-compat shims, close feature-flag half-wires, fix documentation and publish-readiness gaps.
 
+### Refactored (BREAKING)
+
+#### `brainwires-storage` split into primitives + memory + CLI domain stores
+
+`brainwires-storage` was originally meant for generic storage primitives but
+accreted 11 app-specific stores plus tiered-memory orchestration. Cut along
+the natural seam:
+
+- **`brainwires-storage` keeps** the primitives only — `StorageBackend` /
+  `VectorDatabase` traits, all 9 database backends, `CachedEmbeddingProvider`,
+  `BM25Search`, file-context, paths, image-storage *types* (`ImageMetadata`,
+  `ImageStorage`, etc.), and the wasm32 HNSW index. Generic re-exports stay
+  at the same paths (`brainwires_storage::StorageBackend`,
+  `brainwires_storage::CachedEmbeddingProvider`, etc.).
+- **New `brainwires-memory` crate** owns the tiered hot/warm/cold memory
+  cluster: `MessageStore`, `SummaryStore`, `FactStore`, `MentalModelStore`,
+  `TierMetadataStore`, and `TieredMemory` orchestration with multi-factor
+  scoring. Re-exported under `brainwires::memory::*` behind the new
+  `memory` feature on the umbrella facade.
+- **`extras/brainwires-cli` `crate::storage`** absorbed the CLI-domain
+  stores: `ConversationStore`, `TaskStore`/`AgentStateStore`, `PlanStore`,
+  `TemplateStore`, `LockStore`, `ImageStore`, and `PersistentTaskManager`.
+  These were CLI-only consumers; moving them out of the framework cleans
+  the workspace's reverse-dependency story.
+- The tiered-memory examples (`tiered_memory.rs`) and CLI-store examples
+  (`lock_coordination.rs`, `message_store.rs`, `plan_templates.rs`) moved
+  with their stores.
+
+Migration:
+- `use brainwires_storage::{MessageStore, TieredMemory, …}` →
+  `use brainwires_memory::{MessageStore, TieredMemory, …}`.
+- `use brainwires::storage::TieredMemory` →
+  `use brainwires::memory::TieredMemory` (enable the `memory` feature).
+- `use brainwires_storage::{ConversationStore, PlanStore, …}` →
+  these stores live in `brainwires-cli` now; not part of the framework
+  surface anymore.
+
+#### `extras/brainwires-memory-service` renamed to `extras/brainwires-memory-server`
+
+The old name overlapped with the new lib crate (`brainwires-memory`) once
+the storage refactor landed. The mem0-compatible REST surface — backed by
+`brainwires-knowledge`'s LanceDB ThoughtStore, unchanged in behaviour — is
+now built from the `brainwires-memory-server` package and produces the
+`brainwires-memory-server` binary. The crate is unrelated to the new
+`brainwires-memory` lib (different layer, no dependency between them).
+
+Migration:
+- Cargo: `cargo run -p brainwires-memory-server` (was `-p brainwires-memory-service`).
+- Binary: `brainwires-memory-server` (was `brainwires-memory`).
+- Package metadata: package name, lib name, and bin name all updated.
+
 ### Removed (BREAKING)
 
 #### Compile-breaking feature deleted

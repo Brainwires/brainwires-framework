@@ -286,7 +286,8 @@ brainwires (facade)
   ├── brainwires-providers           ← Anthropic, OpenAI, Google, Ollama
   ├── brainwires-knowledge           ← RAG, Knowledge/Brain, Prompting, Spectral
   ├── brainwires-network       ← MCP server, IPC, remote, mesh
-  ├── brainwires-storage             ← TieredMemory, LanceDB stores
+  ├── brainwires-storage             ← StorageBackend trait, embeddings, BM25, LanceDB
+  ├── brainwires-memory              ← TieredMemory + hot/warm/cold tier stores
   ├── brainwires-training            ← Fine-tuning backends
   └── brainwires-training            ← Dataset containers, format converters
 ```

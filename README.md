@@ -63,7 +63,8 @@ The Brainwires Framework is a workspace of 16 framework crates plus 25 extras (i
 | [**brainwires-tools**](crates/brainwires-tools/README.md) | Tool definitions, execution, interpreters, and system primitives for AI model interactions |
 | [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination, skills and slash commands |
 | [**brainwires-knowledge**](crates/brainwires-knowledge/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
-| [**brainwires-storage**](crates/brainwires-storage/README.md) | Unified database layer (9 backends), tiered memory, semantic search |
+| [**brainwires-storage**](crates/brainwires-storage/README.md) | Unified database layer (9 backends), embeddings, BM25 keyword search, file-context primitives |
+| [**brainwires-memory**](crates/brainwires-memory/README.md) | Tiered hot/warm/cold agent memory — `MessageStore`, `SummaryStore`, `FactStore`, `MentalModelStore`, `TieredMemory` orchestration |
 | [**brainwires-permissions**](crates/brainwires-permissions/README.md) | Permission policies (auto, ask, reject) for tool execution |
 | [**brainwires-mcp**](crates/brainwires-mcp/README.md) | MCP client — connect to external MCP servers and use their tools |
 | [**brainwires-network**](crates/brainwires-network/README.md) | Agent networking — MCP server, IPC, remote bridge, channels, WebRTC, 5-layer protocol stack |
@@ -92,7 +93,7 @@ The Brainwires Framework is a workspace of 16 framework crates plus 25 extras (i
 | [**brainwires-slack-channel**](extras/brainclaw/mcp-slack/README.md) | Slack channel adapter — Socket Mode (no public URL), optional MCP server mode |
 | [**brainwires-skill-registry**](extras/brainclaw/mcp-skill-registry/README.md) | Skill registry HTTP server — SQLite FTS5, publish/search/download endpoints |
 | [**brainclaw-mcp-github**](extras/brainclaw/mcp-github/README.md) | GitHub channel adapter — webhook receiver, REST API, MCP server mode |
-| [**brainwires-memory-service**](extras/brainwires-memory-service/README.md) | Mem0-compatible memory REST API backed by Brainwires storage |
+| [**brainwires-memory-server**](extras/brainwires-memory-server/README.md) | Mem0-compatible memory REST API backed by Brainwires knowledge |
 | [**matter-tool**](extras/matter-tool/README.md) | Brainwires-native Matter CLI (experimental) — PASE pairing, mDNS discovery, basic control |
 | [**claude-brain**](extras/claude-brain/README.md) | Brainwires context management for Claude Code — persistent context across compaction |
 | [**brainwires-cli**](extras/brainwires-cli/README.md) | AI-powered agentic CLI tool for autonomous coding assistance |
@@ -224,6 +225,9 @@ cargo test -p brainwires-core
   │   └── brainwires-storage (knowledge feature)
   ├── brainwires-storage
   │   └── brainwires-core
+  ├── brainwires-memory
+  │   ├── brainwires-core
+  │   └── brainwires-storage
   ├── brainwires-mcp
   │   └── brainwires-core
   ├── brainwires-network

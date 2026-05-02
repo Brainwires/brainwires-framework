@@ -9,10 +9,8 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use brainwires_storage::{
-    CachedEmbeddingProvider, LanceDatabase, MessageMetadata, MessageStore, TieredMemory,
-    TieredMemoryConfig,
-};
+use brainwires_memory::{MessageMetadata, MessageStore, TieredMemory, TieredMemoryConfig};
+use brainwires_storage::{CachedEmbeddingProvider, LanceDatabase};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -125,7 +123,7 @@ async fn main() -> Result<()> {
 
     // 9. Identify demotion candidates (lowest retention score)
     let candidates = tiered
-        .get_demotion_candidates(brainwires_storage::MemoryTier::Hot, 2)
+        .get_demotion_candidates(brainwires_memory::MemoryTier::Hot, 2)
         .await?;
     println!("\nDemotion candidates (lowest retention score):");
     for id in &candidates {

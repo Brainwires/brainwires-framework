@@ -1,6 +1,9 @@
-# brainwires-memory-service
+# brainwires-memory-server
 
-A Mem0-compatible memory REST API server for Brainwires agents.
+A Mem0-compatible memory REST API server for Brainwires agents. (Renamed
+from `brainwires-memory-service` in v0.10.x — the lib crate
+`brainwires-memory` now houses the framework's internal tiered memory
+primitives, so this server got the disambiguating `-server` suffix.)
 
 Gives every agent a persistent, per-user memory store accessible over HTTP — point any Mem0 SDK client (or plain `curl`) at it and your agents remember things between sessions.
 
@@ -12,11 +15,11 @@ As Nate B Jones put it: *"whoever solves orchestration at infrastructure grade i
 
 ```sh
 # Run with default settings (localhost:8765, ~/.local/share/brainwires/memory/)
-cargo run --bin brainwires-memory
+cargo run --bin brainwires-memory-server
 
 # Override via environment variables
 MEMORY_HOST=0.0.0.0 MEMORY_PORT=8765 MEMORY_DB=/data/memory \
-  cargo run --bin brainwires-memory
+  cargo run --bin brainwires-memory-server
 ```
 
 ## Tenant isolation (`user_id` is required)
