@@ -318,8 +318,14 @@ fn detect_model_type(tensor_meta: &[(String, StTensorInfo)]) -> ModelType {
 }
 
 /// Build a [`Gemma4Config`] by inspecting tensor shapes in the safetensors header.
+///
+/// `metadata` is the safetensors `__metadata__` blob (or an empty map when
+/// the file omits it) — `activation_sparsity_pattern` is read from there if
+/// the trainer embedded it, otherwise we fall back to the canonical
+/// `[0.95; 10] + [0.0; rest]` Gemma 3n heuristic.
 fn build_gemma4_config(
     tensor_meta: &[(String, StTensorInfo)],
+    metadata: &HashMap<String, String>,
     options: &LoadOptions,
 ) -> Result<Gemma4Config, String> {
     let find = |suffix: &str| -> Option<&Vec<usize>> {
@@ -507,19 +513,39 @@ fn build_gemma4_config(
             // 0.95 (zero the bottom 95% of gate_proj per-token), the
             // rest run dense. Only enable when AltUp is also wired
             // (i.e. we're loading a real Gemma 3n checkpoint).
-            activation_sparsity_pattern: find("language_model.altup_projections.0.weight")
-                .map(|_| {
-                    let mut v = Vec::with_capacity(num_hidden_layers);
-                    for i in 0..num_hidden_layers {
-                        v.push(if i < 10 { 0.95 } else { 0.0 });
+            // Prefer the metadata pattern (trainer-supplied) when present.
+            // Falls back to the canonical Gemma 3n heuristic — first 10
+            // layers at 0.95 sparsity, rest at 0 — which matches the E2B
+            // checkpoint's published config and is only emitted when AltUp
+            // is wired (`altup_projections.0.weight` present) and the model
+            // is wide enough for the cutoff to make sense.
+            activation_sparsity_pattern: metadata
+                .get("activation_sparsity_pattern")
+                .and_then(|s| serde_json::from_str::<Vec<f64>>(s).ok())
+                .filter(|v| v.len() == num_hidden_layers)
+                .or_else(|| {
+                    if find("language_model.altup_projections.0.weight").is_some()
+                        && num_hidden_layers >= 10
+                    {
+                        let mut v = Vec::with_capacity(num_hidden_layers);
+                        for i in 0..num_hidden_layers {
+                            v.push(if i < 10 { 0.95 } else { 0.0 });
+                        }
+                        Some(v)
+                    } else {
+                        None
                     }
-                    v
                 }),
             // Bisection kill-switches default off; surfaced via LoadOptions
             // so the JS side can flip them in-browser when chasing a regression.
             disable_altup: options.disable_altup,
             disable_laurel: options.disable_laurel,
             disable_per_layer_input_gate: options.disable_per_layer_input_gate,
+            // Canonical Gemma 3n: last 10 of the 30 layers re-use K/V from
+            // earlier same-type donor layers. Shrinks GPU KV pressure at
+            // long contexts and matches the trained checkpoint's expected
+            // attention shape.
+            num_kv_shared_layers: 10,
         },
         vision_config: Gemma4VisionConfig {
             hidden_size: 768,
@@ -842,8 +868,19 @@ pub async fn init_local_multimodal_chunked(
         .map_err(|e| JsValue::from_str(&format!("invalid safetensors header: {e}")))?;
 
     let mut tensor_meta: Vec<(String, StTensorInfo)> = Vec::new();
+    let mut metadata: HashMap<String, String> = HashMap::new();
     for (name, value) in &raw {
         if name == "__metadata__" {
+            // safetensors carries optional `__metadata__` as an object of
+            // string→string pairs. Extract for downstream consumers
+            // (e.g. `activation_sparsity_pattern` for Gemma 3n).
+            if let Some(obj) = value.as_object() {
+                for (k, v) in obj {
+                    if let Some(s) = v.as_str() {
+                        metadata.insert(k.clone(), s.to_string());
+                    }
+                }
+            }
             continue;
         }
         let info: StTensorInfo = serde_json::from_value(value.clone()).map_err(|e| {
@@ -1019,7 +1056,7 @@ pub async fn init_local_multimodal_chunked(
             (MultimodalInner::Gemma3(Arc::new(pipeline)), None)
         }
         ModelType::Gemma4 => {
-            let cfg = build_gemma4_config(&tensor_meta, &options)
+            let cfg = build_gemma4_config(&tensor_meta, &metadata, &options)
                 .map_err(|e| JsValue::from_str(&format!("gemma4 config: {e}")))?;
 
             web_sys::console::log_1(
