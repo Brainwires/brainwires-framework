@@ -81,6 +81,72 @@ fn log_step_diag(step: usize, logits: &Tensor, next_id: u32, tokenizer: &Tokeniz
     ));
 }
 
+/// One-shot NaN/Inf scan over a tensor's values. Logs `label` with the
+/// shape, dtype, count of non-finite cells, abs-max, and a few sample
+/// values so we can bisect *where* a forward-pass corruption first
+/// appears.
+///
+/// Async because wgpu→cpu readback on wasm32 is poll-driven and the sync
+/// `to_device(&Device::Cpu)` path returns an error on that target. Going
+/// through `to_device_async` works for both CPU and WGPU tensors.
+async fn nan_scan(label: &str, t: &Tensor) {
+    let dims = t.dims().to_vec();
+    let dtype = t.dtype();
+    let cpu = match t.to_device_async(&Device::Cpu).await {
+        Ok(c) => c,
+        Err(e) => {
+            diag_log(&format!(
+                "[gemma4/diag] {label}: to_device_async(Cpu) failed: {e}"
+            ));
+            return;
+        }
+    };
+    let f32_t = match cpu.to_dtype(DType::F32) {
+        Ok(t) => t,
+        Err(e) => {
+            diag_log(&format!(
+                "[gemma4/diag] {label}: to_dtype(F32) failed: {e}"
+            ));
+            return;
+        }
+    };
+    let flat = match f32_t.flatten_all().and_then(|t| t.to_vec1::<f32>()) {
+        Ok(v) => v,
+        Err(e) => {
+            diag_log(&format!(
+                "[gemma4/diag] {label}: flatten/to_vec1 failed: {e}"
+            ));
+            return;
+        }
+    };
+    let nans = flat.iter().filter(|x| x.is_nan()).count();
+    let infs = flat.iter().filter(|x| x.is_infinite()).count();
+    let finite_n = flat.len() - nans - infs;
+    let preview: Vec<String> = flat.iter().take(4).map(|x| format!("{x:.4}")).collect();
+    let abs_max = flat
+        .iter()
+        .filter(|x| x.is_finite())
+        .map(|x| x.abs())
+        .fold(0.0_f32, f32::max);
+    let abs_min_nonzero = flat
+        .iter()
+        .filter(|x| x.is_finite() && **x != 0.0)
+        .map(|x| x.abs())
+        .fold(f32::INFINITY, f32::min);
+    let abs_min_str = if abs_min_nonzero.is_finite() {
+        format!("{abs_min_nonzero:.6}")
+    } else {
+        "n/a".to_string()
+    };
+    diag_log(&format!(
+        "[gemma4/diag] {label}: shape={dims:?} dtype={dtype:?} \
+         nan={nans} inf={infs} finite={finite_n}/{} \
+         abs_max={abs_max:.4} abs_min_nonzero={abs_min_str} head=[{}]",
+        flat.len(),
+        preview.join(", "),
+    ));
+}
+
 /// Image token id for Gemma-4 (from config defaults).
 pub const GEMMA4_IMAGE_TOKEN_ID: u32 = 258_880;
 
@@ -234,6 +300,7 @@ impl Gemma4MultiModal {
         let input_ids_tensor =
             Tensor::from_vec(input_ids.clone(), (1, prompt_len), &Device::Cpu)?;
         let mut embeds = model.language_model.embed_tokens(&input_ids_tensor)?;
+        nan_scan("step0/embeds_cpu", &embeds).await;
 
         // Compute the Gemma 3n per-layer-input table (if PLE is wired).
         // The table is `[B, T, num_layers, hidden_per_layer]` — small
@@ -243,12 +310,46 @@ impl Gemma4MultiModal {
         let per_layer_inputs_cpu = model
             .language_model
             .compute_per_layer_inputs(&input_ids_tensor, &embeds)?;
+        match &per_layer_inputs_cpu {
+            Some(t) => nan_scan("step0/per_layer_inputs_cpu", t).await,
+            None => diag_log("[gemma4/diag] step0/per_layer_inputs_cpu: None (PLE skipped)"),
+        }
 
         embeds = embeds.to_device(&self.gpu_device)?;
+        nan_scan("step0/embeds_gpu", &embeds).await;
         let per_layer_inputs_gpu = match per_layer_inputs_cpu {
-            Some(t) => Some(t.to_device(&self.gpu_device)?),
+            Some(t) => {
+                let g = t.to_device(&self.gpu_device)?;
+                nan_scan("step0/per_layer_inputs_gpu", &g).await;
+                // Per-layer slice scan — `nan` summary per slice tells
+                // us whether a specific layer's PLE input is poisoned
+                // (e.g. a NaN cell in the OPFS-streamed PLE row that
+                // would propagate through `act_fn(gate(h)) * per_layer`
+                // into all 1536 dims after `per_layer_projection`).
+                let n_layers = self.cfg.text_config.num_hidden_layers;
+                for li in 0..n_layers {
+                    if let Ok(slice) = g.narrow(2, li, 1).and_then(|s| s.squeeze(2)) {
+                        nan_scan(&format!("step0/per_layer_input/{li:02}"), &slice).await;
+                    }
+                }
+                Some(g)
+            }
             None => None,
         };
+
+        // Per-layer `layer_scalar` scan. The Gemma 4 checkpoint stores
+        // one [1]-shaped tensor per layer; if any of them encode a NaN
+        // BF16 bit pattern, `broadcast_mul(scalar)` poisons every cell
+        // of that layer's output uniformly. Reads via the candle-fork
+        // `TextModel::layer_scalars()` accessor (rev 3f1ab470+).
+        for (li, scalar) in model.language_model.layer_scalars().iter().enumerate() {
+            match scalar {
+                Some(s) => nan_scan(&format!("step0/layer_scalar/{li:02}"), s).await,
+                None => diag_log(&format!(
+                    "[gemma4/diag] step0/layer_scalar/{li:02}: None (not in checkpoint)"
+                )),
+            }
+        }
 
         // 2. If we have images, run vision tower + embedder and splice results.
         if !pixel_values.is_empty() {
@@ -284,14 +385,36 @@ impl Gemma4MultiModal {
         // change. Per-token cost: one GPU matmul + a ~1 MB
         // [1, 1, vocab_size] readback (vs ~hundreds of ms of CPU bf16
         // matmul before).
-        let logits_gpu = model.language_model.forward_embeds_with_per_layer(
+        //
+        // Step-0 diagnostic detour via the hooked variant: we capture
+        // every layer's post-state, async-readback each via `nan_scan`,
+        // and locate the first non-finite layer if the forward goes
+        // bad. Decoder + final norm are emitted by the hooked fn;
+        // lm_head is applied separately afterward via `lm_head(hidden)`.
+        let mut layer_states: Vec<(usize, Tensor)> = Vec::new();
+        let hidden_gpu = model.language_model.forward_embeds_hidden_with_per_layer_hooked(
             &embeds,
             per_layer_inputs_gpu.as_ref(),
             0,
             1,
             prompt_len,
+            |layer_idx: usize, state: &Tensor| {
+                layer_states.push((layer_idx, state.clone()));
+            },
         )?;
+        for (idx, state) in &layer_states {
+            let label = if *idx >= self.cfg.text_config.num_hidden_layers {
+                "step0/layers/altup_consolidate".to_string()
+            } else {
+                format!("step0/layers/{idx:02}_post")
+            };
+            nan_scan(&label, state).await;
+        }
+        nan_scan("step0/hidden_gpu_pre_lm_head", &hidden_gpu).await;
+        let logits_gpu = model.language_model.lm_head(&hidden_gpu)?;
+        nan_scan("step0/logits_gpu_pre_readback", &logits_gpu).await;
         let logits = logits_gpu.to_device_async(&Device::Cpu).await?;
+        nan_scan("step0/logits_cpu_post_readback", &logits).await;
         let mut next_id = argmax_last(&logits)?;
         log_step_diag(0, &logits, next_id, &self.tokenizer);
 

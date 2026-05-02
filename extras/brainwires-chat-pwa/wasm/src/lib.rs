@@ -227,6 +227,29 @@ pub(crate) fn st_dtype_to_candle(s: &str) -> Result<DType, String> {
     }
 }
 
+/// Format a JS exception as a human-readable string. `JsValue::as_string`
+/// only succeeds when the value is itself a string; thrown `Error` /
+/// `DOMException` objects fall through to `<no msg>` otherwise. Probe for
+/// the standard `.message` / `.name` shape first, then fall back to
+/// `String(e)` via wasm-bindgen's `Debug`.
+pub(crate) fn js_err_to_string(e: &JsValue) -> String {
+    if let Some(s) = e.as_string() {
+        return s;
+    }
+    let name = Reflect::get(e, &JsValue::from_str("name"))
+        .ok()
+        .and_then(|v| v.as_string());
+    let message = Reflect::get(e, &JsValue::from_str("message"))
+        .ok()
+        .and_then(|v| v.as_string());
+    match (name, message) {
+        (Some(n), Some(m)) if !m.is_empty() => format!("{n}: {m}"),
+        (Some(n), _) => n,
+        (None, Some(m)) if !m.is_empty() => m,
+        _ => format!("{e:?}"),
+    }
+}
+
 pub(crate) fn call_read_fn(read_fn: &Function, offset: u64, length: u64) -> Result<Vec<u8>, JsValue> {
     const CHUNK: u64 = 64 * 1024 * 1024;
 

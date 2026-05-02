@@ -43,7 +43,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{ReadableStream, ReadableStreamDefaultController};
 
-use crate::{StTensorInfo, call_read_fn, load_tensor_to_gpu, st_dtype_to_candle};
+use crate::{StTensorInfo, call_read_fn, js_err_to_string, load_tensor_to_gpu, st_dtype_to_candle};
 
 // ---------------------------------------------------------------------------
 // Multimodal handle
@@ -760,7 +760,7 @@ impl candle_transformers::models::gemma4::PerLayerEmbedTable
             let row = call_read_fn(&self.read_fn, offset, self.row_bytes)
                 .map_err(|e| candle_core::Error::Msg(format!(
                     "OPFS PLE row read failed at id={id_clamped}: {}",
-                    e.as_string().unwrap_or_else(|| "<no msg>".into()),
+                    js_err_to_string(&e),
                 )))?;
             buf.extend_from_slice(&row);
         }
@@ -860,6 +860,15 @@ struct LoadOptions {
     disable_laurel: bool,
     #[serde(default)]
     disable_per_layer_input_gate: bool,
+    /// Skip the OPFS-streaming PLE table install entirely. With this
+    /// set the candle-fork PLE module degrades to projection-only
+    /// (`per_layer_input = proj * rsqrt(2)`), losing the trained
+    /// per-layer-embedding signal but bypassing the streaming reads
+    /// completely. Bisection: if forward logits go from NaN to
+    /// numerically reasonable when this is on, the OPFS PLE row
+    /// reader is producing corrupt bytes.
+    #[serde(default)]
+    disable_ple_streaming: bool,
 }
 
 fn default_true() -> bool {
@@ -1311,6 +1320,17 @@ pub async fn init_local_multimodal_chunked(
             // out by `gemma4_skip_reason("ple-table-oversize")`); we read
             // matching rows on every forward pass through `read_fn`,
             // which the lazy state keeps alive past load.
+            //
+            // `disable_ple_streaming` short-circuits this block — the
+            // candle-fork PLE module then runs the projection-only merge,
+            // which lets us prove whether step-0 NaN logits originate in
+            // the OPFS row reader or further downstream.
+            if options.disable_ple_streaming {
+                web_sys::console::warn_1(
+                    &"[wasm/mm] PLE OPFS streaming disabled by kill-switch \
+                      — per-layer merge degrades to projection-only".into(),
+                );
+            } else {
             match build_opfs_per_layer_table(
                 &tensor_meta,
                 read_fn.clone(),
@@ -1342,6 +1362,7 @@ pub async fn init_local_multimodal_chunked(
                         "[wasm/mm] PLE OPFS table build failed: {e}"
                     ).into());
                 }
+            }
             }
 
             let pipeline = Gemma4MultiModal::from_components(

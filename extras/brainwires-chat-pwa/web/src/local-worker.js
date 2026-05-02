@@ -84,6 +84,26 @@ let loadedModelId = null;
 // silently calling the wrong wasm export.
 let handleIsMultimodal = false;
 
+// OPFS `FileSystemSyncAccessHandle` for the active multimodal weights
+// file. The WASM side keeps the chunked-loader `readFn` alive past init
+// for three streaming paths:
+//   1. Per-layer-embedding (PLE) OPFS streaming — reads ~15 KB per forward
+//      pass to back the 4.7 GB `embed_tokens_per_layer.weight` table that
+//      can't fit in a single WGPU/wasm buffer.
+//   2. Lazy vision tower — streams ~211 deferred tensors on the first
+//      `attach_vision()` call (first image).
+//   3. Lazy audio tower — same idea on `attach_audio()`.
+// All three `read_fn`s capture this sync handle, so it must outlive
+// init and only close on `unload` / model swap.
+let multimodalWeightsSyncHandle = null;
+
+function closeMultimodalWeightsHandle() {
+    if (multimodalWeightsSyncHandle) {
+        try { multimodalWeightsSyncHandle.close(); } catch (_) {}
+        multimodalWeightsSyncHandle = null;
+    }
+}
+
 // Embedding model lives in a separate slot from the chat handle — RAG
 // indexing and assistant generation can run with different weights.
 let embedHandle = null;
@@ -226,6 +246,7 @@ async function handleLoad(msg) {
         handle = null;
         loadedModelId = null;
         handleIsMultimodal = false;
+        closeMultimodalWeightsHandle();
 
         const m = KNOWN_MODELS[modelId];
         const multimodal = !!(m && m.multimodal);
@@ -378,6 +399,12 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
     const tokenizerFile = m.files.find((f) => f.kind === 'tokenizer');
     if (!weightsFile) return false;
 
+    // Defensive: a previous load may have left a handle open on this
+    // same file. OPFS sync access is exclusive per file, so opening
+    // a second one would throw `InvalidStateError` instead of letting
+    // us reuse the slot. Drop any stale handle first.
+    closeMultimodalWeightsHandle();
+
     let weightsSyncHandle = null;
     try {
         const root = await navigator.storage.getDirectory();
@@ -434,10 +461,11 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
         const disableAltup = !!globalThis.__bw_disable_altup;
         const disableLaurel = !!globalThis.__bw_disable_laurel;
         const disablePerLayerInputGate = !!globalThis.__bw_disable_per_layer_input_gate;
-        if (disableAltup || disableLaurel || disablePerLayerInputGate) {
+        const disablePleStreaming = !!globalThis.__bw_disable_ple_streaming;
+        if (disableAltup || disableLaurel || disablePerLayerInputGate || disablePleStreaming) {
             console.warn(
                 '[local-worker] Gemma 3n kill-switches active:',
-                { disableAltup, disableLaurel, disablePerLayerInputGate },
+                { disableAltup, disableLaurel, disablePerLayerInputGate, disablePleStreaming },
             );
         }
         handle = await mod.init_local_multimodal_chunked(
@@ -451,21 +479,38 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
                 disable_altup: disableAltup,
                 disable_laurel: disableLaurel,
                 disable_per_layer_input_gate: disablePerLayerInputGate,
+                disable_ple_streaming: disablePleStreaming,
             },
         );
         loadedModelId = modelId;
         handleIsMultimodal = true;
 
-        weightsSyncHandle.close();
-        weightsSyncHandle = null;
+        // Hand the sync handle off to module scope — the WASM side
+        // captured `readFn` for PLE row reads (every forward pass) and
+        // for lazy vision/audio attach. Closing here would invalidate
+        // those reads with `InvalidStateError` (surfaced in chat as
+        // `OPFS PLE row read failed at id=...: <no msg>`).
+        // Lifetime now ends on `unload` or model swap.
+        //
+        // Do NOT null `weightsSyncHandle` — the `readFn` closure
+        // captures the lexical binding, not the value. Reassigning
+        // would break every subsequent PLE/vision/audio read with
+        // `TypeError: Cannot read properties of null`. Both bindings
+        // refer to the same handle, so closing through either is fine.
+        multimodalWeightsSyncHandle = weightsSyncHandle;
 
         const deviceType = handle.device_type || 'cpu';
         self.postMessage({ type: 'load_progress', phase: 'ready', modelId, deviceType });
         self.postMessage({ requestId, type: 'load_done', modelId, deviceType });
         return true;
     } catch (e) {
+        // Could be either pre-handoff (`weightsSyncHandle` still local) or
+        // post-handoff (also visible via `multimodalWeightsSyncHandle`).
+        // Both names point at the same handle when both are set, so close
+        // through one and clear the other.
         if (weightsSyncHandle) {
             try { weightsSyncHandle.close(); } catch (_) {}
+            multimodalWeightsSyncHandle = null;
         }
         console.error('[local-worker] chunked multimodal load failed:', e);
         throw e;
@@ -715,5 +760,6 @@ function handleUnload(msg) {
     handle = null;
     loadedModelId = null;
     handleIsMultimodal = false;
+    closeMultimodalWeightsHandle();
     self.postMessage({ requestId, type: 'unload_ack' });
 }
