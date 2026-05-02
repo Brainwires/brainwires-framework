@@ -3,6 +3,7 @@ members = [
     "crates/brainwires-core",
     "crates/brainwires",
     "crates/brainwires-tools",
+    "crates/brainwires-tool-runtime",
     "crates/brainwires-agents",
     "crates/brainwires-storage",
     "crates/brainwires-memory",
@@ -81,6 +82,7 @@ documentation = "https://docs.rs/brainwires"
 # Internal crates
 brainwires-core = { path = "crates/brainwires-core", version = "0.10.0", default-features = false }
 brainwires-tools = { path = "crates/brainwires-tools", version = "0.10.0", default-features = false }
+brainwires-tool-runtime = { path = "crates/brainwires-tool-runtime", version = "0.10.0", default-features = false }
 brainwires-agents = { path = "crates/brainwires-agents", version = "0.10.0", default-features = false }
 brainwires-storage = { path = "crates/brainwires-storage", version = "0.10.0", default-features = false }
 brainwires-memory = { path = "crates/brainwires-memory", version = "0.10.0" }

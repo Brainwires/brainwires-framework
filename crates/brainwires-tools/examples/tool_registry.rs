@@ -35,7 +35,7 @@ fn main() {
     println!("=== Tool Registry Example ===\n");
 
     // ── 1. Create a registry pre-populated with all built-in tools ──────────
-    let mut registry = ToolRegistry::with_builtins();
+    let mut registry = brainwires_tools::registry_with_builtins();
     println!("Registry created with {} built-in tool(s).", registry.len());
 
     // ── 2. Register custom tools ────────────────────────────────────────────

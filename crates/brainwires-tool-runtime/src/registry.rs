@@ -40,20 +40,21 @@ pub enum ToolCategory {
     Validation,
 }
 
-/// Composable tool registry - stores and queries tool definitions.
+/// Composable tool registry — stores and queries tool definitions.
 ///
-/// Unlike the CLI's registry which auto-registers all tools, this registry
-/// is empty by default. Callers compose it by registering tools from
-/// whichever modules they need.
+/// This registry is empty by default; callers compose it by registering
+/// tools from whichever modules they need. The umbrella `brainwires-tools`
+/// crate provides a `registry_with_builtins()` helper that pre-populates
+/// one with every concrete builtin (`BashTool`, `FileOpsTool`, ...).
 ///
 /// # Example
 /// ```ignore
-/// use brainwires_tools::{ToolRegistry, BashTool, FileOpsTool, GitTool};
+/// use brainwires_tool_runtime::ToolRegistry;
+/// // From brainwires-tools (façade with builtins access):
+/// // use brainwires_tools::{registry_with_builtins, BashTool};
 ///
 /// let mut registry = ToolRegistry::new();
-/// registry.register_tools(BashTool::get_tools());
-/// registry.register_tools(FileOpsTool::get_tools());
-/// registry.register_tools(GitTool::get_tools());
+/// // registry.register_tools(BashTool::get_tools());
 /// ```
 pub struct ToolRegistry {
     tools: Vec<Tool>,
@@ -65,34 +66,13 @@ impl ToolRegistry {
         Self { tools: vec![] }
     }
 
-    /// Create a registry pre-populated with all built-in tools
-    pub fn with_builtins() -> Self {
+    /// Always-available tools — currently just the meta `tool_search`. The
+    /// concrete builtins are not in this crate; use
+    /// `brainwires_tools::registry_with_builtins()` for a pre-populated
+    /// registry, or call [`Self::register_tools`] manually.
+    pub fn with_runtime_meta_tools() -> Self {
         let mut registry = Self::new();
-
-        // Always-available tools
         registry.register_tools(crate::ToolSearchTool::get_tools());
-
-        // Native-only tools
-        #[cfg(feature = "native")]
-        {
-            registry.register_tools(crate::FileOpsTool::get_tools());
-            registry.register_tools(crate::BashTool::get_tools());
-            registry.register_tools(crate::GitTool::get_tools());
-            registry.register_tools(crate::WebTool::get_tools());
-            registry.register_tools(crate::SearchTool::get_tools());
-            registry.register_tools(crate::get_validation_tools());
-        }
-
-        // Feature-gated tools
-        #[cfg(feature = "orchestrator")]
-        registry.register_tools(crate::OrchestratorTool::get_tools());
-
-        #[cfg(feature = "interpreters")]
-        registry.register_tools(crate::CodeExecTool::get_tools());
-
-        #[cfg(feature = "rag")]
-        registry.register_tools(crate::SemanticSearchTool::get_tools());
-
         registry
     }
 
@@ -489,19 +469,6 @@ mod tests {
         let extra = vec![make_tool("mcp_tool", false)];
         let all = registry.get_all_with_extra(&extra);
         assert_eq!(all.len(), 2);
-    }
-
-    #[test]
-    fn test_no_duplicate_names_in_builtins() {
-        let registry = ToolRegistry::with_builtins();
-        let mut seen = std::collections::HashSet::new();
-        for tool in registry.get_all() {
-            assert!(
-                seen.insert(tool.name.clone()),
-                "Duplicate tool name: {}",
-                tool.name
-            );
-        }
     }
 
     #[test]

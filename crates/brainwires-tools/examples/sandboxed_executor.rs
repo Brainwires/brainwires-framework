@@ -48,7 +48,7 @@ impl Sandbox for MockSandbox {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let registry = ToolRegistry::with_builtins();
+    let registry = brainwires_tools::registry_with_builtins();
     let builtin = BuiltinToolExecutor::new(registry, ToolContext::default());
 
     let exec = SandboxedToolExecutor::new(

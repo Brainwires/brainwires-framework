@@ -985,7 +985,7 @@ impl App {
         use crate::tools::ToolRegistry;
         use crate::types::tool::ToolMode;
 
-        let registry = ToolRegistry::with_builtins();
+        let registry = brainwires_tools::registry_with_builtins();
         let builtin_count = registry.get_all().len();
         let mcp_count = self.mcp_tools.len();
         let total = builtin_count + mcp_count;
@@ -1038,7 +1038,7 @@ impl App {
         use crate::tools::ToolRegistry;
         use crate::types::tool::ToolMode;
 
-        let registry = ToolRegistry::with_builtins();
+        let registry = brainwires_tools::registry_with_builtins();
 
         self.tools = match &mode {
             ToolMode::Full => {
@@ -1087,7 +1087,7 @@ impl App {
         use crate::types::tool::ToolMode;
         use std::collections::{HashMap, HashSet};
 
-        let registry = ToolRegistry::with_builtins();
+        let registry = brainwires_tools::registry_with_builtins();
 
         // Get currently selected tools (if already in explicit mode)
         let selected_names: HashSet<String> = match &self.tool_mode {
@@ -1187,7 +1187,7 @@ impl App {
                 .map(|(name, _, _)| name.clone())
                 .collect();
 
-            let registry = ToolRegistry::with_builtins();
+            let registry = brainwires_tools::registry_with_builtins();
 
             // Get built-in tools
             let mut tools: Vec<_> = selected

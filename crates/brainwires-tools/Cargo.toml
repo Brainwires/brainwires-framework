@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-tools"
-description = "Built-in tool implementations for the Brainwires Agent Framework"
+description = "Built-in tool implementations for the Brainwires Agent Framework — façade re-exporting `brainwires-tool-runtime` (executor, registry, orchestrator, sessions, ...) plus concrete builtins (bash, file_ops, git, web, search, code_exec, browser, email, calendar, system)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,6 +16,7 @@ categories = ["development-tools"]
 [dependencies]
 # Always available
 brainwires-core.workspace = true
+brainwires-tool-runtime = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
@@ -46,24 +47,16 @@ git2 = { version = "0.20", optional = true }
 # Web operations (native only)
 reqwest = { workspace = true, optional = true }
 
-# Security (native only)
+# Security (native only — used by bash for credential redaction in env vars)
 zeroize = { version = "1", features = ["derive"], optional = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 
-# Identifiers (for TransactionManager staging dir names)
+# Identifiers
 uuid = { workspace = true }
 
 # Logging
 tracing.workspace = true
-
-# Scripting engine (behind orchestrator or orchestrator-wasm feature)
-rhai = { version = "1.23", default-features = false, features = ["serde", "std"], optional = true }
-web-time = { version = "1.1", optional = true }
-
-# OpenAPI spec parsing (behind openapi feature)
-openapiv3 = { version = "2", optional = true }
-serde_yml = { version = "0.0.12", optional = true }
 
 # Email tools (behind email feature)
 lettre = { version = "0.11", default-features = false, features = ["tokio1-native-tls", "smtp-transport", "builder"], optional = true }
@@ -74,7 +67,7 @@ native-tls = { version = "0.2", optional = true }
 futures = { workspace = true, optional = true }
 mailparse = { version = "0.15", optional = true }
 base64 = { version = "0.22", optional = true }
-# Gmail push (behind email feature) — RS256 JWT verification for Google-signed Pub/Sub push tokens
+# Gmail push (behind email feature)
 jsonwebtoken = { version = "9", optional = true }
 parking_lot = { version = "0.12", optional = true }
 
@@ -84,21 +77,18 @@ urlencoding = { version = "2", optional = true }
 # Calendar tools (behind calendar feature)
 icalendar = { version = "0.16", optional = true }
 
-# Session tools (behind sessions feature). chrono is workspace-shared so
-# timestamps in SessionSummary / SessionMessage line up with the rest of the
-# framework.
+# Timestamps used by gmail_push (behind email feature)
 chrono = { workspace = true, optional = true }
 
 # Feature-gated dependencies
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
-brainwires-sandbox = { workspace = true, optional = true }
-brainwires-session = { workspace = true, optional = true }
 
 # ── System deps (absorbed from brainwires-system) ─────────────────────────
 notify = { version = "7", optional = true }
 
 # ── Interpreter deps (absorbed from brainwires-code-interpreters) ─────────
+rhai = { version = "1.23", default-features = false, features = ["serde", "std"], optional = true }
 mlua = { version = "0.10.3", features = ["lua54", "vendored"], optional = true }
 boa_engine = { version = "0.21", optional = true }
 tempfile = { version = "3", optional = true }
@@ -109,11 +99,7 @@ web-sys = { version = "0.3", features = ["console"], optional = true }
 getrandom = { version = "0.2", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 
-# Seccomp-bpf sandbox (Linux only) — used by `BashSandboxMode::NetworkDeny` to
-# deny network syscalls in the child process via a pre_exec hook. These deps
-# are only compiled on Linux; the code that uses them is cfg'd out on other
-# platforms. No separate feature gate: network-deny must always work when
-# requested on Linux, and is a warn-only no-op elsewhere.
+# Seccomp-bpf sandbox (Linux only) — used by `BashSandboxMode::NetworkDeny`.
 [target.'cfg(target_os = "linux")'.dependencies]
 seccompiler = "0.5"
 libc = "0.2"
@@ -126,23 +112,51 @@ proptest.workspace = true
 
 [features]
 default = ["native"]
+
+# Native enables filesystem + process + network operations for the builtins
+# (bash/file_ops/git/web/search) and propagates `native` into the runtime.
 native = [
     "dep:git2", "dep:walkdir", "dep:ignore", "dep:reqwest",
     "dep:glob", "dep:diffy", "dep:zeroize",
     "tokio/process", "tokio/fs",
     "brainwires-core/native",
+    "brainwires-tool-runtime/native",
 ]
-wasm = ["brainwires-core/wasm"]
-orchestrator = ["dep:rhai", "rhai/sync"]
-orchestrator-wasm = ["dep:rhai", "dep:web-time"]
-rag = ["dep:brainwires-knowledge", "brainwires-knowledge/rag", "brainwires-knowledge/lancedb-backend", "brainwires-knowledge/tree-sitter-languages"]
+wasm = [
+    "brainwires-core/wasm",
+    "brainwires-tool-runtime/wasm",
+]
+
+# ── Runtime feature passthroughs ──────────────────────────────────────────
+# Each flag delegates to brainwires-tool-runtime; the type re-exports in
+# this crate's lib.rs surface the runtime API at brainwires_tools::*.
+
+orchestrator = ["brainwires-tool-runtime/orchestrator"]
+orchestrator-wasm = ["brainwires-tool-runtime/orchestrator-wasm"]
+oauth = ["brainwires-tool-runtime/oauth"]
+openapi = ["brainwires-tool-runtime/openapi"]
+sandbox = ["brainwires-tool-runtime/sandbox"]
+sessions = ["brainwires-tool-runtime/sessions"]
+
+# ── Builtin tool features (live in this crate) ────────────────────────────
+
+# RAG-powered semantic_search builtin + the runtime's tool_embedding index.
+rag = [
+    "dep:brainwires-knowledge",
+    "brainwires-knowledge/rag",
+    "brainwires-knowledge/lancedb-backend",
+    "brainwires-knowledge/tree-sitter-languages",
+    "brainwires-tool-runtime/rag",
+]
+
+# Multi-language interpreters (code_exec.rs)
 interpreters = ["interpreters-rhai", "interpreters-lua"]
 interpreters-rhai = ["dep:rhai"]
 interpreters-lua = ["dep:mlua"]
 interpreters-js = ["dep:boa_engine"]
 interpreters-all = ["interpreters-rhai", "interpreters-lua", "interpreters-js"]
 interpreters-wasm = ["dep:wasm-bindgen", "dep:js-sys", "dep:web-sys", "dep:getrandom", "dep:serde-wasm-bindgen"]
-openapi = ["dep:openapiv3", "dep:serde_yml", "dep:reqwest"]
+
 email = [
     "dep:lettre",
     "dep:async-imap",
@@ -160,20 +174,13 @@ email = [
 ]
 calendar = ["dep:icalendar", "dep:reqwest", "dep:urlencoding"]
 browser = ["dep:brainwires-mcp", "native"]
-# OAuth 2.0 middleware — PKCE, client credentials, token refresh, pluggable store
-oauth = ["native", "dep:getrandom"]
-# System primitives (absorbed from brainwires-system)
+
+# OS-level primitives — filesystem event watching and service management.
 system = ["dep:notify"]
 reactor = ["system"]
 services = ["system"]
 system-full = ["system"]
-# Route dangerous tool calls (bash, code_exec) through a container sandbox
-sandbox = ["dep:brainwires-sandbox", "native"]
-# Agent-facing session-control tools (sessions_list / sessions_history /
-# sessions_send / sessions_spawn) + `SessionBroker` trait. The host crate
-# (e.g. BrainClaw gateway) implements `SessionBroker` over its real session
-# registry.
-sessions = ["native", "dep:chrono", "dep:brainwires-session"]
+
 full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser", "oauth", "system", "sandbox", "sessions"]
 
 [[bench]]

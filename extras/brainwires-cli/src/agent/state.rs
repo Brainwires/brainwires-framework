@@ -212,7 +212,7 @@ impl AgentState {
         );
 
         // Initialize tools with core tools only
-        let registry = ToolRegistry::with_builtins();
+        let registry = brainwires_tools::registry_with_builtins();
         let tools: Vec<_> = registry.get_core().into_iter().cloned().collect();
         let mut tool_executor = ToolExecutor::new(PermissionMode::Auto);
 

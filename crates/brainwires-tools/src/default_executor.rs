@@ -11,9 +11,7 @@ use async_trait::async_trait;
 
 use brainwires_core::{Tool, ToolContext, ToolResult, ToolUse};
 
-use crate::ToolSearchTool;
-use crate::executor::ToolExecutor;
-use crate::registry::ToolRegistry;
+use brainwires_tool_runtime::{ToolExecutor, ToolRegistry, ToolSearchTool};
 
 /// Concrete executor that dispatches tool calls to the built-in tool modules
 /// registered in a [`ToolRegistry`].
@@ -24,7 +22,7 @@ use crate::registry::ToolRegistry;
 /// use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
 /// use brainwires_core::ToolContext;
 ///
-/// let registry = ToolRegistry::with_builtins();
+/// let registry = brainwires_tools::registry_with_builtins();
 /// let context = ToolContext::default();
 /// let executor = BuiltinToolExecutor::new(registry, context);
 ///
@@ -308,7 +306,7 @@ mod tests {
 
     #[test]
     fn test_with_builtins_registry() {
-        let registry = ToolRegistry::with_builtins();
+        let registry = crate::registry_with_builtins();
         let tool_count = registry.len();
         let context = ToolContext::default();
         let executor = BuiltinToolExecutor::new(registry, context);

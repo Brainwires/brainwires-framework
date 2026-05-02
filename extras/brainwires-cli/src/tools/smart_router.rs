@@ -49,7 +49,7 @@ pub async fn get_smart_tools_with_local(
     local_router: Option<&LocalRouter>,
 ) -> Vec<Tool> {
     let categories = analyze_messages_with_local(messages, local_router).await;
-    let registry = ToolRegistry::with_builtins();
+    let registry = brainwires_tools::registry_with_builtins();
     get_tools_for_categories(&registry, &categories)
 }
 
@@ -87,7 +87,7 @@ pub async fn get_smart_tools_with_skills(
     skill_router: &SkillRouter,
 ) -> (Vec<Tool>, Vec<SkillMatch>) {
     let (categories, skill_matches) = analyze_with_skills(messages, skill_router).await;
-    let registry = ToolRegistry::with_builtins();
+    let registry = brainwires_tools::registry_with_builtins();
     let tools = get_tools_for_categories(&registry, &categories);
     (tools, skill_matches)
 }

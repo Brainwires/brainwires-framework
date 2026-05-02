@@ -952,7 +952,7 @@ mod tests {
 
     #[test]
     fn test_write_file_staged_commit() {
-        use crate::transaction::TransactionManager;
+        use brainwires_tool_runtime::TransactionManager;
         use brainwires_core::StagingBackend;
         use std::sync::Arc;
 
@@ -985,7 +985,7 @@ mod tests {
 
     #[test]
     fn test_write_file_staged_rollback() {
-        use crate::transaction::TransactionManager;
+        use brainwires_tool_runtime::TransactionManager;
         use brainwires_core::StagingBackend;
         use std::sync::Arc;
 
@@ -1106,7 +1106,7 @@ mod tests {
 
     #[test]
     fn test_edit_file_staged_commit() {
-        use crate::transaction::TransactionManager;
+        use brainwires_tool_runtime::TransactionManager;
         use brainwires_core::StagingBackend;
         use std::sync::Arc;
 

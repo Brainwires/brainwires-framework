@@ -106,7 +106,7 @@ impl ToolExecutor {
     pub fn new(permission_mode: PermissionMode) -> Self {
         Self {
             registry: {
-                let mut r = ToolRegistry::with_builtins();
+                let mut r = brainwires_tools::registry_with_builtins();
                 r.register_tools(MonitorTool::get_tools());
                 r.register_tools(MemoryTool::get_tools());
                 r.register_tools(AskUserQuestionTool::get_tools());
@@ -142,7 +142,7 @@ impl ToolExecutor {
     pub fn with_provider(permission_mode: PermissionMode, provider: Arc<dyn Provider>) -> Self {
         Self {
             registry: {
-                let mut r = ToolRegistry::with_builtins();
+                let mut r = brainwires_tools::registry_with_builtins();
                 r.register_tools(MonitorTool::get_tools());
                 r.register_tools(MemoryTool::get_tools());
                 r.register_tools(AskUserQuestionTool::get_tools());
@@ -2384,7 +2384,7 @@ impl ToolExecutor {
 impl Default for ToolExecutor {
     fn default() -> Self {
         Self {
-            registry: ToolRegistry::with_builtins(),
+            registry: brainwires_tools::registry_with_builtins(),
             permission_mode: PermissionMode::Auto,
             provider: None,
             orchestrator: OrchestratorTool::new(),

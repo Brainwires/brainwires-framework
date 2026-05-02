@@ -32,7 +32,7 @@ use crate::summarization::Summarizer;
 /// use std::sync::Arc;
 ///
 /// let provider = /* create a provider */;
-/// let registry = ToolRegistry::with_builtins();
+/// let registry = brainwires_tools::registry_with_builtins();
 /// let context = ToolContext::default();
 /// let executor = Arc::new(BuiltinToolExecutor::new(registry, context));
 /// let options = ChatOptions::default();

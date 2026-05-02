@@ -312,19 +312,27 @@ pub fn get_tools_for_categories(registry: &ToolRegistry, categories: &[ToolCateg
     tools
 }
 
-/// Get smart-routed tools for the given messages
-pub fn get_smart_tools(messages: &[Message]) -> Vec<Tool> {
+/// Get smart-routed tools for the given messages, picking from `registry`.
+///
+/// Callers that want to route over the full set of brainwires builtins can
+/// pass `brainwires_tools::registry_with_builtins()`.
+pub fn get_smart_tools(messages: &[Message], registry: &ToolRegistry) -> Vec<Tool> {
     let categories = analyze_messages(messages);
-    let registry = ToolRegistry::with_builtins();
-    get_tools_for_categories(&registry, &categories)
+    get_tools_for_categories(registry, &categories)
 }
 
-/// Get smart-routed tools including MCP tools that match detected categories
-pub fn get_smart_tools_with_mcp(messages: &[Message], mcp_tools: &[Tool]) -> Vec<Tool> {
+/// Get smart-routed tools including MCP tools that match detected categories.
+///
+/// Same shape as [`get_smart_tools`]; the caller-supplied registry replaces
+/// the previous hardcoded `ToolRegistry::with_builtins()`.
+pub fn get_smart_tools_with_mcp(
+    messages: &[Message],
+    registry: &ToolRegistry,
+    mcp_tools: &[Tool],
+) -> Vec<Tool> {
     let categories = analyze_messages(messages);
-    let registry = ToolRegistry::with_builtins();
 
-    let mut tools = get_tools_for_categories(&registry, &categories);
+    let mut tools = get_tools_for_categories(registry, &categories);
     let mut seen_names: HashSet<String> = tools.iter().map(|t| t.name.clone()).collect();
 
     // Add MCP tools that match any of the detected categories

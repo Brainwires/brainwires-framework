@@ -133,7 +133,7 @@ impl PlanTool {
         let working_dir = std::env::current_dir()?.to_string_lossy().to_string();
 
         // Get read-only tools for the planning agent
-        let all_tools = ToolRegistry::with_builtins().get_all().to_vec();
+        let all_tools = brainwires_tools::registry_with_builtins().get_all().to_vec();
         let read_only_tools: Vec<_> = all_tools
             .into_iter()
             .filter(|t| {

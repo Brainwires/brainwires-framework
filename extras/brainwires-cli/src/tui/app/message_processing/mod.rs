@@ -248,7 +248,10 @@ impl App {
         let tools = match &self.tool_mode {
             crate::types::tool::ToolMode::Smart => {
                 // Smart routing: analyze messages to determine needed tools
-                crate::tools::get_smart_tools(&conversation_clone)
+                crate::tools::get_smart_tools(
+                    &conversation_clone,
+                    &brainwires_tools::registry_with_builtins(),
+                )
             }
             _ => self.tools.clone(),
         };

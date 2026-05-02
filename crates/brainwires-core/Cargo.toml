@@ -32,7 +32,7 @@ schemars = { workspace = true, optional = true }
 # (which pulls in `mio` and friends) — that breaks the wasm32 build, so tokio and
 # the filesystem-backed `workflow_state` module are only compiled off-wasm.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { workspace = true, features = ["fs"] }
+tokio = { workspace = true, features = ["fs", "sync"] }
 dirs = { workspace = true }
 
 # wasm32 needs the JS-backed `getrandom` so `uuid::Uuid::new_v4()` and any
