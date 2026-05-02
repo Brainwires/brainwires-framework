@@ -6,7 +6,7 @@ use crate::agents::TaskManager;
 use crate::tools::ToolExecutor;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use brainwires_network::agent_manager::{AgentInfo, AgentManager, AgentResult, SpawnConfig};
+use brainwires_agents::agent_manager::{AgentInfo, AgentManager, AgentResult, SpawnConfig};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};

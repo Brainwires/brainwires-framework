@@ -32,17 +32,6 @@ pub mod remote;
 pub mod traits;
 
 // ============================================================================
-// Agent Management (tool registry + lifecycle trait)
-// ============================================================================
-/// Agent lifecycle management.
-pub mod agent_manager;
-/// Pre-built MCP tools for agent operations.
-pub mod agent_tools;
-
-pub use agent_manager::{AgentInfo, AgentManager, AgentResult, SpawnConfig};
-pub use agent_tools::AgentToolRegistry;
-
-// ============================================================================
 // Client
 // ============================================================================
 /// Client for connecting to a remote agent network server.

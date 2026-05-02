@@ -92,6 +92,20 @@ pub mod wait_queue;
 
 pub mod access_control;
 
+// ── Agent management (lifecycle trait + MCP tool registry) ─────────────────
+//
+// Moved out of brainwires-network in Phase 2 — both modules import only
+// brainwires_core/serde/anyhow/async_trait, so they belong here with the
+// rest of the agent-runtime surface.
+
+/// Agent lifecycle management — `AgentManager` trait + `SpawnConfig`.
+pub mod agent_manager;
+/// Pre-built MCP tools for agent operations — `AgentToolRegistry`.
+pub mod agent_tools;
+
+pub use agent_manager::{AgentInfo, AgentManager, AgentResult, SpawnConfig};
+pub use agent_tools::AgentToolRegistry;
+
 // ── Git coordination ───────────────────────────────────────────────────────
 
 pub mod git_coordination;
