@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use std::sync::Arc;
 
-use crate::databases::{
+use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
@@ -78,7 +78,7 @@ fn from_record(r: &Record) -> Result<ConversationMetadata> {
 }
 
 /// Store for managing conversations
-pub struct ConversationStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
+pub struct ConversationStore<B: StorageBackend = brainwires_storage::databases::lance::LanceDatabase> {
     backend: Arc<B>,
 }
 
@@ -221,13 +221,13 @@ mod tests {
 
     async fn setup() -> (
         TempDir,
-        ConversationStore<crate::databases::lance::LanceDatabase>,
+        ConversationStore<brainwires_storage::databases::lance::LanceDatabase>,
     ) {
         let temp = TempDir::new().unwrap();
         let db_path = temp.path().join("test.lance");
 
         let backend = Arc::new(
-            crate::databases::lance::LanceDatabase::new(db_path.to_str().unwrap())
+            brainwires_storage::databases::lance::LanceDatabase::new(db_path.to_str().unwrap())
                 .await
                 .unwrap(),
         );

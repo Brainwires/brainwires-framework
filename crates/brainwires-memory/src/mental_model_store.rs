@@ -13,10 +13,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::databases::{
+use brainwires_storage::CachedEmbeddingProvider;
+use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
-use crate::embeddings::CachedEmbeddingProvider;
 
 const TABLE_NAME: &str = "mental_models";
 

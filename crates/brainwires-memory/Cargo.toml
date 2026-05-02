@@ -1,0 +1,59 @@
+[package]
+name = "brainwires-memory"
+description = "Tiered hot/warm/cold agent memory primitives for the Brainwires Agent Framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/brainwires-memory"
+keywords = ["agent-memory", "tiered-memory", "embeddings", "lancedb"]
+categories = ["database"]
+
+[dependencies]
+# Internal crates
+brainwires-core.workspace = true
+brainwires-storage = { workspace = true, features = ["native"] }
+
+# Arrow schema (used by `*_schema()` helpers under the `native` feature)
+arrow-schema = { workspace = true, optional = true }
+
+# Async runtime
+tokio = { version = "1.43", features = ["sync", "time"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Identifiers & time
+uuid.workspace = true
+chrono.workspace = true
+
+# Async traits
+async-trait.workspace = true
+
+# Logging
+tracing.workspace = true
+
+[features]
+default = ["native"]
+native = ["dep:arrow-schema"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+tempfile.workspace = true
+
+[[example]]
+name = "tiered_memory"
+required-features = ["native"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

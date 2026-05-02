@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::databases::{
+use brainwires_storage::CachedEmbeddingProvider;
+use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
-use crate::embeddings::CachedEmbeddingProvider;
 
 const TABLE_NAME: &str = "messages";
 
@@ -131,7 +131,7 @@ fn from_record(r: &Record) -> Result<MessageMetadata> {
 }
 
 /// Store for managing messages with semantic search
-pub struct MessageStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
+pub struct MessageStore<B: StorageBackend = brainwires_storage::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<CachedEmbeddingProvider>,
 }

@@ -46,19 +46,14 @@ lru = { workspace = true, optional = true }
 # Hashing (file content hashing)
 sha2 = { workspace = true, optional = true }
 
-# SQLite (for lock store, native only)
-rusqlite = { workspace = true, optional = true }
-
 # Regex (for template matching)
 regex.workspace = true
 
 # File format processing (native only)
 base64 = { version = "0.22", optional = true }
 
-# System info (for lock store, native only)
-gethostname = { version = "1", optional = true }
+# Filesystem paths (used by `paths.rs`)
 dirs = { version = "6", optional = true }
-libc = { version = "0.2", optional = true }
 
 # Async traits (required for StorageBackend/VectorDatabase traits + LockPersistence)
 async-trait.workspace = true
@@ -97,8 +92,8 @@ getrandom = { version = "0.2", features = ["js"] }
 default = ["native"]
 native = [
     "lance-backend",
-    "dep:fastembed", "dep:lru", "dep:rusqlite",
-    "dep:base64", "dep:gethostname", "dep:dirs", "dep:libc",
+    "dep:fastembed", "dep:lru",
+    "dep:base64",
     "tokio/rt", "tokio/macros",
     "brainwires-core/native",
 ]
@@ -109,6 +104,7 @@ lance-backend = [
     "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
     "dep:futures", "dep:sha2",
     "dep:tantivy", "dep:globset",
+    "dep:dirs",
 ]
 postgres-backend = ["lance-backend", "dep:tokio-postgres", "dep:deadpool-postgres", "dep:pgvector"]
 mysql-backend = ["lance-backend", "dep:mysql_async"]
@@ -136,21 +132,6 @@ hnsw-wasm = ["wasm", "dep:instant-distance", "dep:bincode"]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile.workspace = true
 
-[[example]]
-name = "message_store"
-required-features = ["native"]
-
-[[example]]
-name = "tiered_memory"
-required-features = ["native"]
-
-[[example]]
-name = "plan_templates"
-required-features = ["native"]
-
-[[example]]
-name = "lock_coordination"
-required-features = ["native"]
 
 [package.metadata.docs.rs]
 all-features = true

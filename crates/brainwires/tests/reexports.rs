@@ -59,7 +59,7 @@ const _: fn() = || {
     let _: fn(&str) -> Vec<_> = parse_plan_steps;
 };
 
-#[cfg(feature = "storage")]
+#[cfg(feature = "memory")]
 const _: fn() = || {
     use brainwires::storage::TieredMemory;
     let _ty: std::marker::PhantomData<TieredMemory> = std::marker::PhantomData;

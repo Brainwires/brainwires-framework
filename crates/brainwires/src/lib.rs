@@ -39,10 +39,16 @@ pub mod reasoning {
     pub use brainwires_reasoning::*;
 }
 
-/// Persistent storage — LanceDB vector database, tiered memory, embeddings.
+/// Persistent storage primitives — `StorageBackend` trait, embeddings, BM25.
 #[cfg(feature = "storage")]
 pub mod storage {
     pub use brainwires_storage::*;
+}
+
+/// Tiered hot/warm/cold agent memory — message/summary/fact stores + orchestration.
+#[cfg(feature = "memory")]
+pub mod memory {
+    pub use brainwires_memory::*;
 }
 
 /// MCP client — connect to external MCP servers and use their tools.
@@ -340,7 +346,10 @@ pub mod prelude {
 
     // Storage — available with "storage" feature
     #[cfg(feature = "storage")]
-    pub use brainwires_storage::{CachedEmbeddingProvider, TieredMemory};
+    pub use brainwires_storage::CachedEmbeddingProvider;
+    // Tiered memory — available with "memory" feature
+    #[cfg(feature = "memory")]
+    pub use brainwires_memory::TieredMemory;
 
     // MCP — available with "mcp" feature
     #[cfg(feature = "mcp")]

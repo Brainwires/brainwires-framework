@@ -20,6 +20,7 @@ brainwires-tools = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
+brainwires-memory = { workspace = true, optional = true }
 brainwires-reasoning = { workspace = true, optional = true }
 
 serde = { workspace = true }
@@ -72,7 +73,7 @@ eval-driven = [
     "dep:brainwires-agents", "brainwires-agents/eval",
     "dep:brainwires-reasoning",
     "dep:brainwires-knowledge", "brainwires-knowledge/knowledge",
-    "dep:brainwires-storage",
+    "dep:brainwires-memory",
     "dep:futures",
 ]
 

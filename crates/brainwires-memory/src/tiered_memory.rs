@@ -22,12 +22,11 @@ use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
 
-use crate::databases::StorageBackend;
-use crate::stores::mental_model_store::{MentalModel, MentalModelStore, ModelType};
-use crate::{
-    CachedEmbeddingProvider, FactStore, LanceDatabase, MessageMetadata, MessageStore, SummaryStore,
-    TierMetadataStore,
-};
+use brainwires_storage::CachedEmbeddingProvider;
+use brainwires_storage::databases::{LanceDatabase, StorageBackend};
+
+use crate::mental_model_store::{MentalModel, MentalModelStore, ModelType};
+use crate::{FactStore, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
 
 const SECS_PER_HOUR: f32 = 3600.0;
 const SIMILARITY_WEIGHT: f32 = 0.50;

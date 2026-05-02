@@ -7,10 +7,10 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::databases::{
+use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
-use crate::embeddings::CachedEmbeddingProvider;
+use brainwires_storage::embeddings::CachedEmbeddingProvider;
 use brainwires_core::{PlanMetadata, PlanStatus};
 
 const TABLE_NAME: &str = "plans";
@@ -44,7 +44,7 @@ pub fn plans_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
 }
 
 /// Arrow schema for the plans table, used by `LanceDatabase` table creation.
-#[cfg(feature = "native")]
+
 pub fn plans_schema() -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
 
@@ -206,7 +206,7 @@ fn from_record(r: &Record) -> Result<PlanMetadata> {
 // ── PlanStore ───────────────────────────────────────────────────────────
 
 /// Store for managing execution plans
-pub struct PlanStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
+pub struct PlanStore<B: StorageBackend = brainwires_storage::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<CachedEmbeddingProvider>,
     /// Directory for plan markdown exports

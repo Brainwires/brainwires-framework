@@ -5,6 +5,11 @@
 pub use brainwires::storage::databases::VectorDatabase;
 pub use brainwires::storage::*;
 
+// Tiered hot/warm/cold memory primitives (extracted from brainwires-storage
+// into brainwires-memory). Re-exported here so existing CLI imports of the
+// form `use crate::storage::{MessageStore, TieredMemory}` keep compiling.
+pub use brainwires::memory::*;
+
 // Document types (live in brainwires-knowledge::rag::documents)
 pub use brainwires_knowledge::rag::documents::{
     ChunkerConfig, DocumentBM25Manager, DocumentChunk, DocumentChunker, DocumentMetadata,
@@ -13,12 +18,30 @@ pub use brainwires_knowledge::rag::documents::{
     lance_tables as document_lance_tables,
 };
 
-// CLI-specific storage modules
+// CLI-specific storage modules — domain stores that used to live inside
+// brainwires-storage but were CLI-only consumers; moved here so the
+// storage crate stays generic primitives.
+pub mod conversation_store;
+pub mod image_store;
+pub mod lock_store;
 pub mod pattern_store;
+pub mod persistent_task_manager;
 pub mod plan_mode_store;
+pub mod plan_store;
+pub mod task_store;
+pub mod template_store;
 
+pub use conversation_store::{ConversationMetadata, ConversationStore};
+pub use image_store::ImageStore;
+pub use lock_store::{LockRecord, LockStats, LockStore};
 pub use pattern_store::{PatternMetadata, PatternStore};
+pub use persistent_task_manager::PersistentTaskManager;
 pub use plan_mode_store::PlanModeStore;
+pub use plan_store::PlanStore;
+pub use task_store::{
+    AgentStateMetadata, AgentStateStore, TaskMetadata, TaskStore,
+};
+pub use template_store::{PlanTemplate, TemplateStore};
 
 // CLI-specific extensions for framework types
 use anyhow::{Context as _, Result};

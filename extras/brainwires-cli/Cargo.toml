@@ -157,6 +157,9 @@ brainwires-knowledge = { workspace = true, features = ["rag", "lancedb-backend",
 brainwires-network = { workspace = true, features = ["auth-keyring"] }
 brainwires-providers.workspace = true
 brainwires-telemetry = { workspace = true, features = ["native"] }
+brainwires-storage = { workspace = true, features = ["native"] }
+brainwires-memory.workspace = true
+brainwires-core = { workspace = true, features = ["native"] }
 
 petgraph = "0.8.3"
 nix = { version = "0.30.1", features = ["term", "signal", "process"] }

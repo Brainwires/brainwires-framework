@@ -21,6 +21,7 @@ brainwires-core.workspace = true
 brainwires-tools = { workspace = true, optional = true }
 brainwires-agents = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
+brainwires-memory = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
@@ -88,14 +89,15 @@ required-features = ["providers", "chat"]
 
 [[example]]
 name = "storage_with_rag"
-required-features = ["storage", "rag"]
+required-features = ["memory", "rag"]
 
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]
-tools = ["dep:brainwires-tools"]
+tools = ["dep:brainwires-tools", "brainwires-tools/native"]
 agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
+memory = ["dep:brainwires-memory", "storage"]
 mcp = ["dep:brainwires-mcp"]
 mdap = ["agents", "brainwires-agents/mdap"]
 knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
@@ -147,9 +149,9 @@ learning = ["seal", "knowledge", "permissions", "brainwires-agents/seal-knowledg
 # Convenience: everything needed for agent workflows
 agent-full = ["agents", "permissions", "prompting", "tools"]
 # Convenience: everything a researcher typically needs
-researcher = ["providers", "agents", "storage", "rag", "training", "datasets"]
+researcher = ["providers", "agents", "storage", "memory", "rag", "training", "datasets"]
 full = [
-    "tools", "agents", "storage", "mcp", "mdap", "knowledge",
+    "tools", "agents", "storage", "memory", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag-full-languages", "interpreters",
     "providers", "chat", "reasoning", "seal", "agent-network",
     "brainwires-agents/seal-knowledge", "brainwires-agents/seal-mdap", "brainwires-agents/seal-feedback",

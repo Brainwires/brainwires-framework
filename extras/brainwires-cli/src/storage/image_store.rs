@@ -7,11 +7,11 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
-use crate::databases::{
+use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
-use crate::embeddings::CachedEmbeddingProvider;
-use crate::image_types::{
+use brainwires_storage::embeddings::CachedEmbeddingProvider;
+use brainwires_storage::image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };
 
@@ -204,7 +204,7 @@ fn storage_from_record(r: &Record) -> Option<ImageStorage> {
 // ── ImageStore ──────────────────────────────────────────────────────────
 
 /// Store for analyzed images with semantic search
-pub struct ImageStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
+pub struct ImageStore<B: StorageBackend = brainwires_storage::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<CachedEmbeddingProvider>,
 }

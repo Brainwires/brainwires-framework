@@ -10,8 +10,9 @@ use tokio::sync::RwLock;
 use brainwires_agents::task_manager::TaskManager;
 use brainwires_core::{Task, TaskPriority, TaskStatus};
 
-use crate::LanceDatabase;
-use crate::stores::task_store::TaskStore;
+use brainwires_storage::LanceDatabase;
+
+use crate::storage::task_store::TaskStore;
 
 /// A TaskManager that automatically persists to the storage backend
 pub struct PersistentTaskManager {

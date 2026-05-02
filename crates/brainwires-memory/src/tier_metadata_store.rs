@@ -7,9 +7,10 @@ use std::collections::HashMap;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::databases::{
+use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
+
 use crate::tiered_memory::{MemoryAuthority, MemoryTier, TierMetadata};
 
 const TABLE_NAME: &str = "tier_metadata";
@@ -103,7 +104,7 @@ fn string_to_tier(s: &str) -> MemoryTier {
 }
 
 /// Store for tier metadata
-pub struct TierMetadataStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
+pub struct TierMetadataStore<B: StorageBackend = brainwires_storage::databases::lance::LanceDatabase> {
     backend: Arc<B>,
 }
 

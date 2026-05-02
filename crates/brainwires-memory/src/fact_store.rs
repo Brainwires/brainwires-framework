@@ -1,14 +1,15 @@
 //! Persistent storage for cold tier key facts
 //!
-//! Uses a [`StorageBackend`](crate::StorageBackend) for persistence with semantic search capability.
+//! Uses a [`StorageBackend`](brainwires_storage::StorageBackend) for persistence with semantic search capability.
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::databases::{
+use brainwires_storage::CachedEmbeddingProvider;
+use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
-use crate::embeddings::CachedEmbeddingProvider;
+
 use crate::tiered_memory::{FactType, KeyFact};
 
 const TABLE_NAME: &str = "facts";
@@ -142,7 +143,7 @@ fn string_to_fact_type(s: &str) -> FactType {
 // ── FactStore ───────────────────────────────────────────────────────────
 
 /// Store for cold tier key facts with semantic search
-pub struct FactStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
+pub struct FactStore<B: StorageBackend = brainwires_storage::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<CachedEmbeddingProvider>,
 }

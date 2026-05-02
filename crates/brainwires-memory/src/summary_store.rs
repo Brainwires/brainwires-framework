@@ -1,14 +1,15 @@
 //! Persistent storage for warm tier message summaries
 //!
-//! Uses a [`StorageBackend`](crate::StorageBackend) for persistence with semantic search capability.
+//! Uses a [`StorageBackend`](brainwires_storage::StorageBackend) for persistence with semantic search capability.
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::databases::{
+use brainwires_storage::CachedEmbeddingProvider;
+use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
-use crate::embeddings::CachedEmbeddingProvider;
+
 use crate::tiered_memory::MessageSummary;
 
 const TABLE_NAME: &str = "summaries";
@@ -126,7 +127,7 @@ fn from_record(r: &Record) -> Result<MessageSummary> {
 // ── SummaryStore ────────────────────────────────────────────────────────
 
 /// Store for warm tier message summaries with semantic search
-pub struct SummaryStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
+pub struct SummaryStore<B: StorageBackend = brainwires_storage::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<CachedEmbeddingProvider>,
 }
