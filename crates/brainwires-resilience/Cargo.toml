@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-resilience"
-description = "Provider-layer resilience middleware (retry, budget, circuit breaker) for the Brainwires Agent Framework"
+description = "Resilience middleware (retry, circuit breaker, budget, cache, error classification) for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

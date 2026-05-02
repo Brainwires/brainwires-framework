@@ -105,6 +105,17 @@ The Brainwires Framework is a workspace of 16 framework crates plus 25 extras (i
 | [**brainwires-docs**](extras/brainwires-docs/README.md) | Documentation tooling and reference site generation |
 | [**voice-assistant**](extras/voice-assistant/README.md) | End-to-end voice assistant binary using the `brainwires-hardware` pipeline |
 
+### Workspace layout
+
+- **`crates/`** — the framework. Cohesive, independently-publishable libraries.
+- **`extras/`** — applications and libraries that **consume** the framework: binaries, demos, MCP servers, and integration helpers.
+
+**Allowed dependency arrows:** `crates/ → crates/` and `extras/ → crates/`.
+
+**Forbidden:** `crates/ → extras/` (the framework cannot depend on its consumers) and `extras/ → extras/` (extras are siblings of equal standing, not a hierarchy). If an `extras/` library starts being depended on by another `extras/` entry, that's a signal it belongs in `crates/`.
+
+The `deprecated/` directory holds historical crates that have been merged or retired; nothing in the active workspace depends on it.
+
 ## Getting Started
 
 ### Requirements
