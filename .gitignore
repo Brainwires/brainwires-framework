@@ -8,3 +8,4 @@ Cargo.lock
 .cache/.claude/
 .mcp.json
 CLAUDE_CODE_INTEGRATION.md
+.claude/scheduled_tasks.lock

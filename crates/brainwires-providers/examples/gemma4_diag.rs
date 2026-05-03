@@ -124,10 +124,36 @@ fn gemma4_skip_reason(name: &str) -> Option<&'static str> {
     None
 }
 
-/// Wraps an inner `SimpleBackend` and reports any tensor matching
-/// `gemma4_skip_reason` as absent. Forces candle's PLE construction to
-/// fall back to the projection-only path and skips audio/QAT-stat
-/// tensors so the model builds without those weights.
+/// Translate a candle-side tensor lookup name into the safetensors key
+/// stored in the HF Gemma 4 checkpoint.
+///
+/// Candle's `Gemma4Model::new_partial` applies `vb.pp("model")` and
+/// then `TextModel::new` applies `vb.pp("model")` *again*, so language-
+/// model tensors are looked up at `model.language_model.model.<rest>`.
+/// HF stores them at `model.language_model.<rest>` — no inner `.model.`
+/// segment. Strip it on lookup so candle and HF agree.
+///
+/// This mirrors the inverse of the chat-pwa's
+/// `extras/brainwires-chat-pwa/wasm/src/vision.rs::gemma4_remap_key`,
+/// which transforms HF → candle when building the HashMap. Here we go
+/// candle → HF on each `vb.get(...)`.
+///
+/// Vision (`model.vision_tower.*`) and audio (`model.audio_tower.*`)
+/// paths are passed through unchanged — they don't have the
+/// double-prefix issue.
+fn remap_candle_to_hf(name: &str) -> std::borrow::Cow<'_, str> {
+    if let Some(rest) = name.strip_prefix("model.language_model.model.") {
+        std::borrow::Cow::Owned(format!("model.language_model.{rest}"))
+    } else {
+        std::borrow::Cow::Borrowed(name)
+    }
+}
+
+/// Wraps an inner `SimpleBackend` and (a) reports any tensor matching
+/// `gemma4_skip_reason` as absent so candle's PLE construction falls
+/// back to the projection-only path, and (b) translates candle's
+/// double-`model.` lookup names back to HF's single-`model.` safetensors
+/// keys.
 struct FilteredBackend {
     inner: Box<dyn SimpleBackend + 'static>,
 }
@@ -141,13 +167,14 @@ impl SimpleBackend for FilteredBackend {
         dtype: DType,
         dev: &Device,
     ) -> candle_core::Result<Tensor> {
-        if let Some(reason) = gemma4_skip_reason(name) {
+        let hf_name = remap_candle_to_hf(name);
+        if let Some(reason) = gemma4_skip_reason(&hf_name) {
             return Err(candle_core::Error::Msg(format!(
                 "tensor `{name}` filtered ({reason}) — caller should check \
                  contains_tensor first"
             )));
         }
-        self.inner.get(shape, name, h, dtype, dev)
+        self.inner.get(shape, &hf_name, h, dtype, dev)
     }
 
     fn get_unchecked(
@@ -156,19 +183,21 @@ impl SimpleBackend for FilteredBackend {
         dtype: DType,
         dev: &Device,
     ) -> candle_core::Result<Tensor> {
-        if let Some(reason) = gemma4_skip_reason(name) {
+        let hf_name = remap_candle_to_hf(name);
+        if let Some(reason) = gemma4_skip_reason(&hf_name) {
             return Err(candle_core::Error::Msg(format!(
                 "tensor `{name}` filtered ({reason})"
             )));
         }
-        self.inner.get_unchecked(name, dtype, dev)
+        self.inner.get_unchecked(&hf_name, dtype, dev)
     }
 
     fn contains_tensor(&self, name: &str) -> bool {
-        if gemma4_skip_reason(name).is_some() {
+        let hf_name = remap_candle_to_hf(name);
+        if gemma4_skip_reason(&hf_name).is_some() {
             return false;
         }
-        self.inner.contains_tensor(name)
+        self.inner.contains_tensor(&hf_name)
     }
 }
 
@@ -228,6 +257,99 @@ fn load_config(path: &std::path::Path) -> Result<Gemma4Config> {
     Ok(cfg)
 }
 
+/// Read the safetensors header keys and use them to override config
+/// defaults that don't match the actual checkpoint. The HF Gemma 4 E2B
+/// `config.json` omits `altup_num_inputs`, `laurel_rank`, and similar
+/// fields — candle's serde defaults assume Gemma 3n's full feature set
+/// (4 AltUp streams, LAuReL rank 64). The actual E2B checkpoint has
+/// neither, so we sniff for marker tensors and disable the modules
+/// that aren't backed by weights.
+///
+/// Mirrors the inference logic in
+/// `extras/brainwires-chat-pwa/wasm/src/vision.rs::build_gemma4_config`.
+fn override_cfg_from_safetensors(
+    cfg: &mut Gemma4Config,
+    weights_path: &std::path::Path,
+) -> Result<()> {
+    // Read only the header — first 8 bytes are little-endian u64
+    // header_size, then `header_size` bytes of JSON. Avoid loading the
+    // full 10 GB tensor body (an earlier `fs::read` of the whole file
+    // hung for minutes — this version is ~milliseconds).
+    use std::io::Read;
+    let mut f = std::fs::File::open(weights_path)
+        .with_context(|| format!("open {}", weights_path.display()))?;
+    let mut size_buf = [0u8; 8];
+    f.read_exact(&mut size_buf)
+        .context("read safetensors header size")?;
+    let header_size = u64::from_le_bytes(size_buf) as usize;
+    let mut header_bytes = vec![0u8; header_size];
+    f.read_exact(&mut header_bytes)
+        .context("read safetensors header bytes")?;
+    let header: serde_json::Value = serde_json::from_slice(&header_bytes)
+        .context("parse safetensors header as JSON")?;
+    let keys: Vec<&str> = header
+        .as_object()
+        .context("safetensors header not an object")?
+        .keys()
+        .filter(|k| k.as_str() != "__metadata__")
+        .map(|s| s.as_str())
+        .collect();
+
+    let has_altup = keys.iter().any(|k| k.contains("altup_projections"));
+    let has_laurel = keys.iter().any(|k| k.contains("laurel.linear"));
+
+    if !has_altup && cfg.text_config.altup_num_inputs > 1 {
+        eprintln!(
+            "[gemma4_diag] no `altup_projections` tensors in checkpoint; \
+             overriding cfg.text_config.altup_num_inputs from {} → 1",
+            cfg.text_config.altup_num_inputs
+        );
+        cfg.text_config.altup_num_inputs = 1;
+    }
+    if !has_laurel && cfg.text_config.laurel_rank > 0 {
+        eprintln!(
+            "[gemma4_diag] no `laurel.linear_*` tensors in checkpoint; \
+             overriding cfg.text_config.laurel_rank from {} → 0",
+            cfg.text_config.laurel_rank
+        );
+        cfg.text_config.laurel_rank = 0;
+    }
+
+    // Per-layer MLP intermediate-size override. Gemma 4 uses
+    // `use_double_wide_mlp` so KV-shared layers (top
+    // `num_kv_shared_layers`) carry 2× intermediate width. The per-layer
+    // override Vec is the candle-fork's mechanism for honoring this —
+    // we infer the actual shape from each layer's `gate_proj.weight`.
+    let n_layers = cfg.text_config.num_hidden_layers;
+    let mut sizes: Vec<usize> = Vec::with_capacity(n_layers);
+    let header_obj = header.as_object().unwrap();
+    for li in 0..n_layers {
+        let key = format!("model.language_model.layers.{li}.mlp.gate_proj.weight");
+        let entry = header_obj.get(&key).with_context(|| {
+            format!("safetensors header missing `{key}` — cannot infer layer {li}'s MLP width")
+        })?;
+        let shape = entry
+            .get("shape")
+            .and_then(|s| s.as_array())
+            .with_context(|| format!("`{key}` has no shape array"))?;
+        let intermediate = shape
+            .get(0)
+            .and_then(|v| v.as_u64())
+            .with_context(|| format!("`{key}.shape[0]` not a u64"))? as usize;
+        sizes.push(intermediate);
+    }
+    let any_diff = sizes.iter().any(|s| *s != cfg.text_config.intermediate_size);
+    if any_diff {
+        eprintln!(
+            "[gemma4_diag] mixed MLP widths detected: per-layer intermediate_sizes = {:?}",
+            sizes
+        );
+        cfg.text_config.intermediate_sizes = Some(sizes);
+    }
+
+    Ok(())
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ExitCode {
     let args = Args::parse();
@@ -281,14 +403,18 @@ async fn run(args: Args) -> Result<()> {
     eprintln!("[gemma4_diag] tokenizer={}", tokenizer_path.display());
     eprintln!("[gemma4_diag] config={}", config_path.display());
 
-    let cfg = load_config(&config_path)?;
+    let mut cfg = load_config(&config_path)?;
+    override_cfg_from_safetensors(&mut cfg, &weights)?;
     eprintln!(
-        "[gemma4_diag] config: hidden={} layers={} heads={} head_dim={} global_head_dim={}",
+        "[gemma4_diag] config: hidden={} layers={} heads={} head_dim={} global_head_dim={} \
+         altup_num_inputs={} laurel_rank={}",
         cfg.text_config.hidden_size,
         cfg.text_config.num_hidden_layers,
         cfg.text_config.num_attention_heads,
         cfg.text_config.head_dim,
         cfg.text_config.global_head_dim,
+        cfg.text_config.altup_num_inputs,
+        cfg.text_config.laurel_rank,
     );
 
     let dtype = DType::BF16;
