@@ -3,9 +3,9 @@
 //! Demonstrates how to configure a cloud fine-tuning job with provider
 //! selection, hyperparameters, LoRA settings, and job status checking.
 //!
-//! Run: cargo run -p brainwires-training --example cloud_finetune --features cloud
+//! Run: cargo run -p brainwires-finetune --example cloud_finetune --features cloud
 
-use brainwires_training::{
+use brainwires_finetune::{
     AlignmentMethod, CloudFineTuneConfig, DatasetId, FineTuneProviderFactory, LrScheduler,
     TrainingHyperparams, TrainingJobStatus, TrainingManager,
 };
@@ -57,7 +57,7 @@ async fn main() {
 
     // Step 5: Check job status.
     // Simulate a job ID that would be returned by the provider.
-    let demo_job_id: brainwires_training::TrainingJobId = "ftjob-demo-000".into();
+    let demo_job_id: brainwires_finetune::TrainingJobId = "ftjob-demo-000".into();
 
     // In production you would call:
     //

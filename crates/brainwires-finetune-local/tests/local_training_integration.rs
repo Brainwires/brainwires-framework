@@ -7,19 +7,19 @@
 
 #[cfg(feature = "local")]
 mod local_training {
-    use brainwires_training::config::{
+    use brainwires_finetune::config::{
         AdapterMethod, AlignmentMethod, LoraConfig, LrScheduler, TrainingHyperparams,
     };
-    use brainwires_training::local::adapters::{DoraLayer, LoraLayer, QLoraLayer};
-    use brainwires_training::local::checkpointing::{CheckpointManager, CheckpointMeta};
-    use brainwires_training::local::dataset_loader::{
+    use brainwires_finetune_local::adapters::{DoraLayer, LoraLayer, QLoraLayer};
+    use brainwires_finetune_local::checkpointing::{CheckpointManager, CheckpointMeta};
+    use brainwires_finetune_local::dataset_loader::{
         SimpleTokenizer, Tokenizer, TrainingDataset, TrainingExample,
     };
-    use brainwires_training::local::lr_schedule::LrSchedule;
-    use brainwires_training::local::quantization::{
+    use brainwires_finetune_local::lr_schedule::LrSchedule;
+    use brainwires_finetune_local::quantization::{
         QuantConfig, dequantize_tensor, quantize_tensor,
     };
-    use brainwires_training::local::{ComputeDevice, LocalTrainingConfig};
+    use brainwires_finetune_local::{ComputeDevice, LocalTrainingConfig};
 
     // ── LocalTrainingConfig ──────────────────────────────────────────────
 
@@ -452,7 +452,7 @@ mod local_training {
 
     #[test]
     fn test_export_format_display() {
-        use brainwires_training::local::export::ExportFormat;
+        use brainwires_finetune_local::export::ExportFormat;
         assert_eq!(format!("{}", ExportFormat::Gguf), "gguf");
         assert_eq!(format!("{}", ExportFormat::SafeTensors), "safetensors");
         assert_eq!(format!("{}", ExportFormat::AdapterOnly), "adapter_only");
@@ -460,7 +460,7 @@ mod local_training {
 
     #[test]
     fn test_export_config_gguf() {
-        use brainwires_training::local::export::ExportConfig;
+        use brainwires_finetune_local::export::ExportConfig;
         let cfg = ExportConfig::gguf("/output/model.gguf");
         assert_eq!(
             cfg.gguf_quantization.as_deref(),
@@ -474,7 +474,7 @@ mod local_training {
 
     #[test]
     fn test_burn_backend_instantiation() {
-        use brainwires_training::local::BurnBackend;
+        use brainwires_finetune_local::BurnBackend;
         let _backend = BurnBackend::new();
         // Just verifying the struct can be created without panicking.
     }

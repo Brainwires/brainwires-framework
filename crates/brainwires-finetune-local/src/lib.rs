@@ -1,12 +1,16 @@
 #![allow(missing_docs)]
-//! Local LoRA / QLoRA / DoRA training for the Brainwires Agent Framework.
+//! Local LoRA / QLoRA / DoRA fine-tuning for the Brainwires Agent Framework.
 //!
-//! Standalone so consumers that only want cloud finetune APIs (Anthropic /
-//! OpenAI / Bedrock / Vertex AI / etc., living in `brainwires-training`)
-//! don't pay the burn / candle / safetensors compile cost.
+//! These are PEFT (parameter-efficient fine-tuning) methods running on a
+//! pre-trained model — distinct from the cloud fine-tune APIs
+//! (`brainwires-finetune`) and from training-from-scratch
+//! (`brainwires-training`).
 //!
-//! Depends on `brainwires-training` for the shared `config` /
-//! `error` / `types` infrastructure.
+//! Standalone so consumers that only want cloud fine-tune APIs don't pay
+//! the burn / safetensors / tokenizers compile cost.
+//!
+//! Depends on `brainwires-finetune` for the shared `config` / `error` /
+//! `types` infrastructure.
 
 // Re-export burn_core as `burn` so Burn's derive macros (Module, Config) can
 // resolve their internal `burn::` paths when using the individual burn-*

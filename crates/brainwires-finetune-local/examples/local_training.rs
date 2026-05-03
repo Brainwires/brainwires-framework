@@ -3,11 +3,11 @@
 //! Demonstrates how to configure a local training run with adapter
 //! parameters, compute device selection, and training progress tracking.
 //!
-//! Run: cargo run -p brainwires-training --example local_training --features local
+//! Run: cargo run -p brainwires-finetune-local --example local_training --features local
 
 use std::path::PathBuf;
 
-use brainwires_training::{
+use brainwires_finetune_local::{
     AdapterMethod, AlignmentMethod, ComputeDevice, LocalTrainingConfig, LoraConfig, LrScheduler,
     TrainingHyperparams, TrainingManager,
 };

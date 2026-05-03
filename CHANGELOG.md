@@ -11,6 +11,31 @@ Pre-1.0 hygiene pass: remove backwards-compat shims, close feature-flag half-wir
 
 ### Refactored (BREAKING)
 
+#### `brainwires-training` renamed to `brainwires-finetune`; new `brainwires-training` placeholder
+
+The crate previously named `brainwires-training` only ever did
+fine-tuning — cloud fine-tune APIs (OpenAI / Anthropic / Bedrock /
+Vertex AI / etc.) plus local LoRA/QLoRA/DoRA — never training-from-scratch.
+The name was technically incorrect. Renamed to match what the code
+actually does:
+
+- **`brainwires-finetune`** (renamed from `brainwires-training`) —
+  cloud fine-tune APIs + dataset pipelines.
+- **`brainwires-finetune-local`** — local PEFT (already separate as of
+  the previous entry below).
+- **`brainwires-training`** (new placeholder crate) — reserved for
+  actual training-from-scratch primitives. No code yet; the crate
+  exists to occupy the name on crates.io and document the split in
+  its README.
+
+API breakage:
+
+- `Cargo.toml`: `brainwires-training = "0.10"` → `brainwires-finetune = "0.10"`.
+- All `use brainwires_training::*` imports → `use brainwires_finetune::*`.
+- The umbrella `brainwires` crate's `training` / `training-cloud` /
+  `training-full` features now route to `brainwires-finetune` (feature
+  names unchanged).
+
 #### `brainwires-providers` split — speech (TTS / STT) extracted to `brainwires-provider-speech`
 
 `brainwires-providers` mixed two unrelated concerns: LLM chat clients

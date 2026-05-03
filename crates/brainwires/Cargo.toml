@@ -50,8 +50,8 @@ brainwires-a2a = { workspace = true, optional = true }
 # Hardware I/O (audio, GPIO, Bluetooth, network)
 brainwires-hardware = { workspace = true, optional = true }
 
-# Datasets & Training
-brainwires-training = { workspace = true, optional = true }
+# Datasets & Fine-tuning
+brainwires-finetune = { workspace = true, optional = true }
 brainwires-finetune-local = { workspace = true, optional = true }
 
 
@@ -136,11 +136,11 @@ usb = ["dep:brainwires-hardware", "brainwires-hardware/usb"]
 vad = ["dep:brainwires-hardware", "brainwires-hardware/vad"]
 wake-word = ["dep:brainwires-hardware", "brainwires-hardware/wake-word"]
 voice-assistant = ["dep:brainwires-hardware", "brainwires-hardware/voice-assistant"]
-datasets = ["training", "brainwires-training/datasets-full"]
-training = ["dep:brainwires-training"]
-training-cloud = ["training", "brainwires-training/cloud"]
+datasets = ["training", "brainwires-finetune/datasets-full"]
+training = ["dep:brainwires-finetune"]
+training-cloud = ["training", "brainwires-finetune/cloud"]
 training-local = ["dep:brainwires-finetune-local"]
-training-full = ["training", "training-local", "brainwires-training/full", "datasets"]
+training-full = ["training", "training-local", "brainwires-finetune/full", "datasets"]
 # autonomy feature requires brainwires-autonomy (publish = false, workspace-only)
 system = ["tools", "brainwires-tool-builtins/system"]
 dream = ["memory", "brainwires-memory/dream"]

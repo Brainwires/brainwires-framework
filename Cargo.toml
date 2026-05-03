@@ -19,8 +19,9 @@ members = [
     "crates/brainwires-resilience",
     "crates/brainwires-session",
     "crates/brainwires-hardware",
-    "crates/brainwires-training",
+    "crates/brainwires-finetune",
     "crates/brainwires-finetune-local",
+    "crates/brainwires-training",
     "extras/brainwires-autonomy",
     "extras/brainwires-chat-pwa/home",
     "extras/brainwires-chat-pwa/wasm",
@@ -102,8 +103,9 @@ brainwires-provider-speech = { path = "crates/brainwires-provider-speech", versi
 brainwires-resilience = { path = "crates/brainwires-resilience", version = "0.10.0", default-features = false }
 brainwires-session = { path = "crates/brainwires-session", version = "0.10.0" }
 brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.10.0" }
-brainwires-training = { path = "crates/brainwires-training", version = "0.10.0" }
+brainwires-finetune = { path = "crates/brainwires-finetune", version = "0.10.0" }
 brainwires-finetune-local = { path = "crates/brainwires-finetune-local", version = "0.10.0" }
+brainwires-training = { path = "crates/brainwires-training", version = "0.10.0" }
 brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.10.0", default-features = false }
 brainwires-rag = { path = "crates/brainwires-rag", version = "0.10.0", default-features = false }
 brainwires-prompting = { path = "crates/brainwires-prompting", version = "0.10.0", default-features = false }

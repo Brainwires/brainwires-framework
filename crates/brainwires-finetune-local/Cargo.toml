@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-finetune-local"
-description = "Local LoRA / QLoRA / DoRA training for the Brainwires Agent Framework — Burn-backed (CPU/WGPU) with safetensors checkpointing. Heavyweight; consumers that only want cloud finetune APIs should depend on `brainwires-training` directly."
+description = "Local PEFT fine-tuning (LoRA / QLoRA / DoRA) for the Brainwires Agent Framework — Burn-backed (CPU/WGPU) with safetensors checkpointing. Heavyweight; consumers that only want cloud fine-tune APIs should depend on `brainwires-finetune` directly."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -19,9 +19,9 @@ path = "src/lib.rs"
 
 [dependencies]
 brainwires-core = { workspace = true }
-brainwires-training = { path = "../brainwires-training", version = "0.10.0", default-features = false }
+brainwires-finetune = { path = "../brainwires-finetune", version = "0.10.0", default-features = false }
 
-# Always-on infrastructure (paired with brainwires-training's own surface)
+# Always-on infrastructure (paired with brainwires-finetune's own surface)
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

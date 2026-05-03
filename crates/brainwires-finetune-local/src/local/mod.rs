@@ -24,9 +24,9 @@ pub mod weight_loader;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use brainwires_training::config::{AlignmentMethod, LoraConfig, TrainingHyperparams};
-use brainwires_training::error::TrainingError;
-use brainwires_training::types::TrainingProgress;
+use brainwires_finetune::config::{AlignmentMethod, LoraConfig, TrainingHyperparams};
+use brainwires_finetune::error::TrainingError;
+use brainwires_finetune::types::TrainingProgress;
 
 /// Available compute devices.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -141,7 +141,7 @@ pub struct TrainedModelArtifact {
     /// Base model used for training.
     pub base_model: String,
     /// Final training metrics.
-    pub metrics: brainwires_training::types::TrainingMetrics,
+    pub metrics: brainwires_finetune::types::TrainingMetrics,
     /// LoRA config used (if adapter training).
     pub lora_config: Option<LoraConfig>,
 }

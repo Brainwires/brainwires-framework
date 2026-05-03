@@ -1,39 +1,15 @@
 #![deny(missing_docs)]
-//! # Brainwires Training
+//! `brainwires-training` — placeholder for training-from-scratch primitives.
 //!
-//! Model training and fine-tuning for the Brainwires Agent Framework.
+//! No training-from-scratch code lives here yet. The crate exists to occupy
+//! the `brainwires-training` name on crates.io and document the intended
+//! split:
 //!
-//! Supports cloud fine-tuning (OpenAI, Together, Fireworks, Anyscale, Bedrock, Vertex)
-//! and local adapter training (LoRA, QLoRA, DoRA) via Burn framework.
-
-/// Training configuration and hyperparameters.
-pub mod config;
-/// Training error types.
-pub mod error;
-/// Training job types and status.
-pub mod types;
-
-/// Dataset pipelines (absorbed from brainwires-datasets).
-pub mod datasets;
-
-/// Cloud fine-tuning providers.
-#[cfg(feature = "cloud")]
-pub mod cloud;
-
-// Local adapter training (LoRA/QLoRA/DoRA) lives in `brainwires-finetune-local`.
-
-/// Training job management.
-pub mod manager;
-
-// Re-export core types (always available)
-pub use config::{AdapterMethod, AlignmentMethod, LoraConfig, LrScheduler, TrainingHyperparams};
-pub use error::TrainingError;
-pub use types::{
-    DatasetId, TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingMetrics,
-    TrainingProgress,
-};
-
-#[cfg(feature = "cloud")]
-pub use cloud::{CloudFineTuneConfig, FineTuneProvider, FineTuneProviderFactory};
-
-pub use manager::TrainingManager;
+//! - **`brainwires-finetune`** — cloud fine-tune APIs (OpenAI, Anthropic,
+//!   Together, Fireworks, Anyscale, Bedrock, Vertex AI) plus dataset
+//!   pipelines.
+//! - **`brainwires-finetune-local`** — local PEFT fine-tuning
+//!   (LoRA / QLoRA / DoRA) on a pre-trained model, Burn-backed.
+//! - **`brainwires-training`** (this crate) — reserved for actual training
+//!   from scratch (full-parameter pretraining, distributed training, etc.).
+//!   Add code here when that work begins.

@@ -222,13 +222,13 @@ pub mod voice_assistant {
 /// Training data pipelines — JSONL, format conversion, tokenization, dedup.
 #[cfg(feature = "datasets")]
 pub mod datasets {
-    pub use brainwires_training::datasets::*;
+    pub use brainwires_finetune::datasets::*;
 }
 
 /// Model training — cloud fine-tuning, local Burn-based LoRA/QLoRA/DoRA.
 #[cfg(feature = "training")]
 pub mod training {
-    pub use brainwires_training::*;
+    pub use brainwires_finetune::*;
 }
 
 // autonomy module requires brainwires-autonomy (publish = false, workspace-only).

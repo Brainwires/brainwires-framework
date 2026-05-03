@@ -12,7 +12,7 @@ use std::path::Path;
 
 use tracing::info;
 
-use brainwires_training::error::TrainingError;
+use brainwires_finetune::error::TrainingError;
 
 /// A single training example (prompt + completion text).
 #[derive(Debug, Clone)]
