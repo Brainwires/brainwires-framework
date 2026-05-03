@@ -119,11 +119,12 @@ pub use openapi::{
 #[cfg(feature = "sandbox")]
 pub use sandbox_executor::SandboxedToolExecutor;
 
+// `SessionBroker` / `SessionId` / `SessionMessage` / `SessionSummary` /
+// `SpawnRequest` / `SpawnedSession` live in `brainwires-session::broker`. The
+// `SessionsTool` here only consumes them — depend on `brainwires-session`
+// directly.
 #[cfg(feature = "sessions")]
-pub use sessions::{
-    SessionBroker, SessionId, SessionMessage, SessionSummary, SessionsTool, SpawnRequest,
-    SpawnedSession,
-};
+pub use sessions::SessionsTool;
 
 #[cfg(feature = "rag")]
 pub use tool_embedding::ToolEmbeddingIndex;

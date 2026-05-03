@@ -18,7 +18,6 @@ categories = ["development-tools"]
 brainwires-core.workspace = true
 
 # Feature-gated framework crates
-brainwires-tools = { workspace = true, optional = true }
 brainwires-agents = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-memory = { workspace = true, optional = true }
@@ -96,7 +95,7 @@ required-features = ["memory", "rag"]
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]
-tools = ["dep:brainwires-tools", "brainwires-tools/native"]
+tools = []
 agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 memory = ["dep:brainwires-memory", "storage"]
@@ -105,13 +104,13 @@ mdap = ["agents", "brainwires-agents/mdap"]
 knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 prompting = ["dep:brainwires-prompting", "brainwires-prompting/knowledge", "knowledge"]
 permissions = ["dep:brainwires-permissions"]
-orchestrator = ["tools", "brainwires-tools/orchestrator"]
-openapi = ["tools", "brainwires-tools/openapi"]
-rag = ["dep:brainwires-rag", "dep:brainwires-storage", "brainwires-storage/lance-backend", "tools", "brainwires-tools/rag"]
+orchestrator = ["tools"]
+openapi = ["tools"]
+rag = ["dep:brainwires-rag", "dep:brainwires-storage", "brainwires-storage/lance-backend", "tools"]
 # Tree-sitter language parsers are always-on in `brainwires-rag` post-Phase-6,
 # so this feature is now equivalent to `rag` and kept only for back-compat.
 rag-full-languages = ["rag"]
-interpreters = ["tools", "brainwires-tools/interpreters"]
+interpreters = ["tools"]
 providers = ["dep:brainwires-providers"]
 chat = ["providers"]
 reasoning = ["dep:brainwires-reasoning"]
@@ -139,7 +138,7 @@ training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets"]
 # autonomy feature requires brainwires-autonomy (publish = false, workspace-only)
-system = ["tools", "brainwires-tools/system"]
+system = ["tools"]
 dream = ["memory", "brainwires-memory/dream"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-providers?/telemetry"]
 bedrock = ["providers", "brainwires-providers/bedrock"]

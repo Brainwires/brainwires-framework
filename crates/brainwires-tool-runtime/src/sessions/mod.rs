@@ -9,12 +9,12 @@
 //! this module only defines the tool schemas plus a [`SessionBroker`] trait
 //! that the host implements over its actual registry.
 
-mod broker;
+// SessionBroker / SessionId / SessionMessage / SessionSummary / SpawnRequest /
+// SpawnedSession live in `brainwires-session::broker`. Depend on that crate
+// directly — there is no re-export shim here.
+
 mod sessions_tool;
 
-pub use broker::{
-    SessionBroker, SessionId, SessionMessage, SessionSummary, SpawnRequest, SpawnedSession,
-};
 pub use sessions_tool::{
     SessionsTool, TOOL_SESSIONS_HISTORY, TOOL_SESSIONS_LIST, TOOL_SESSIONS_SEND,
     TOOL_SESSIONS_SPAWN,

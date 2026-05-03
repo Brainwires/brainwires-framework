@@ -152,7 +152,6 @@ brainwires = { path = "../../crates/brainwires", features = ["full"] }
 
 # ── Brainwires Framework crates (custom feature flags) ──
 brainwires-agents = { workspace = true, features = ["skills-registry"] }
-brainwires-tools = { workspace = true, features = ["orchestrator", "rag", "interpreters"] }
 brainwires-knowledge = { workspace = true, features = ["alt-folder-name"] }
 brainwires-rag = { workspace = true, features = ["documents"] }
 brainwires-network = { workspace = true, features = ["auth-keyring"] }
@@ -182,7 +181,7 @@ proptest = "1.5"
 
 [features]
 default = []
-interpreter-javascript = ["brainwires-tools/interpreters-js"]
+interpreter-javascript = []
 interpreter-python = []
 interpreter-all = ["interpreter-javascript", "interpreter-python"]
 piston = []

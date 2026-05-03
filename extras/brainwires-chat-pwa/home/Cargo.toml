@@ -25,7 +25,6 @@ path = "src/main.rs"
 brainwires-agents = { workspace = true }
 brainwires-a2a = { workspace = true }
 brainwires-core = { workspace = true }
-brainwires-tools = { workspace = true }
 
 # Async runtime
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time", "signal", "io-util", "net"] }

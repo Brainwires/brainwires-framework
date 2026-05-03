@@ -17,7 +17,6 @@ path = "src/main.rs"
 [dependencies]
 brainwires-core.workspace = true
 brainwires-providers.workspace = true
-brainwires-tools.workspace = true
 brainwires-agents.workspace = true
 
 tokio = { workspace = true }

@@ -41,10 +41,9 @@ pub use audit::{
     FeedbackPolarity, FeedbackSignal,
 };
 
-// Re-export anomaly detection types (now living in brainwires-telemetry)
-pub use brainwires_telemetry::anomaly::{
-    AnomalyConfig, AnomalyDetector, AnomalyEvent, AnomalyKind,
-};
+// Anomaly detection moved to `brainwires-telemetry::anomaly` in Phase 1b.
+// No re-export shim — depend on brainwires-telemetry directly:
+//   use brainwires_telemetry::anomaly::{AnomalyConfig, AnomalyDetector, ...};
 
 // Re-export trust types
 pub use trust::{TrustFactor, TrustLevel, TrustManager, TrustStatistics, ViolationSeverity};
