@@ -20,7 +20,7 @@ categories = ["api-bindings"]
 # This lets wasm32 builds (e.g. the `web-speech` feature) opt out of
 # brainwires-core's default `native` feature; native callers re-enable it via
 # this crate's own `native` feature below.
-brainwires-core = { path = "../brainwires-core", version = "0.10.0", default-features = false }
+brainwires-core = { path = "../brainwires-core", version = "0.11.0", default-features = false }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

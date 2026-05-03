@@ -77,7 +77,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-version = "0.10.0"
+version = "0.11.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.91"
@@ -91,31 +91,31 @@ documentation = "https://docs.rs/brainwires"
 
 [workspace.dependencies]
 # Internal crates
-brainwires-core = { path = "crates/brainwires-core", version = "0.10.0", default-features = false }
-brainwires-tool-runtime = { path = "crates/brainwires-tool-runtime", version = "0.10.0", default-features = false }
-brainwires-tool-builtins = { path = "crates/brainwires-tool-builtins", version = "0.10.0", default-features = false }
-brainwires-agent = { path = "crates/brainwires-agent", version = "0.10.0", default-features = false }
-brainwires-storage = { path = "crates/brainwires-storage", version = "0.10.0", default-features = false }
-brainwires-memory = { path = "crates/brainwires-memory", version = "0.10.0" }
-brainwires-mcp-client = { path = "crates/brainwires-mcp-client", version = "0.10.0" }
-brainwires-permission = { path = "crates/brainwires-permission", version = "0.10.0" }
-brainwires-sandbox = { path = "crates/brainwires-sandbox", version = "0.10.0", default-features = false }
-brainwires-network = { path = "crates/brainwires-network", version = "0.10.0" }
-brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.10.0" }
-brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.10.0", default-features = false }
-brainwires-provider = { path = "crates/brainwires-provider", version = "0.10.0", default-features = false, features = ["native"] }
-brainwires-provider-speech = { path = "crates/brainwires-provider-speech", version = "0.10.0", default-features = false }
-brainwires-call-policy = { path = "crates/brainwires-call-policy", version = "0.10.0", default-features = false }
-brainwires-session = { path = "crates/brainwires-session", version = "0.10.0" }
-brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.10.0" }
-brainwires-finetune = { path = "crates/brainwires-finetune", version = "0.10.0" }
-brainwires-finetune-local = { path = "crates/brainwires-finetune-local", version = "0.10.0" }
-brainwires-training = { path = "crates/brainwires-training", version = "0.10.0" }
-brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.10.0", default-features = false }
-brainwires-rag = { path = "crates/brainwires-rag", version = "0.10.0", default-features = false }
-brainwires-prompting = { path = "crates/brainwires-prompting", version = "0.10.0", default-features = false }
-brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.10.0" }
-brainwires-telemetry  = { path = "crates/brainwires-telemetry",  version = "0.10.0", default-features = false }
+brainwires-core = { path = "crates/brainwires-core", version = "0.11.0", default-features = false }
+brainwires-tool-runtime = { path = "crates/brainwires-tool-runtime", version = "0.11.0", default-features = false }
+brainwires-tool-builtins = { path = "crates/brainwires-tool-builtins", version = "0.11.0", default-features = false }
+brainwires-agent = { path = "crates/brainwires-agent", version = "0.11.0", default-features = false }
+brainwires-storage = { path = "crates/brainwires-storage", version = "0.11.0", default-features = false }
+brainwires-memory = { path = "crates/brainwires-memory", version = "0.11.0" }
+brainwires-mcp-client = { path = "crates/brainwires-mcp-client", version = "0.11.0" }
+brainwires-permission = { path = "crates/brainwires-permission", version = "0.11.0" }
+brainwires-sandbox = { path = "crates/brainwires-sandbox", version = "0.11.0", default-features = false }
+brainwires-network = { path = "crates/brainwires-network", version = "0.11.0" }
+brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.11.0" }
+brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.11.0", default-features = false }
+brainwires-provider = { path = "crates/brainwires-provider", version = "0.11.0", default-features = false, features = ["native"] }
+brainwires-provider-speech = { path = "crates/brainwires-provider-speech", version = "0.11.0", default-features = false }
+brainwires-call-policy = { path = "crates/brainwires-call-policy", version = "0.11.0", default-features = false }
+brainwires-session = { path = "crates/brainwires-session", version = "0.11.0" }
+brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.11.0" }
+brainwires-finetune = { path = "crates/brainwires-finetune", version = "0.11.0" }
+brainwires-finetune-local = { path = "crates/brainwires-finetune-local", version = "0.11.0" }
+brainwires-training = { path = "crates/brainwires-training", version = "0.11.0" }
+brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.11.0", default-features = false }
+brainwires-rag = { path = "crates/brainwires-rag", version = "0.11.0", default-features = false }
+brainwires-prompting = { path = "crates/brainwires-prompting", version = "0.11.0", default-features = false }
+brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.11.0" }
+brainwires-telemetry  = { path = "crates/brainwires-telemetry",  version = "0.11.0", default-features = false }
 # `brainwires-autonomy` and `brainwires-proxy` live in `extras/`. They are
 # workspace-only (publish = false) and no `crates/` member depends on them, so
 # they intentionally do NOT appear in [workspace.dependencies] — that table is

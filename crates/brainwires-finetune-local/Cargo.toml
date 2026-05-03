@@ -19,7 +19,7 @@ path = "src/lib.rs"
 
 [dependencies]
 brainwires-core = { workspace = true }
-brainwires-finetune = { path = "../brainwires-finetune", version = "0.10.0", default-features = false }
+brainwires-finetune = { path = "../brainwires-finetune", version = "0.11.0", default-features = false }
 
 # Always-on infrastructure (paired with brainwires-finetune's own surface)
 serde.workspace = true

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-05-02
+
+The "rename and split" release. Closes the deprecated/ god-crate
+re-merge cycle: every plural crate name was singularized, the
+`brainwires-tools` god-crate was split into runtime + builtins, the
+`brainwires-knowledge` god-crate was split into knowledge + rag +
+prompting, the `brainwires-providers` god-crate had speech split out,
+and `brainwires-training` got renamed to `brainwires-finetune` because
+that's what it actually did. Two abstract names were rewritten to
+describe their content (`mcp` → `mcp-client`, `resilience` →
+`call-policy`).
+
+No re-export shims. Every retired name has a 0.10.1 deprecation
+tombstone published to crates.io as a migration marker. Workspace
+version bumped to 0.11.0.
+
 Pre-1.0 hygiene pass: remove backwards-compat shims, close feature-flag half-wires, fix documentation and publish-readiness gaps.
 
 ### Refactored (BREAKING)
