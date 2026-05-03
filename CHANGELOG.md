@@ -11,6 +11,86 @@ Pre-1.0 hygiene pass: remove backwards-compat shims, close feature-flag half-wir
 
 ### Refactored (BREAKING)
 
+#### `brainwires-tools` split into `brainwires-tool-runtime` + `brainwires-tool-builtins`, façade retired
+
+The old `brainwires-tools` crate had grown to 22 source files + 6 subdirs +
+32 features mixing two unrelated concerns: a tool-execution **framework**
+(executor / registry / dispatch / sandbox / orchestrator / sessions / oauth /
+openapi / validation / transactions) and 20+ concrete **builtin tools**
+(bash / file_ops / git / web / search / code_exec + interpreters / browser /
+email / calendar / system / semantic_search / `BuiltinToolExecutor`). Every
+consumer that wanted the framework had to compile every builtin's deps
+(lettre, async-imap, icalendar, mlua, boa_engine, notify, rhai, …).
+
+- **New `brainwires-tool-runtime` crate** — the framework half. `ToolExecutor`
+  trait, `ToolRegistry` (now without the hardcoded `with_builtins()`
+  constructor), error taxonomy, sanitization, smart router, tool_search,
+  transaction manager, validation, plus the optional orchestrator /
+  oauth / openapi / sandbox_executor / sessions / tool_embedding modules.
+- **New `brainwires-tool-builtins` crate** — the concrete tools.
+  `BuiltinToolExecutor` (which dispatches the builtins) and
+  `registry_with_builtins()` (the relocated convenience constructor) live
+  here.
+- **`brainwires-tools` retired.** A 0.10.1 deprecation marker is published
+  to occupy the name on crates.io; depending on it gets you nothing.
+  Migrate per [`deprecated/brainwires-tools/README.md`](deprecated/brainwires-tools/README.md).
+
+API breakage to migrate:
+
+- `Cargo.toml`: replace `brainwires-tools = "0.10"` with
+  `brainwires-tool-runtime = "0.11"` and/or `brainwires-tool-builtins = "0.11"`
+  (most consumers want the latter, which already pulls the runtime).
+- All `use brainwires_tools::*` imports → switch to whichever sub-crate
+  the symbol came from. The migration table in
+  `deprecated/brainwires-tools/README.md` lists every type.
+- `ToolRegistry::with_builtins()` is gone. Call
+  `brainwires_tool_builtins::registry_with_builtins()` instead.
+- `brainwires_tool_runtime::smart_router::get_smart_tools(messages)` and
+  `get_smart_tools_with_mcp(messages, mcp_tools)` now take a
+  `&ToolRegistry` argument so the runtime crate doesn't have to know
+  about the builtins.
+
+#### `brainwires-knowledge` split into knowledge + rag + prompting
+
+`brainwires-knowledge` was the heaviest god-crate, mixing knowledge graphs,
+adaptive prompting, codebase RAG, spectral math, and code analysis. Every
+consumer paid for lancedb + tantivy + tree-sitter (12 grammars) + git2 +
+rmcp + rayon even when they only wanted BrainClient.
+
+- **`brainwires-knowledge` keeps** the knowledge layer: BKS / PKS, brain
+  client, entity graph, thought storage. Default features now `["knowledge"]`.
+- **New `brainwires-rag` crate** — codebase indexing + hybrid retrieval
+  (vector + BM25), AST-aware chunking via tree-sitter (12 languages
+  always-on), Git history search. Carries `spectral` (log-det diversity
+  reranking) and `code_analysis` (AST symbol/definition/reference graphs)
+  as internal `pub mod` modules — they have no external consumers and
+  splitting them further would force a public API for no caller.
+- **New `brainwires-prompting` crate** — adaptive prompting (15-technique
+  library, K-means task clustering, BKS/PKS-aware generator, SEAL feedback
+  hook, temperature optimisation, optional SQLite cluster store).
+  Default features `["knowledge"]` because generator / learning /
+  temperature reference BKS/PKS unconditionally.
+
+API breakage:
+
+- `brainwires_knowledge::rag::*` → `brainwires_rag::*`
+- `brainwires_knowledge::spectral::*` → `brainwires_rag::*`
+  (re-exported at crate root)
+- `brainwires_knowledge::code_analysis::*` → `brainwires_rag::*`
+- `brainwires_knowledge::prompting::*` → `brainwires_prompting::*`
+- `brainwires-knowledge` features `rag`, `spectral`, `code-analysis`,
+  `tree-sitter-languages`, `documents`, `pdf-extract-feature`,
+  `lancedb-backend`, `qdrant-backend`, `prompting`, `prompting-storage`
+  are gone — opt into the new crate that owns them instead.
+
+Folded together (not split apart): the old `brainwires-knowledge::dream`
+module (offline memory consolidation — summarisation, fact extraction,
+hot/warm/cold tier transitions) merged into `brainwires-memory` under a
+`dream` feature. Dream is the consolidation engine that writes to the
+same tiers `brainwires-memory` already owned, so they belong together.
+
+`brainwires_knowledge::dream::*` → `brainwires_memory::dream::*`.
+
 #### `brainwires-storage` split into primitives + memory + CLI domain stores
 
 `brainwires-storage` was originally meant for generic storage primitives but

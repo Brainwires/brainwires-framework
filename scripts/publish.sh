@@ -25,7 +25,7 @@ case "${1:-}" in
     --live)
         DRY_RUN=false
         echo "=== LIVE PUBLISH MODE ==="
-        echo "This will publish all 16 workspace crates + any unpublished deprecated crates to crates.io."
+        echo "This will publish all 20 workspace crates + any unpublished deprecated crates to crates.io."
         echo "Estimated time: ~5 minutes (burst 30, then 1/min)"
         echo "Press Ctrl+C within 5 seconds to abort..."
         sleep 5
@@ -35,10 +35,13 @@ case "${1:-}" in
         ;;
 esac
 
-# 16 publishable workspace crates in strict dependency order (leaves → facade).
+# 20 publishable workspace crates in strict dependency order (leaves → facade).
 # Within each layer, crates have no mutual dependencies.
 # Excluded (publish = false): brainwires-autonomy, brainwires-wasm
 # Excluded (webrtc git-only dep): brainwires-channels (tombstone only)
+# Retired (deprecated/, picked up by the auto-detect loop below):
+#   brainwires-tools — split in 0.11 into brainwires-tool-runtime +
+#                      brainwires-tool-builtins (Phase 5).
 CRATES=(
     # Layer 0: Contracts
     brainwires-core
@@ -50,6 +53,7 @@ CRATES=(
     # Layer 1b: Infrastructure — deps on 1a
     brainwires-providers          # optional dep: telemetry
     brainwires-hardware           # optional dep: providers
+    brainwires-memory             # dep: storage (tiered hot/warm/cold + dream consolidation)
 
     # Layer 2: Protocols (dep: core only)
     brainwires-mcp
@@ -57,17 +61,23 @@ CRATES=(
     brainwires-a2a
 
     # Layer 3: Intelligence (storage-backed)
-    brainwires-knowledge
+    brainwires-knowledge          # BKS/PKS, brain client, entity graph
+    brainwires-rag                # codebase indexing + retrieval (with internal spectral + code_analysis)
+    brainwires-prompting          # adaptive prompting (optional dep: knowledge)
 
-    # Layer 4: Action
-    brainwires-tools
+    # Layer 4a: Tool runtime — split out of the old `brainwires-tools` in 0.11
+    brainwires-tool-runtime       # ToolExecutor, ToolRegistry, validation, smart_router, +optional rag
     brainwires-permissions
 
-    # Layer 4b: Reasoning — depends on tools (ToolCategory in router.rs), so
-    # must publish after tools. Prior releases had reasoning as a Layer 3
-    # re-export facade with no tools dep; the 0.10 restoration moved real
-    # scorer modules back in and this order became necessary.
+    # Layer 4b: Reasoning — depends on tool-runtime (ToolCategory in router.rs).
+    # Prior releases had reasoning as a Layer 3 re-export facade with no tools
+    # dep; the 0.10 restoration moved real scorer modules back in and this
+    # order became necessary.
     brainwires-reasoning
+
+    # Layer 4c: Tool builtins — concrete bash/git/web/code_exec/email/calendar
+    # tools. Depends on tool-runtime + optional rag.
+    brainwires-tool-builtins
 
     # Layer 5: Agency
     brainwires-agents

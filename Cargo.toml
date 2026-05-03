@@ -2,7 +2,6 @@
 members = [
     "crates/brainwires-core",
     "crates/brainwires",
-    "crates/brainwires-tools",
     "crates/brainwires-tool-runtime",
     "crates/brainwires-tool-builtins",
     "crates/brainwires-agents",
@@ -61,6 +60,7 @@ exclude = [
     "deprecated/brainwires-seal",
     "deprecated/brainwires-mdap",
     "deprecated/brainwires-tool-system",
+    "deprecated/brainwires-tools",
     "deprecated/brainwires-agent-network",
     "deprecated/brainwires-skills",
     "deprecated/brainwires-datasets",
@@ -84,7 +84,6 @@ documentation = "https://docs.rs/brainwires"
 [workspace.dependencies]
 # Internal crates
 brainwires-core = { path = "crates/brainwires-core", version = "0.10.0", default-features = false }
-brainwires-tools = { path = "crates/brainwires-tools", version = "0.10.0", default-features = false }
 brainwires-tool-runtime = { path = "crates/brainwires-tool-runtime", version = "0.10.0", default-features = false }
 brainwires-tool-builtins = { path = "crates/brainwires-tool-builtins", version = "0.10.0", default-features = false }
 brainwires-agents = { path = "crates/brainwires-agents", version = "0.10.0", default-features = false }
