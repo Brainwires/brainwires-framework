@@ -322,6 +322,38 @@ impl Gemma4MultiModal {
         max_new_tokens: usize,
         eos_token_id: Option<u32>,
     ) -> Result<String, Gemma4PipelineError> {
+        // Non-streaming wrapper — collects everything and returns the
+        // full string at the end. For per-token streaming use
+        // `generate_greedy_streaming` directly.
+        self.generate_greedy_streaming(
+            prompt_text,
+            pixel_values,
+            max_new_tokens,
+            eos_token_id,
+            |_, _| {},
+        )
+        .await
+    }
+
+    /// Streaming generate — invokes `on_delta(token_id, &decoded_delta)`
+    /// after each new token, where `decoded_delta` is the suffix newly
+    /// added to the decoded output by that token.
+    ///
+    /// Returns the full decoded string when generation finishes (either
+    /// EOS or `max_new_tokens` reached).
+    ///
+    /// The callback is sync and may not block — it runs on the same task
+    /// as the forward pass. For wasm callers writing to a
+    /// `ReadableStreamDefaultController`, that's fine since the
+    /// controller's enqueue is sync.
+    pub async fn generate_greedy_streaming(
+        &self,
+        prompt_text: &str,
+        pixel_values: &[Tensor],
+        max_new_tokens: usize,
+        eos_token_id: Option<u32>,
+        mut on_delta: impl FnMut(u32, &str),
+    ) -> Result<String, Gemma4PipelineError> {
         let enc = self
             .tokenizer
             .encode(prompt_text, false)
@@ -487,6 +519,7 @@ impl Gemma4MultiModal {
         log_step_diag(0, &logits, next_id, &self.tokenizer);
 
         let mut generated: Vec<u32> = Vec::with_capacity(max_new_tokens);
+        let mut prev_decoded = String::new();
         if Some(next_id) == eos_token_id {
             diag_log(&format!(
                 "[gemma4] step 0 produced EOS ({next_id}) — generation terminated immediately"
@@ -494,6 +527,18 @@ impl Gemma4MultiModal {
             return self.decode_tokens(&generated);
         }
         generated.push(next_id);
+        // Per-token streaming delta. Re-decode the full sequence each
+        // step and emit the suffix that's new since last call. O(N²)
+        // decode cost over `N = generated.len()` but tolerable at
+        // typical chat-generation scales (≤ ~500 tokens). The
+        // tokenizer's incremental decoders aren't a stable API across
+        // candle's `tokenizers` versions, so this is the portable path.
+        if let Ok(full) = self.decode_tokens(&generated) {
+            if full.len() > prev_decoded.len() {
+                on_delta(next_id, &full[prev_decoded.len()..]);
+                prev_decoded = full;
+            }
+        }
 
         // 4. Autoregressive loop — one token at a time.
         for step in 0..max_new_tokens.saturating_sub(1) {
@@ -524,6 +569,12 @@ impl Gemma4MultiModal {
                 break;
             }
             generated.push(next_id);
+            if let Ok(full) = self.decode_tokens(&generated) {
+                if full.len() > prev_decoded.len() {
+                    on_delta(next_id, &full[prev_decoded.len()..]);
+                    prev_decoded = full;
+                }
+            }
         }
 
         self.decode_tokens(&generated)

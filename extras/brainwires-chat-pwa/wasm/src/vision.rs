@@ -1515,24 +1515,34 @@ async fn run_vision_stream(
 ) {
     let result = match &inner {
         StreamInner::Gemma3(pipeline) => {
-            build_and_generate_gemma3(pipeline, &messages, &params)
-                .map_err(|e| format!("{e}"))
+            // Gemma3 path is non-streaming for now — emits the full
+            // result as a single chunk at completion.
+            build_and_generate_gemma3(pipeline, &messages, &params).map_err(|e| format!("{e}"))
         }
         StreamInner::Gemma4(pipeline) => {
-            build_and_generate_gemma4(pipeline, &messages, &params)
+            // Gemma 4 streams per-token deltas via the controller. The
+            // returned `String` here is just for completeness; the UI
+            // already received the deltas during generation.
+            build_and_stream_gemma4(pipeline, &messages, &params, &controller)
                 .await
                 .map_err(|e| format!("{e}"))
         }
     };
     match result {
         Ok(text) => {
-            enqueue_vision_chunk(
-                &controller,
-                &VisionWireChunk {
-                    delta: Some(&text),
-                    ..Default::default()
-                },
-            );
+            // For Gemma 3 (non-streaming), emit the full text now. For
+            // Gemma 4, deltas were already emitted during generation —
+            // sending the full text again would duplicate everything,
+            // so only the `finished` chunk is emitted here.
+            if matches!(inner, StreamInner::Gemma3(_)) {
+                enqueue_vision_chunk(
+                    &controller,
+                    &VisionWireChunk {
+                        delta: Some(&text),
+                        ..Default::default()
+                    },
+                );
+            }
             enqueue_vision_chunk(
                 &controller,
                 &VisionWireChunk {
@@ -1619,6 +1629,80 @@ fn build_and_generate_gemma3(
 }
 
 /// Gemma-4 generation: extract text/images, run native vision tower + embedder + decoder.
+/// Streaming Gemma 4 generation. Per-token deltas are emitted into
+/// `controller` via `enqueue_vision_chunk` as they're produced. Returns
+/// the full text on completion (which `run_vision_stream` discards
+/// because the deltas have already gone over the wire).
+async fn build_and_stream_gemma4(
+    pipeline: &Gemma4MultiModal,
+    messages: &[JsMessage],
+    params: &VisionStreamParams,
+    controller: &ReadableStreamDefaultController,
+) -> Result<String, Gemma4PipelineError> {
+    if messages.is_empty() {
+        return Err(Gemma4PipelineError::InvalidInput("empty messages".into()));
+    }
+
+    pipeline.clear_kv_cache();
+
+    let last = &messages[messages.len() - 1];
+    let prefix = build_history_prefix(&messages[..messages.len() - 1], &last.role);
+
+    let mut prompt_text = String::new();
+    let mut image_bytes: Vec<Vec<u8>> = Vec::new();
+
+    match &last.content {
+        JsContent::Text(t) => {
+            prompt_text.push_str(&prefix);
+            prompt_text.push_str(t);
+        }
+        JsContent::Parts(parts) => {
+            prompt_text.push_str(&prefix);
+            for p in parts {
+                match p {
+                    JsPart::Text { text } => prompt_text.push_str(text),
+                    JsPart::Image { data, .. } => {
+                        let bytes = BASE64.decode(data.as_bytes()).map_err(|e| {
+                            Gemma4PipelineError::InvalidInput(format!("base64: {e}"))
+                        })?;
+                        image_bytes.push(bytes);
+                    }
+                }
+            }
+        }
+    }
+
+    let target_size = 768u32;
+    let pixel_tensors: Vec<Tensor> = image_bytes
+        .iter()
+        .map(|b| {
+            preprocess_image_for_gemma4(b, &Device::Cpu, target_size)
+                .map_err(|e| Gemma4PipelineError::InvalidInput(format!("preprocess: {e}")))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let max_new = params.max_tokens.unwrap_or(256) as usize;
+    let eos: Option<u32> = Some(1);
+
+    pipeline
+        .generate_greedy_streaming(
+            &prompt_text,
+            &pixel_tensors,
+            max_new,
+            eos,
+            |_token_id, delta| {
+                enqueue_vision_chunk(
+                    controller,
+                    &VisionWireChunk {
+                        delta: Some(delta),
+                        ..Default::default()
+                    },
+                );
+            },
+        )
+        .await
+}
+
 async fn build_and_generate_gemma4(
     pipeline: &Gemma4MultiModal,
     messages: &[JsMessage],
