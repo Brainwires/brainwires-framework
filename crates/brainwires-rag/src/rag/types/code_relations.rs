@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Request to find the definition of a symbol at a given location
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct FindDefinitionRequest {
     /// File path (relative or absolute)
     pub file_path: String,
@@ -29,9 +29,8 @@ impl FindDefinitionRequest {
 }
 
 /// Response from find_definition
-#[cfg(feature = "code-analysis")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct FindDefinitionResponse {
     /// The found definition, if any
     pub definition: Option<crate::code_analysis::DefinitionResult>,
@@ -51,7 +50,7 @@ fn default_include_definition() -> bool {
 
 /// Request to find all references to a symbol
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct FindReferencesRequest {
     /// File path (relative or absolute)
     pub file_path: String,
@@ -91,9 +90,8 @@ impl FindReferencesRequest {
 }
 
 /// Response from find_references
-#[cfg(feature = "code-analysis")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct FindReferencesResponse {
     /// The symbol being referenced
     pub symbol_name: Option<String>,
@@ -117,7 +115,7 @@ fn default_true() -> bool {
 
 /// Request to get call graph for a function
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct GetCallGraphRequest {
     /// File path (relative or absolute)
     pub file_path: String,
@@ -160,9 +158,8 @@ impl GetCallGraphRequest {
 }
 
 /// Response from get_call_graph
-#[cfg(feature = "code-analysis")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct GetCallGraphResponse {
     /// The root symbol (function/method at the requested location)
     pub root_symbol: Option<crate::code_analysis::SymbolInfo>,

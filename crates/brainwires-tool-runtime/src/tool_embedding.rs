@@ -4,7 +4,7 @@
 //! similarity to find semantically relevant tools for a given query.
 
 use anyhow::{Context, Result};
-use brainwires_knowledge::rag::embedding::FastEmbedManager;
+use brainwires_rag::rag::embedding::FastEmbedManager;
 use std::sync::{Arc, OnceLock};
 
 static EMBED_MANAGER: OnceLock<Arc<FastEmbedManager>> = OnceLock::new();

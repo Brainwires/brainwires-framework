@@ -64,7 +64,7 @@ brainwires-session = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 
 # rag (tool_embedding + tool_search RAG path)
-brainwires-knowledge = { workspace = true, optional = true }
+brainwires-rag = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
@@ -100,7 +100,7 @@ sessions = ["native", "dep:brainwires-session", "dep:chrono"]
 
 # RAG-powered tool discovery (FastEmbed-backed ToolEmbeddingIndex used by
 # ToolSearchTool's semantic mode).
-rag = ["dep:brainwires-knowledge", "brainwires-knowledge/rag", "brainwires-knowledge/lancedb-backend"]
+rag = ["dep:brainwires-rag"]
 
 # Convenience feature pulling in every optional surface.
 full = ["orchestrator", "oauth", "openapi", "sandbox", "sessions", "rag"]

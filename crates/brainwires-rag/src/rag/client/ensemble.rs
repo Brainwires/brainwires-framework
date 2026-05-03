@@ -36,7 +36,6 @@ impl RagClient {
                 SearchStrategy::Keyword,
                 SearchStrategy::GitHistory,
             ];
-            #[cfg(feature = "code-analysis")]
             s.push(SearchStrategy::CodeNavigation);
             s
         } else {
@@ -163,7 +162,6 @@ impl RagClient {
                         ("git_history".to_string(), results)
                     }));
                 }
-                #[cfg(feature = "code-analysis")]
                 SearchStrategy::CodeNavigation => {
                     let qe = query_embedding.clone();
                     let db = self.vector_db.clone();
@@ -226,7 +224,6 @@ impl RagClient {
             .collect();
 
         // Optional spectral reranking as a final diversity pass.
-        #[cfg(feature = "spectral")]
         if request.spectral_rerank && results.len() > limit {
             use crate::spectral::{DiversityReranker, SpectralReranker, SpectralSelectConfig};
             let keys: Vec<String> = results

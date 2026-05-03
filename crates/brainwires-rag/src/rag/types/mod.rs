@@ -37,7 +37,6 @@ pub use search::{default_git_path, default_max_commits};
 // --- code relations ---
 pub use code_relations::{FindDefinitionRequest, FindReferencesRequest, GetCallGraphRequest};
 
-#[cfg(feature = "code-analysis")]
 pub use code_relations::{FindDefinitionResponse, FindReferencesResponse, GetCallGraphResponse};
 
 // --- ensemble ---

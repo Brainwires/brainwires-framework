@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-knowledge"
-description = "Knowledge layer — knowledge graphs, adaptive prompting, RAG, spectral math, and code analysis for the Brainwires Agent Framework"
+description = "Knowledge layer — knowledge graphs, BKS/PKS, brain client, and adaptive prompting for the Brainwires Agent Framework. RAG (and its internal spectral / code-analysis subdomains) moved to `brainwires-rag` in Phase 6."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,7 @@ homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
 documentation = "https://docs.rs/brainwires-knowledge"
-keywords = ["knowledge-graph", "rag", "prompting", "semantic-search", "code-analysis"]
+keywords = ["knowledge-graph", "bks", "prompting", "ai-agents", "framework"]
 categories = ["development-tools"]
 
 [lib]
@@ -45,10 +45,6 @@ regex = { workspace = true }
 
 # ── Knowledge deps (from brainwires-brain) ──────────────────────────────
 brainwires-storage = { workspace = true, optional = true }
-arrow-array = { workspace = true, optional = true }
-arrow-schema = { workspace = true, optional = true }
-futures = { workspace = true, optional = true }
-lancedb = { workspace = true, optional = true }
 dirs = { version = "6", optional = true }
 schemars = { workspace = true, optional = true }
 rusqlite = { workspace = true, optional = true }
@@ -60,39 +56,6 @@ linfa = { workspace = true, optional = true }
 linfa-clustering = { workspace = true, optional = true }
 ndarray = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
-
-# ── RAG deps (from brainwires-rag) ──────────────────────────────────────
-rmcp = { version = "1.1", features = ["server", "transport-io", "macros"], optional = true }
-git2 = { workspace = true, optional = true }
-async-trait = { workspace = true, optional = true }
-walkdir = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
-ignore = { workspace = true, optional = true }
-toml = { workspace = true, optional = true }
-rayon = { version = "1.10", optional = true }
-tokio-util = { workspace = true, optional = true }
-fs2 = { version = "0.4", optional = true }
-tracing-subscriber = { workspace = true, optional = true }
-clap = { version = "4", features = ["derive", "env"], optional = true }
-
-# ── Code analysis deps ──────────────────────────────────────────────────
-tree-sitter = { version = "0.25", optional = true }
-tree-sitter-rust = { version = "0.23", optional = true }
-tree-sitter-python = { version = "0.23", optional = true }
-tree-sitter-javascript = { version = "0.23", optional = true }
-tree-sitter-typescript = { version = "0.23", optional = true }
-tree-sitter-go = { version = "0.23", optional = true }
-tree-sitter-java = { version = "0.23", optional = true }
-tree-sitter-swift = { version = "0.7", optional = true }
-tree-sitter-c = { version = "0.24", optional = true }
-tree-sitter-cpp = { version = "0.23", optional = true }
-tree-sitter-c-sharp = { version = "0.23", optional = true }
-tree-sitter-ruby = { version = "0.23", optional = true }
-tree-sitter-php = { version = "0.24", optional = true }
-
-# ── Document deps ───────────────────────────────────────────────────────
-pdf-extract = { version = "0.7", optional = true }
-zip = { version = "8", optional = true }
 
 [features]
 default = ["knowledge", "prompting"]
@@ -120,61 +83,19 @@ prompting = [
 # Prompting SQLite persistence
 prompting-storage = ["prompting", "dep:rusqlite"]
 
-# Spectral math (pure ndarray, ~500 LOC)
-spectral = ["dep:ndarray"]
-
-# RAG: codebase indexing + semantic search
-rag = [
-    "dep:brainwires-storage", "brainwires-storage/native",
-    "dep:git2", "dep:async-trait",
-    "dep:walkdir", "dep:sha2", "dep:ignore",
-    "dep:tree-sitter", "dep:toml", "dep:rayon", "dep:tokio-util", "dep:fs2",
-    "dep:rmcp", "dep:schemars", "dep:clap",
-    "dep:dirs", "dep:futures", "dep:tracing-subscriber",
-    "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
-    "brainwires-storage/lance-backend",
-    "brainwires-core/native",
-    "brainwires-core/schemars",
-    "tokio/full",
-]
-
-# All tree-sitter language parsers for AST-aware chunking
-tree-sitter-languages = [
-    "dep:tree-sitter",
-    "dep:tree-sitter-rust", "dep:tree-sitter-python", "dep:tree-sitter-javascript",
-    "dep:tree-sitter-typescript", "dep:tree-sitter-go", "dep:tree-sitter-java",
-    "dep:tree-sitter-swift", "dep:tree-sitter-c", "dep:tree-sitter-cpp",
-    "dep:tree-sitter-c-sharp", "dep:tree-sitter-ruby", "dep:tree-sitter-php",
-]
-
-# Code analysis: find definitions, references, call graphs
-code-analysis = [
-    "dep:tree-sitter", "tree-sitter-languages", "dep:async-trait",
-    "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
-    "dep:futures",
-]
-
-# PDF document extraction
-pdf-extract-feature = ["dep:pdf-extract"]
-
-# Document processing
-documents = ["dep:zip"]
-
-# Vector database backend selection (forwarded to storage)
-lancedb-backend = []
-qdrant-backend = ["brainwires-storage/qdrant-backend"]
+# RAG (with internal spectral + code-analysis subdomains), tree-sitter
+# language parsers, PDF/document processing, and the lancedb-backend /
+# qdrant-backend selectors all moved to the standalone `brainwires-rag`
+# crate as of Phase 6 of the layout refactor. Consumers should depend on
+# `brainwires-rag` directly.
 
 # Alternative folder name for data storage
 alt-folder-name = []
 
-# Stack-graphs (prepared, not yet fully implemented)
-stack-graphs = []
-
-# Native = everything
+# Native = everything left in this crate after the rag/spectral/code-analysis
+# extraction in Phase 6.
 native = [
-    "knowledge", "prompting", "prompting-storage", "spectral",
-    "rag", "code-analysis", "tree-sitter-languages",
-    "documents", "pdf-extract-feature", "telemetry",
+    "knowledge", "prompting", "prompting-storage", "telemetry",
 ]
 
 # WASM = lightweight
@@ -195,13 +116,7 @@ required-features = ["prompting"]
 name = "knowledge_graph"
 required-features = ["knowledge"]
 
-[[example]]
-name = "rag_search"
-required-features = ["rag"]
-
-[[example]]
-name = "code_analysis"
-required-features = ["code-analysis", "rag"]
+# `rag_search` and `code_analysis` examples moved to brainwires-rag in Phase 6.
 
 [package.metadata.docs.rs]
 all-features = true

@@ -1,7 +1,7 @@
 /// Simple integration tests for basic server functionality
 use anyhow::Result;
-use brainwires_knowledge::rag::config::Config;
-use brainwires_knowledge::rag::types::{
+use brainwires_rag::rag::config::Config;
+use brainwires_rag::rag::types::{
     AdvancedSearchRequest, ClearRequest, QueryRequest, StatisticsRequest,
 };
 use brainwires_rag_server::mcp_server::RagMcpServer;

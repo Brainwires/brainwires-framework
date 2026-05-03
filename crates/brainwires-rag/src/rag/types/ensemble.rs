@@ -4,7 +4,7 @@ use super::query::{SearchResult, default_limit, default_min_score};
 
 /// Search strategies available for the ensemble query.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchStrategy {
     /// Semantic (vector) search — finds conceptually similar code.
@@ -15,13 +15,12 @@ pub enum SearchStrategy {
     GitHistory,
     /// Code navigation search — finds definitions/references via AST relations.
     /// Only available when the `code-analysis` feature is enabled.
-    #[cfg(feature = "code-analysis")]
     CodeNavigation,
 }
 
 /// Request for the parallel multi-strategy ensemble query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct EnsembleRequest {
     /// The search query.
     pub query: String,

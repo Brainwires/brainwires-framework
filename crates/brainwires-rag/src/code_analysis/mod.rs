@@ -16,7 +16,7 @@
 //! ## Usage
 //!
 //! ```ignore
-//! use brainwires_knowledge::code_analysis::{HybridRelationsProvider, RelationsProvider};
+//! use brainwires_rag::code_analysis::{HybridRelationsProvider, RelationsProvider};
 //!
 //! let provider = HybridRelationsProvider::new()?;
 //! let definitions = provider.extract_definitions(&file_info)?;

@@ -12,8 +12,8 @@
 //! cargo run -p brainwires-knowledge --example rag_search --features rag
 //! ```
 
-use brainwires_knowledge::rag::client::RagClient;
-use brainwires_knowledge::rag::types::{IndexRequest, QueryRequest};
+use brainwires_rag::rag::client::RagClient;
+use brainwires_rag::rag::types::{IndexRequest, QueryRequest};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

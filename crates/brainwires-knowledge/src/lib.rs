@@ -50,23 +50,11 @@ pub mod knowledge;
 /// Adaptive prompting techniques, clustering, temperature optimization.
 pub mod prompting;
 
-// ── RAG (from brainwires-rag) ──────────────────────────────────────────────
-
-/// RAG error types.
-#[cfg(feature = "rag")]
-pub mod rag;
-
-// ── Spectral math ──────────────────────────────────────────────────────────
-
-/// Spectral graph methods: diverse retrieval, clustering, centrality, sparsification.
-#[cfg(feature = "spectral")]
-pub mod spectral;
-
-// ── Code analysis ──────────────────────────────────────────────────────────
-
-/// Code relationship extraction (definitions, references, call graphs).
-#[cfg(feature = "code-analysis")]
-pub mod code_analysis;
+// ── RAG, spectral, code_analysis ──────────────────────────────────────────
+// All three moved into the standalone `brainwires-rag` crate in Phase 6.
+// Spectral and code_analysis travel with RAG (no external consumers, only
+// used by `rag::client::*`). Consumers should depend on `brainwires-rag`
+// directly.
 
 // ── Re-exports (knowledge) ─────────────────────────────────────────────────
 
@@ -112,39 +100,10 @@ pub use prompting::techniques::{
 #[cfg(all(feature = "knowledge", feature = "prompting"))]
 pub use prompting::temperature::{TemperatureOptimizer, TemperaturePerformance};
 
-// ── Re-exports (RAG) ──────────────────────────────────────────────────────
-
-#[cfg(feature = "rag")]
-pub use rag::client::RagClient;
-#[cfg(feature = "rag")]
-pub use rag::config::Config;
-#[cfg(feature = "rag")]
-pub use rag::error::RagError;
-#[cfg(feature = "rag")]
-pub use rag::types::{
-    AdvancedSearchRequest, ClearRequest, ClearResponse, EnsembleRequest, EnsembleResponse,
-    FindDefinitionRequest, FindReferencesRequest, GetCallGraphRequest, GitSearchResult,
-    IndexRequest, IndexResponse, IndexingMode, LanguageStats, QueryRequest, QueryResponse,
-    SearchGitHistoryRequest, SearchGitHistoryResponse, SearchStrategy, StatisticsRequest,
-    StatisticsResponse,
-};
-#[cfg(all(feature = "rag", feature = "code-analysis"))]
-pub use rag::types::{FindDefinitionResponse, FindReferencesResponse, GetCallGraphResponse};
-
-// ── Re-exports (spectral) ─────────────────────────────────────────────────
-
-#[cfg(feature = "spectral")]
-pub use spectral::{
-    CrossEncoderConfig, CrossEncoderReranker, DiversityReranker, RerankerKind, SpectralReranker,
-    SpectralSelectConfig,
-};
-
-// ── Re-exports (code analysis) ────────────────────────────────────────────
-
-#[cfg(feature = "code-analysis")]
-pub use code_analysis::types::{
-    CallEdge, CallGraphNode, Definition, Reference, ReferenceKind, SymbolId, SymbolKind, Visibility,
-};
+// RAG / spectral / code-analysis re-exports were dropped from this crate
+// when those modules moved to `brainwires-rag`. Consumers that previously
+// did `brainwires_rag::rag::*` / `::spectral::*` / `::code_analysis::*`
+// should now use `brainwires_rag::*`.
 
 /// Prelude for convenient imports.
 pub mod prelude {
@@ -158,12 +117,4 @@ pub mod prelude {
     #[cfg(all(feature = "knowledge", feature = "prompting"))]
     pub use super::prompting::generator::PromptGenerator;
     pub use super::prompting::techniques::{PromptingTechnique, TechniqueCategory};
-
-    #[cfg(feature = "rag")]
-    pub use super::rag::client::RagClient;
-    #[cfg(feature = "rag")]
-    pub use super::rag::types::{IndexRequest, QueryRequest};
-
-    #[cfg(feature = "spectral")]
-    pub use super::spectral::SpectralReranker;
 }

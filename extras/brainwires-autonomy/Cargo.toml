@@ -19,6 +19,7 @@ brainwires-agents = { workspace = true, optional = true }
 brainwires-tools = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
+brainwires-rag = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-memory = { workspace = true, optional = true }
 brainwires-reasoning = { workspace = true, optional = true }
@@ -79,7 +80,7 @@ eval-driven = [
 
 # Agent operations
 supervisor = ["dep:brainwires-agents"]
-attention = ["dep:brainwires-knowledge", "brainwires-knowledge/rag"]
+attention = ["dep:brainwires-rag"]
 parallel = ["dep:brainwires-agents", "brainwires-agents/mdap"]
 training = ["dep:brainwires-training"]
 

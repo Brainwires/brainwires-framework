@@ -67,7 +67,7 @@ icalendar = { version = "0.16", optional = true }
 chrono = { workspace = true, optional = true }
 
 # Cross-crate optional deps ─────────────────────────────────────────────
-brainwires-knowledge = { workspace = true, optional = true }
+brainwires-rag = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
 
 # System primitives (absorbed from brainwires-system) ───────────────────
@@ -116,10 +116,7 @@ wasm = [
 
 # RAG-powered semantic_search
 rag = [
-    "dep:brainwires-knowledge",
-    "brainwires-knowledge/rag",
-    "brainwires-knowledge/lancedb-backend",
-    "brainwires-knowledge/tree-sitter-languages",
+    "dep:brainwires-rag",
     "brainwires-tool-runtime/rag",
 ]
 

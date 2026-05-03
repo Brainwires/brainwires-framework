@@ -21,7 +21,6 @@ impl RagClient {
     /// # Returns
     ///
     /// A response containing the definition if found, along with precision info
-    #[cfg(feature = "code-analysis")]
     pub async fn find_definition(
         &self,
         request: FindDefinitionRequest,
@@ -72,7 +71,6 @@ impl RagClient {
     /// # Returns
     ///
     /// A response containing the list of references found
-    #[cfg(feature = "code-analysis")]
     pub async fn find_references(
         &self,
         request: FindReferencesRequest,
@@ -171,7 +169,6 @@ impl RagClient {
     /// # Returns
     ///
     /// A response containing the root symbol and its call graph
-    #[cfg(feature = "code-analysis")]
     pub async fn get_call_graph(
         &self,
         request: GetCallGraphRequest,

@@ -72,5 +72,4 @@ pub use types::{
     SearchGitHistoryResponse, StatisticsRequest, StatisticsResponse,
 };
 
-#[cfg(feature = "code-analysis")]
 pub use types::{FindDefinitionResponse, FindReferencesResponse, GetCallGraphResponse};

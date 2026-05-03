@@ -14,7 +14,6 @@
 //! - [`reranking`] — pluggable diversity/relevance reranking (`spectral` feature)
 //! - `code_analysis` — find definition, find references, call graph (`code-analysis` feature)
 
-#[cfg(feature = "code-analysis")]
 use crate::code_analysis::HybridRelationsProvider;
 use crate::rag::cache::HashCache;
 use crate::rag::config::Config;
@@ -54,7 +53,6 @@ mod ensemble;
 mod reranking;
 
 /// Code-navigation: find definition, find references, call graph (requires `code-analysis`).
-#[cfg(feature = "code-analysis")]
 mod code_analysis;
 
 // ── existing public submodules ────────────────────────────────────────────────
@@ -119,6 +117,5 @@ pub struct RagClient {
     // In-progress indexing operations (prevents concurrent indexing and allows result sharing)
     pub(crate) indexing_ops: Arc<RwLock<HashMap<String, IndexingOperation>>>,
     // Relations provider for code navigation (find definition, references, call graph)
-    #[cfg(feature = "code-analysis")]
     pub(crate) relations_provider: Arc<HybridRelationsProvider>,
 }

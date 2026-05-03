@@ -18,7 +18,6 @@ pub struct AstParser {
     language_name: String,
 }
 
-#[cfg(feature = "tree-sitter-languages")]
 fn resolve_language(extension: &str) -> Result<(Language, &'static str)> {
     match extension.to_lowercase().as_str() {
         "rs" => Ok((tree_sitter_rust::LANGUAGE.into(), "Rust")),
@@ -40,14 +39,6 @@ fn resolve_language(extension: &str) -> Result<(Language, &'static str)> {
         "php" => Ok((tree_sitter_php::LANGUAGE_PHP.into(), "PHP")),
         _ => anyhow::bail!("Unsupported language for AST parsing: {}", extension),
     }
-}
-
-#[cfg(not(feature = "tree-sitter-languages"))]
-fn resolve_language(extension: &str) -> Result<(Language, &'static str)> {
-    anyhow::bail!(
-        "AST parsing for .{} files requires the `tree-sitter-languages` feature",
-        extension
-    )
 }
 
 impl AstParser {
@@ -206,7 +197,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_rust_parsing() {
         let source = r#"
 fn main() {
@@ -234,7 +224,6 @@ impl MyStruct {
     }
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_python_parsing() {
         let source = r#"
 def hello():
@@ -257,7 +246,6 @@ class MyClass:
     }
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_javascript_parsing() {
         let source = r#"
 function hello() {
@@ -286,7 +274,6 @@ class MyClass {
     }
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_swift_parsing() {
         let source = r#"
 func greet(name: String) {
@@ -316,14 +303,12 @@ class MyClass {
     }
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_unsupported_language() {
         let result = AstParser::new("xyz");
         assert!(result.is_err());
     }
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_c_parsing() {
         let source = r#"
 int add(int a, int b) {
@@ -344,7 +329,6 @@ struct Point {
     }
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_cpp_parsing() {
         let source = r#"
 class MyClass {
@@ -367,7 +351,6 @@ namespace MyNamespace {
     }
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_csharp_parsing() {
         let source = r#"
 class MyClass {
@@ -391,7 +374,6 @@ class MyClass {
     }
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_ruby_parsing() {
         let source = r#"
 def hello(name)
@@ -417,7 +399,6 @@ end
     }
 
     #[test]
-    #[cfg(feature = "tree-sitter-languages")]
     fn test_php_parsing() {
         let source = r#"
 <?php

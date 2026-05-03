@@ -1,16 +1,13 @@
 //! Constructor methods and basic utility methods for [`RagClient`].
 
 use super::RagClient;
-#[cfg(feature = "code-analysis")]
 use crate::code_analysis::HybridRelationsProvider;
 use crate::rag::cache::HashCache;
 use crate::rag::config::Config;
 use crate::rag::embedding::FastEmbedManager;
 use crate::rag::git_cache::GitCache;
 use crate::rag::indexer::CodeChunker;
-#[cfg(feature = "code-analysis")]
 use crate::rag::indexer::FileInfo;
-#[cfg(feature = "code-analysis")]
 use crate::rag::indexer::detect_language;
 use brainwires_storage::databases::VectorDatabase;
 
@@ -126,7 +123,6 @@ impl RagClient {
         tracing::info!("Using git cache file: {:?}", git_cache_path);
 
         // Initialize relations provider for code navigation
-        #[cfg(feature = "code-analysis")]
         let relations_provider = Arc::new(
             HybridRelationsProvider::new(false) // stack-graphs disabled by default
                 .context("Failed to initialize relations provider")?,
@@ -142,7 +138,6 @@ impl RagClient {
             git_cache_path,
             config: Arc::new(config),
             indexing_ops: Arc::new(RwLock::new(HashMap::new())),
-            #[cfg(feature = "code-analysis")]
             relations_provider,
         })
     }
@@ -187,7 +182,6 @@ impl RagClient {
         });
 
         // Initialize relations provider for code navigation
-        #[cfg(feature = "code-analysis")]
         let relations_provider = Arc::new(
             HybridRelationsProvider::new(false)
                 .context("Failed to initialize relations provider")?,
@@ -203,7 +197,6 @@ impl RagClient {
             git_cache_path,
             config: Arc::new(config),
             indexing_ops: Arc::new(RwLock::new(HashMap::new())),
-            #[cfg(feature = "code-analysis")]
             relations_provider,
         })
     }
@@ -221,7 +214,6 @@ impl RagClient {
     }
 
     /// Create FileInfo from a file path for relations analysis
-    #[cfg(feature = "code-analysis")]
     pub(crate) fn create_file_info(
         &self,
         file_path: &str,

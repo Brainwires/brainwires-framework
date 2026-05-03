@@ -5,7 +5,7 @@ use super::query::{QueryRequest, default_limit, default_min_score};
 
 /// Request to search with file type filters
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct AdvancedSearchRequest {
     /// The search query
     pub query: String,
@@ -88,7 +88,7 @@ pub fn default_max_commits() -> usize {
 
 /// Request to search git history
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct SearchGitHistoryRequest {
     /// The search query
     pub query: String,
@@ -192,7 +192,7 @@ impl SearchGitHistoryRequest {
 
 /// A single git search result
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct GitSearchResult {
     /// Git commit hash (SHA)
     pub commit_hash: String,
@@ -218,7 +218,7 @@ pub struct GitSearchResult {
 
 /// Response from git history search
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "rag", derive(schemars::JsonSchema))]
+#[derive(schemars::JsonSchema)]
 pub struct SearchGitHistoryResponse {
     /// List of matching commits, ordered by relevance
     pub results: Vec<GitSearchResult>,

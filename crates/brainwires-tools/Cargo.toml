@@ -53,6 +53,9 @@ rag = [
     "brainwires-tool-runtime/rag",
     "brainwires-tool-builtins/rag",
 ]
+# Tree-sitter language parsers are always-on inside `brainwires-rag` post-Phase-6.
+# Kept as a feature alias for back-compat with consumers that opted in by name.
+rag-full-languages = ["rag"]
 interpreters = ["brainwires-tool-builtins/interpreters"]
 interpreters-rhai = ["brainwires-tool-builtins/interpreters-rhai"]
 interpreters-lua = ["brainwires-tool-builtins/interpreters-lua"]

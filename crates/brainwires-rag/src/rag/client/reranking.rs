@@ -3,11 +3,8 @@
 //! Requires the `spectral` feature.
 
 use super::RagClient;
-#[cfg(feature = "spectral")]
 use crate::rag::types::*;
-#[cfg(feature = "spectral")]
 use anyhow::{Context, Result};
-#[cfg(feature = "spectral")]
 use std::time::Instant;
 
 impl RagClient {
@@ -24,7 +21,6 @@ impl RagClient {
     /// - [`RerankerKind::Both`] — spectral first, then cross-encoder on the selected subset
     ///
     /// Requires the `spectral` feature.
-    #[cfg(feature = "spectral")]
     pub async fn query_diverse(
         &self,
         request: QueryRequest,

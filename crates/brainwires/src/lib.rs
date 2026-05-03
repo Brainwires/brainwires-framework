@@ -102,9 +102,12 @@ pub mod seal {
 // Orchestrator is re-exported via brainwires_tools::orchestrator when orchestrator feature is on
 
 /// RAG — codebase indexing, semantic search, and retrieval-augmented generation.
+///
+/// Moved into the standalone `brainwires-rag` crate in Phase 6. Re-exported
+/// here so `brainwires::rag::*` keeps working.
 #[cfg(feature = "rag")]
 pub mod rag {
-    pub use brainwires_knowledge::rag::*;
+    pub use brainwires_rag::rag::*;
 }
 
 /// Sandboxed code interpreters — Rhai, Lua, JavaScript (Boa), Python (RustPython).

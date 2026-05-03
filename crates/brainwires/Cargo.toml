@@ -24,6 +24,7 @@ brainwires-storage = { workspace = true, optional = true }
 brainwires-memory = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
+brainwires-rag = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 brainwires-reasoning = { workspace = true, optional = true }
 
@@ -105,8 +106,10 @@ prompting = ["dep:brainwires-knowledge", "brainwires-knowledge/prompting"]
 permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-tools/orchestrator"]
 openapi = ["tools", "brainwires-tools/openapi"]
-rag = ["dep:brainwires-knowledge", "brainwires-knowledge/rag", "dep:brainwires-storage", "brainwires-storage/lance-backend", "tools", "brainwires-tools/rag"]
-rag-full-languages = ["rag", "brainwires-knowledge/tree-sitter-languages"]
+rag = ["dep:brainwires-rag", "dep:brainwires-storage", "brainwires-storage/lance-backend", "tools", "brainwires-tools/rag"]
+# Tree-sitter language parsers are always-on in `brainwires-rag` post-Phase-6,
+# so this feature is now equivalent to `rag` and kept only for back-compat.
+rag-full-languages = ["rag"]
 interpreters = ["tools", "brainwires-tools/interpreters"]
 providers = ["dep:brainwires-providers"]
 chat = ["providers"]

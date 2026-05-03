@@ -11,7 +11,7 @@ pub use brainwires::storage::*;
 pub use brainwires::memory::*;
 
 // Document types (live in brainwires-knowledge::rag::documents)
-pub use brainwires_knowledge::rag::documents::{
+pub use brainwires_rag::rag::documents::{
     ChunkerConfig, DocumentBM25Manager, DocumentChunk, DocumentChunker, DocumentMetadata,
     DocumentMetadataStore, DocumentProcessor, DocumentScope, DocumentSearchRequest,
     DocumentSearchResult, DocumentStore, DocumentType, ExtractedDocument,
