@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::rate_limiter::RateLimiter;
+use crate::rate_limiter::RateLimiter;
 
 const CARTESIA_API_BASE: &str = "https://api.cartesia.ai";
 const CARTESIA_VERSION: &str = "2024-06-10";

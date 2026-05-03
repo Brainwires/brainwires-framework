@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_providers::elevenlabs::{ElevenLabsClient, ElevenLabsSttRequest};
+use brainwires_provider_speech::elevenlabs::{ElevenLabsClient, ElevenLabsSttRequest};
 
 use crate::audio::error::{AudioError, AudioResult};
 use crate::audio::stt::SpeechToText;

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_providers::azure_speech::{AzureSpeechClient, AzureSttRequest};
+use brainwires_provider_speech::azure_speech::{AzureSpeechClient, AzureSttRequest};
 
 use crate::audio::error::{AudioError, AudioResult};
 use crate::audio::stt::SpeechToText;

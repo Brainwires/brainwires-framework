@@ -25,7 +25,7 @@ case "${1:-}" in
     --live)
         DRY_RUN=false
         echo "=== LIVE PUBLISH MODE ==="
-        echo "This will publish all 20 workspace crates + any unpublished deprecated crates to crates.io."
+        echo "This will publish all 21 workspace crates + any unpublished deprecated crates to crates.io."
         echo "Estimated time: ~5 minutes (burst 30, then 1/min)"
         echo "Press Ctrl+C within 5 seconds to abort..."
         sleep 5
@@ -35,7 +35,7 @@ case "${1:-}" in
         ;;
 esac
 
-# 20 publishable workspace crates in strict dependency order (leaves → facade).
+# 21 publishable workspace crates in strict dependency order (leaves → facade).
 # Within each layer, crates have no mutual dependencies.
 # Excluded (publish = false): brainwires-autonomy, brainwires-wasm
 # Excluded (webrtc git-only dep): brainwires-channels (tombstone only)
@@ -51,8 +51,9 @@ CRATES=(
     brainwires-storage
 
     # Layer 1b: Infrastructure — deps on 1a
-    brainwires-providers          # optional dep: telemetry
-    brainwires-hardware           # optional dep: providers
+    brainwires-providers          # optional dep: telemetry (LLM clients only)
+    brainwires-provider-speech    # speech TTS / STT clients
+    brainwires-hardware           # optional dep: providers + provider-speech
     brainwires-memory             # dep: storage (tiered hot/warm/cold + dream consolidation)
 
     # Layer 2: Protocols (dep: core only)

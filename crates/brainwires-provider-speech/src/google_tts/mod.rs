@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::rate_limiter::RateLimiter;
+use crate::rate_limiter::RateLimiter;
 
 const GOOGLE_TTS_API_BASE: &str = "https://texttospeech.googleapis.com/v1";
 

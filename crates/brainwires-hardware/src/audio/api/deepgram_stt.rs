@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_providers::deepgram::{DeepgramClient, DeepgramListenRequest};
+use brainwires_provider_speech::deepgram::{DeepgramClient, DeepgramListenRequest};
 
 use crate::audio::error::{AudioError, AudioResult};
 use crate::audio::stt::SpeechToText;

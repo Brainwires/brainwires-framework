@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::rate_limiter::RateLimiter;
+use crate::rate_limiter::RateLimiter;
 
 const FISH_API_BASE: &str = "https://api.fish.audio/v1";
 

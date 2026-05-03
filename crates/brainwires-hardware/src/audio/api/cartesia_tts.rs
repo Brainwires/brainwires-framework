@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_providers::cartesia::{
+use brainwires_provider_speech::cartesia::{
     CartesiaClient, CartesiaOutputFormat, CartesiaTtsRequest, CartesiaVoice,
 };
 

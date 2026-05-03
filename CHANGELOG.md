@@ -11,6 +11,37 @@ Pre-1.0 hygiene pass: remove backwards-compat shims, close feature-flag half-wir
 
 ### Refactored (BREAKING)
 
+#### `brainwires-providers` split — speech (TTS / STT) extracted to `brainwires-provider-speech`
+
+`brainwires-providers` mixed two unrelated concerns: LLM chat clients
+(Anthropic, OpenAI, Google, Ollama, Bedrock, Vertex AI, local llama.cpp /
+Candle) and speech (Azure Speech, Cartesia, Deepgram, ElevenLabs, Fish,
+Google TTS, Murf, browser-native `web_speech`). Every consumer pulled
+both stacks even when it only wanted one.
+
+- **New `brainwires-provider-speech` crate** — all 8 speech providers
+  + browser-native `web_speech` (wasm32 + `web-speech` feature).
+  Independent — only depends on `brainwires-core`. The `RateLimiter`
+  type is duplicated here (146 lines, stdlib-only) rather than dragged
+  in from `brainwires-providers` to avoid cross-coupling.
+- **`brainwires-providers` keeps** the LLM chat clients only.
+  Description updated to reflect that.
+
+API breakage:
+
+- `brainwires_providers::azure_speech::*` → `brainwires_provider_speech::azure_speech::*`
+  (and analogously for cartesia / deepgram / elevenlabs / fish / google_tts / murf / web_speech).
+- `brainwires-providers/web-speech` feature is gone — use
+  `brainwires-provider-speech/web-speech` directly.
+- `brainwires-providers` no longer pulls `wasm-bindgen` /
+  `js-sys` / `web-sys` / `wasm-bindgen-futures` (they were
+  speech-only).
+
+Consumer updates landed in this commit: `brainwires-hardware`'s audio
+surface and `extras/brainwires-chat-pwa/wasm` switched to the new
+crate. The umbrella `brainwires` crate's `web-speech` feature now routes
+to `brainwires-provider-speech/web-speech`.
+
 #### `brainwires-tools` split into `brainwires-tool-runtime` + `brainwires-tool-builtins`, façade retired
 
 The old `brainwires-tools` crate had grown to 22 source files + 6 subdirs +

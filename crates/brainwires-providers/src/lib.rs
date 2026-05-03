@@ -47,29 +47,7 @@ pub mod brainwires_http;
 #[cfg(feature = "native")]
 pub use brainwires_http::{DEFAULT_BACKEND_URL, DEV_BACKEND_URL, get_backend_from_api_key};
 
-// ── Audio/speech API clients ──────────────────────────────────────────
-
-/// Azure Cognitive Services Speech API client.
-#[cfg(feature = "native")]
-pub mod azure_speech;
-/// Cartesia TTS API client.
-#[cfg(feature = "native")]
-pub mod cartesia;
-/// Deepgram TTS/STT API client.
-#[cfg(feature = "native")]
-pub mod deepgram;
-/// ElevenLabs TTS/STT API client.
-#[cfg(feature = "native")]
-pub mod elevenlabs;
-/// Fish Audio TTS/ASR API client.
-#[cfg(feature = "native")]
-pub mod fish;
-/// Google Cloud Text-to-Speech API client.
-#[cfg(feature = "native")]
-pub mod google_tts;
-/// Murf AI TTS API client.
-#[cfg(feature = "native")]
-pub mod murf;
+// Speech (TTS / STT) provider clients live in `brainwires-provider-speech`.
 
 // ── Registry ──────────────────────────────────────────────────────────
 
@@ -91,15 +69,7 @@ pub mod chat_factory;
 /// Local LLM inference (always compiled, llama.cpp behind feature flag).
 pub mod local_llm;
 
-// ── Browser-native speech (wasm32 + feature gated) ────────────────────
-
-/// Browser-native TTS (`speechSynthesis`) and STT (`SpeechRecognition`).
-///
-/// Only compiled on `wasm32` with the `web-speech` feature enabled — on
-/// native targets the feature is a no-op so downstream crates that
-/// conditionally enable it for browser builds keep building on native.
-#[cfg(all(target_arch = "wasm32", feature = "web-speech"))]
-pub mod web_speech;
+// Browser-native `web_speech` lives in `brainwires-provider-speech`.
 
 // ── Re-exports ────────────────────────────────────────────────────────
 
@@ -127,21 +97,7 @@ pub use openai_chat::chat::OpenAiChatProvider;
 #[cfg(feature = "native")]
 pub use openai_responses::OpenAiResponsesProvider;
 
-// Audio API clients
-#[cfg(feature = "native")]
-pub use azure_speech::AzureSpeechClient;
-#[cfg(feature = "native")]
-pub use cartesia::CartesiaClient;
-#[cfg(feature = "native")]
-pub use deepgram::DeepgramClient;
-#[cfg(feature = "native")]
-pub use elevenlabs::ElevenLabsClient;
-#[cfg(feature = "native")]
-pub use fish::FishClient;
-#[cfg(feature = "native")]
-pub use google_tts::GoogleTtsClient;
-#[cfg(feature = "native")]
-pub use murf::MurfClient;
+// Audio/speech client re-exports live on `brainwires-provider-speech`.
 
 // Model listing
 #[cfg(feature = "native")]

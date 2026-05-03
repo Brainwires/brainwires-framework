@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use super::rate_limiter::RateLimiter;
+use crate::rate_limiter::RateLimiter;
 
 const ELEVENLABS_API_BASE: &str = "https://api.elevenlabs.io/v1";
 

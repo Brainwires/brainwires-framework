@@ -15,6 +15,7 @@ members = [
     "crates/brainwires-mcp-server",
     "crates/brainwires-a2a",
     "crates/brainwires-providers",
+    "crates/brainwires-provider-speech",
     "crates/brainwires-resilience",
     "crates/brainwires-session",
     "crates/brainwires-hardware",
@@ -96,6 +97,7 @@ brainwires-network = { path = "crates/brainwires-network", version = "0.10.0" }
 brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.10.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.10.0", default-features = false }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.10.0", default-features = false, features = ["native"] }
+brainwires-provider-speech = { path = "crates/brainwires-provider-speech", version = "0.10.0", default-features = false }
 brainwires-resilience = { path = "crates/brainwires-resilience", version = "0.10.0", default-features = false }
 brainwires-session = { path = "crates/brainwires-session", version = "0.10.0" }
 brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.10.0" }

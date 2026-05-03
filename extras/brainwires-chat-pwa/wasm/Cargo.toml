@@ -11,7 +11,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # Framework crates — only `crates/*` allowed; never depend on other extras.
 brainwires-core = { path = "../../../crates/brainwires-core", default-features = false, features = ["wasm"] }
-brainwires-providers = { path = "../../../crates/brainwires-providers", default-features = false, features = ["local-llm-candle", "local-llm-vision", "web-speech", "candle-wgpu"] }
+brainwires-providers = { path = "../../../crates/brainwires-providers", default-features = false, features = ["local-llm-candle", "local-llm-vision", "candle-wgpu"] }
+brainwires-provider-speech = { path = "../../../crates/brainwires-provider-speech", default-features = false, features = ["web-speech"] }
 
 # Enable the WebGPU backend for wgpu. The candle fork declares wgpu with
 # default-features=false (wgsl only, no backend). Since this crate always

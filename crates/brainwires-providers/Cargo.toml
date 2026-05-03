@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-providers"
-description = "AI provider implementations for the Brainwires Agent Framework"
+description = "LLM provider implementations (Anthropic, OpenAI Chat + Responses, Google Gemini, Ollama, Bedrock, Vertex AI, local llama.cpp / Candle) for the Brainwires Agent Framework. Speech (TTS/STT) providers live in `brainwires-provider-speech`."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -51,24 +51,8 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 brainwires-telemetry = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 
-# Browser-native speech (web-speech feature) — wasm32-only at runtime.
-wasm-bindgen = { version = "0.2", optional = true }
-js-sys = { version = "0.3", optional = true }
-wasm-bindgen-futures = { version = "0.4", optional = true }
-web-sys = { version = "0.3", optional = true, features = [
-    "Window",
-    "SpeechSynthesis",
-    "SpeechSynthesisUtterance",
-    "SpeechSynthesisVoice",
-    "SpeechRecognition",
-    "SpeechRecognitionEvent",
-    "SpeechRecognitionResult",
-    "SpeechRecognitionResultList",
-    "SpeechRecognitionAlternative",
-    "SpeechRecognitionError",
-    "SpeechGrammarList",
-    "SpeechGrammar",
-] }
+# Browser-native speech moved to `brainwires-provider-speech` —
+# wasm-bindgen / js-sys / web-sys / wasm-bindgen-futures deps deleted.
 
 # All deps below are native-only. We declare them under a wasm-excluding target
 # so the optional `dep:foo` references in the `native`/`bedrock`/`vertex-ai`/
@@ -145,15 +129,9 @@ local-llm-vision = [
 bedrock = ["native", "dep:aws-sigv4", "dep:aws-credential-types", "dep:aws-smithy-runtime-api", "dep:http"]
 vertex-ai = ["native", "dep:gcp_auth"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "dep:chrono"]
-# Browser-native TTS / STT providers. Only takes effect on wasm32 — on native
-# targets the module is empty (see crates/brainwires-providers/src/web_speech/).
-web-speech = [
-    "wasm",
-    "dep:wasm-bindgen",
-    "dep:js-sys",
-    "dep:web-sys",
-    "dep:wasm-bindgen-futures",
-]
+# `web-speech` lives on `brainwires-provider-speech` — depend on that crate
+# directly for browser-native TTS / STT.
+
 # WebGPU acceleration for local-llm-candle. Forwards to candle-core/wgpu
 # *and* candle-nn/wgpu + candle-transformers/wgpu so the
 # `#[cfg(feature = "wgpu")]`-gated `wgpu_fwd` impls on `CustomOp*`

@@ -6,7 +6,7 @@
 //!   Gemma-family model from JS-supplied bytes and drive streaming chat.
 //! - [`count_tokens`] / [`format_prompt`]: prompt utilities.
 //! - [`WebTts`] / [`WebStt`]: thin wasm-bindgen wrappers over the framework's
-//!   `brainwires_providers::web_speech` module.
+//!   `brainwires_provider_speech::web_speech` module.
 //!
 //! Streaming bridge:
 //! We expose [`local_chat_stream`] as a `web_sys::ReadableStream<Uint8Array>`
@@ -45,7 +45,7 @@ use brainwires_providers::local_llm::candle_provider::default_gemma_e2b_config;
 use brainwires_providers::CandleDevice as Device;
 use brainwires_providers::{CandleDType as DType, CandleTensor as Tensor, CandleVarBuilder};
 use brainwires_providers::{CandleStorage as Storage, WgpuDevice, WgpuStorage};
-use brainwires_providers::web_speech::{
+use brainwires_provider_speech::web_speech::{
     WebSpeechStt, WebSpeechSttOptions, WebSpeechTts, WebSpeechTtsOptions,
 };
 use futures::StreamExt;
@@ -734,7 +734,7 @@ pub fn format_prompt(_model_id: String, messages_json: String) -> Result<String,
 // Voice exports
 // ---------------------------------------------------------------------------
 
-/// Wraps `brainwires_providers::web_speech::tts::WebSpeechTts`.
+/// Wraps `brainwires_provider_speech::web_speech::tts::WebSpeechTts`.
 #[wasm_bindgen]
 pub struct WebTts {
     inner: WebSpeechTts,
@@ -833,7 +833,7 @@ impl WebTts {
     }
 }
 
-/// Wraps `brainwires_providers::web_speech::stt::WebSpeechStt`.
+/// Wraps `brainwires_provider_speech::web_speech::stt::WebSpeechStt`.
 ///
 /// Holds the inner recognizer plus retains the JS callback closures for the
 /// life of the recognition session so they aren't dropped while in flight.

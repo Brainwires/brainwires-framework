@@ -32,6 +32,7 @@ brainwires-reasoning = { workspace = true, optional = true }
 
 # Providers
 brainwires-providers = { workspace = true, optional = true }
+brainwires-provider-speech = { workspace = true, optional = true }
 
 # Agent network (IPC, remote bridge, mesh)
 brainwires-network = { workspace = true, optional = true }
@@ -147,7 +148,7 @@ bedrock = ["providers", "brainwires-providers/bedrock"]
 vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 local-llm-candle = ["providers", "brainwires-providers/local-llm-candle"]
-web-speech = ["providers", "brainwires-providers/web-speech"]
+web-speech = ["dep:brainwires-provider-speech", "brainwires-provider-speech/web-speech"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
 learning = ["seal", "knowledge", "permissions", "brainwires-agents/seal-knowledge", "brainwires-agents/seal-feedback"]
