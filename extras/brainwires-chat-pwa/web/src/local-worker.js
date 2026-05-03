@@ -55,14 +55,14 @@ async function _getOpfsFile(modelId, filename) {
 // of files (kind, filename) so we can build the cache key, and a
 // `multimodal` flag that selects the vision-capable loader path.
 const KNOWN_MODELS = {
-    'gemma-4-e2b': {
-        id: 'gemma-4-e2b',
-        hf: { repo: 'google/gemma-4-e2b', revision: 'main' },
+    'gemma-4-e2b-it': {
+        id: 'gemma-4-e2b-it',
+        hf: { repo: 'google/gemma-4-e2b-it', revision: 'main' },
         files: [
             { kind: 'weights', filename: 'model.safetensors' },
             { kind: 'tokenizer', filename: 'tokenizer.json' },
         ],
-        // Gemma 4 E2B ships with the SigLIP vision tower — load via
+        // Gemma 4 E2B IT ships with the SigLIP vision tower — load via
         // `init_local_multimodal*` so `vision_chat` works end-to-end.
         multimodal: true,
     },

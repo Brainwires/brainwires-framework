@@ -187,9 +187,9 @@ async function boot() {
 
     // Probe whether the default local model is already cached.
     try {
-        const cached = await isDownloaded('gemma-4-e2b');
+        const cached = await isDownloaded('gemma-4-e2b-it');
         appEvents.dispatchEvent(new CustomEvent('local-model-cached-status', {
-            detail: { modelId: 'gemma-4-e2b', cached },
+            detail: { modelId: 'gemma-4-e2b-it', cached },
         }));
     } catch (_) { /* Cache Storage may be unavailable in tests/SSR */ }
 }

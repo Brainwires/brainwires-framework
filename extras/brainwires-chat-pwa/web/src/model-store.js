@@ -22,19 +22,20 @@ import { events } from './state.js';
 // registry pins them too (see TODO(gemma-4) in the Rust side).
 
 export const KNOWN_MODELS = {
-    'gemma-4-e2b': {
-        id: 'gemma-4-e2b',
-        displayName: 'Gemma 4 E2B',
-        description: 'Gemma 4 E2B (effective ~2B) — Candle/safetensors, runs in WASM.',
-        hf: { repo: 'google/gemma-4-e2b', revision: 'main' },
+    'gemma-4-e2b-it': {
+        id: 'gemma-4-e2b-it',
+        displayName: 'Gemma 4 E2B IT',
+        description: 'Gemma 4 E2B Instruction-Tuned (effective ~2B) — chat-trained, Candle/safetensors, runs in WASM.',
+        hf: { repo: 'google/gemma-4-e2b-it', revision: 'main' },
         files: [
-            { kind: 'weights', filename: 'model.safetensors', sha256: '76dc84a5a805a2c8b91e9ccc00b8dbf8f4a99bf0d56ab25832f6e6addd4f7f57' },
-            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: '12bac982b793c44b03d52a250a9f0d0b666813da566b910c24a6da0695fd11e6' },
+            // SHA-256 pins null until upstream registry pins them.
+            { kind: 'weights', filename: 'model.safetensors', sha256: null },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
         ],
         estimatedBytes: 10_246_621_918,
         contextSize: 8192,
         gated: false,
-        // Gemma 4 E2B ships with the SigLIP vision tower; the worker uses
+        // Gemma 4 E2B IT ships with the SigLIP vision tower; the worker uses
         // this flag to pick `init_local_multimodal` over the text-only
         // loader so `vision_chat` (parts[] with image entries) works.
         multimodal: true,

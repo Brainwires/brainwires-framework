@@ -25,11 +25,11 @@ import {
 } from '../state.js';
 import { appendMessageChunk, putMessage, partsToText } from '../db.js';
 
-export const id = 'local-gemma-4-e2b';
-export const displayName = 'Gemma 4 E2B (on-device)';
+export const id = 'local-gemma-4-e2b-it';
+export const displayName = 'Gemma 4 E2B IT (on-device)';
 export const runtime = 'local';
-export const defaultModel = 'gemma-4-e2b';
-export const models = ['gemma-4-e2b'];
+export const defaultModel = 'gemma-4-e2b-it';
+export const models = ['gemma-4-e2b-it'];
 
 // ── Worker singleton + RPC plumbing ────────────────────────────
 

@@ -548,7 +548,7 @@ async function buildLlmCard(modelId) {
 
 async function sectionLocalModel() {
     const body = el('div', { class: 'settings-card-list' });
-    body.appendChild(await buildLlmCard('gemma-4-e2b'));
+    body.appendChild(await buildLlmCard('gemma-4-e2b-it'));
     return sectionWrap(t('settings.localModel.title'), body);
 }
 
