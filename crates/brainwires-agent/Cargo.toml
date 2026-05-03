@@ -62,6 +62,11 @@ thiserror = { workspace = true, optional = true }
 # ── SEAL deps ──────────────────────────────────────────────────────────
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-permission = { workspace = true, optional = true }
+# SEAL pattern store — LanceDB-backed; optional since SEAL itself is optional.
+brainwires-storage = { workspace = true, default-features = false, features = ["native"], optional = true }
+arrow-array = { workspace = true, optional = true }
+arrow-schema = { workspace = true, optional = true }
+lancedb = { workspace = true, optional = true }
 
 # OpenTelemetry (optional, for otel feature)
 opentelemetry = { version = "0.28", optional = true }
@@ -100,8 +105,9 @@ otel = ["dep:opentelemetry"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native"]
 # MDAP: Multi-Dimensional Adaptive Planning (merged from brainwires-mdap)
 mdap = ["dep:thiserror"]
-# SEAL (Self-Evolving Agentic Learning)
-seal = []
+# SEAL (Self-Evolving Agentic Learning) — pulls LanceDB stack for the
+# pattern store (PatternStore + LanceDatabaseExt under seal::pattern_store).
+seal = ["dep:brainwires-storage", "dep:arrow-array", "dep:arrow-schema", "dep:lancedb"]
 seal-mdap = ["seal", "mdap"]
 seal-feedback = ["seal", "dep:brainwires-permission"]
 seal-knowledge = ["seal", "dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]

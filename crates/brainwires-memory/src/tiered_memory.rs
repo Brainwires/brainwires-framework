@@ -25,10 +25,16 @@ use uuid::Uuid;
 use brainwires_storage::CachedEmbeddingProvider;
 use brainwires_storage::databases::{LanceDatabase, StorageBackend};
 
-use super::mental_model_store::{MentalModel, MentalModelStore, ModelType};
-use super::{FactStore, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
+use brainwires_stores::{
+    FactStore, FactType, KeyFact, MemoryAuthority, MemoryTier, MentalModel, MentalModelStore,
+    MessageMetadata, MessageStore, MessageSummary, ModelType, SummaryStore, TierMetadata,
+    TierMetadataStore,
+};
+// Weight constants (SIMILARITY_WEIGHT, RECENCY_WEIGHT, IMPORTANCE_WEIGHT)
+// are defined locally below — they live in brainwires-stores::tier_types
+// for the schema stores' use, and are duplicated here intentionally to
+// keep the orchestration crate self-contained.
 
-const SECS_PER_HOUR: f32 = 3600.0;
 const SIMILARITY_WEIGHT: f32 = 0.50;
 const RECENCY_WEIGHT: f32 = 0.30;
 const IMPORTANCE_WEIGHT: f32 = 0.20;
@@ -71,54 +77,15 @@ fn detect_temporal_query(query: &str) -> f32 {
     (hits as f32 / 3.0).min(1.0)
 }
 
-// ── Memory authority hierarchy ────────────────────────────────────────────────
-
-/// Trust level of a memory entry's origin.
-///
-/// Controls which code paths are allowed to write long-lived `Canonical`
-/// entries into the memory store.  Use [`CanonicalWriteToken`] as a capability
-/// gate when calling [`TieredMemory::add_canonical_message`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[derive(Default)]
-pub enum MemoryAuthority {
-    /// Transient — may be discarded between runs without notice.
-    Ephemeral,
-    /// Default for agent messages — persists for the duration of a session.
-    #[default]
-    Session,
-    /// Long-lived, authoritative knowledge.
-    ///
-    /// Only writable via [`CanonicalWriteToken`]; cannot be overwritten by
-    /// `Ephemeral` or `Session` authority sources.
-    Canonical,
-}
-
-impl MemoryAuthority {
-    /// Display string used as the stored column value.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Ephemeral => "ephemeral",
-            Self::Session => "session",
-            Self::Canonical => "canonical",
-        }
-    }
-
-    /// Parse from a stored string.
-    pub fn parse(s: &str) -> Self {
-        match s {
-            "ephemeral" => Self::Ephemeral,
-            "canonical" => Self::Canonical,
-            _ => Self::Session,
-        }
-    }
-}
+// MemoryAuthority, MemoryTier, TierMetadata, MessageSummary, KeyFact,
+// FactType — moved to brainwires-stores::tier_types (used by both the
+// schema stores and this orchestration layer).
 
 /// Capability token that unlocks writes to the `Canonical` memory authority tier.
 ///
 /// The constructor is intentionally `pub(crate)` — external crates obtain one
 /// only through designated authorisation entry points (e.g. a CLI-layer
-/// function or a privileged agent config).  This ensures that ordinary agent
+/// function or a privileged agent config). This ensures that ordinary agent
 /// tool calls cannot silently promote their output to canonical authority.
 ///
 /// ## Example
@@ -131,169 +98,11 @@ impl MemoryAuthority {
 pub struct CanonicalWriteToken(());
 
 impl CanonicalWriteToken {
-    /// Create a new token.  Only callable within this crate.
+    /// Create a new token. Only callable within this crate.
     #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self(())
     }
-}
-
-// ── Memory tier classification ────────────────────────────────────────────────
-
-/// Memory tier classification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MemoryTier {
-    /// Full messages - highest fidelity
-    Hot,
-    /// Compressed summaries - medium fidelity
-    Warm,
-    /// Key facts only - lowest fidelity but most compressed
-    Cold,
-    /// Synthesised agent beliefs about patterns — the deepest tier.
-    ///
-    /// Entries are written explicitly via
-    /// [`TieredMemory::synthesize_mental_model`]; they are never populated
-    /// automatically.
-    MentalModel,
-}
-
-impl MemoryTier {
-    /// Get the next cooler tier
-    pub fn demote(&self) -> Option<MemoryTier> {
-        match self {
-            MemoryTier::Hot => Some(MemoryTier::Warm),
-            MemoryTier::Warm => Some(MemoryTier::Cold),
-            MemoryTier::Cold => Some(MemoryTier::MentalModel),
-            MemoryTier::MentalModel => None,
-        }
-    }
-
-    /// Get the next hotter tier
-    pub fn promote(&self) -> Option<MemoryTier> {
-        match self {
-            MemoryTier::Hot => None,
-            MemoryTier::Warm => Some(MemoryTier::Hot),
-            MemoryTier::Cold => Some(MemoryTier::Warm),
-            MemoryTier::MentalModel => Some(MemoryTier::Cold),
-        }
-    }
-}
-
-/// Metadata tracking for tiered storage
-#[derive(Debug, Clone)]
-pub struct TierMetadata {
-    /// Message identifier.
-    pub message_id: String,
-    /// Current memory tier.
-    pub tier: MemoryTier,
-    /// Importance score (0.0-1.0).
-    pub importance: f32,
-    /// Last access timestamp (Unix seconds).
-    pub last_accessed: i64,
-    /// Number of times accessed.
-    pub access_count: u32,
-    /// Creation timestamp (Unix seconds).
-    pub created_at: i64,
-    /// Authority level of this memory entry.
-    ///
-    /// Defaults to [`MemoryAuthority::Session`].  Entries with
-    /// [`MemoryAuthority::Canonical`] can only be written via
-    /// [`CanonicalWriteToken`] and survive session cleanup.
-    pub authority: MemoryAuthority,
-}
-
-impl TierMetadata {
-    /// Create new tier metadata with the given importance score.
-    pub fn new(message_id: String, importance: f32) -> Self {
-        let now = Utc::now().timestamp();
-        Self {
-            message_id,
-            tier: MemoryTier::Hot,
-            importance,
-            last_accessed: now,
-            access_count: 0,
-            created_at: now,
-            authority: MemoryAuthority::Session,
-        }
-    }
-
-    /// Create metadata with explicit authority level.
-    pub fn with_authority(message_id: String, importance: f32, authority: MemoryAuthority) -> Self {
-        Self {
-            authority,
-            ..Self::new(message_id, importance)
-        }
-    }
-
-    /// Record an access and return updated metadata
-    pub fn record_access(&mut self) {
-        self.last_accessed = Utc::now().timestamp();
-        self.access_count += 1;
-    }
-
-    /// Calculate a score for demotion priority (lower = demote first)
-    pub fn retention_score(&self) -> f32 {
-        let age_hours = (Utc::now().timestamp() - self.last_accessed) as f32 / SECS_PER_HOUR;
-        let recency_factor = (-0.01 * age_hours).exp(); // Decay over time
-        let access_factor = (self.access_count as f32).ln_1p() * 0.1; // Log access count
-
-        self.importance * SIMILARITY_WEIGHT
-            + recency_factor * RECENCY_WEIGHT
-            + access_factor * IMPORTANCE_WEIGHT
-    }
-}
-
-/// Summary of a message for warm tier storage
-#[derive(Debug, Clone)]
-pub struct MessageSummary {
-    /// Unique summary identifier.
-    pub summary_id: String,
-    /// Original message that was summarized.
-    pub original_message_id: String,
-    /// Conversation this summary belongs to.
-    pub conversation_id: String,
-    /// Role of the original message.
-    pub role: String,
-    /// Summarized text.
-    pub summary: String,
-    /// Key entities mentioned in the message.
-    pub key_entities: Vec<String>,
-    /// Creation timestamp (Unix seconds).
-    pub created_at: i64,
-}
-
-/// Key fact extracted from messages for cold tier storage
-#[derive(Debug, Clone)]
-pub struct KeyFact {
-    /// Unique fact identifier.
-    pub fact_id: String,
-    /// Messages this fact was extracted from.
-    pub original_message_ids: Vec<String>,
-    /// Conversation this fact belongs to.
-    pub conversation_id: String,
-    /// The fact text.
-    pub fact: String,
-    /// Category of the fact.
-    pub fact_type: FactType,
-    /// Creation timestamp (Unix seconds).
-    pub created_at: i64,
-}
-
-/// Type of key fact
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FactType {
-    /// A decision that was made.
-    Decision,
-    /// A definition or concept.
-    Definition,
-    /// A requirement or constraint.
-    Requirement,
-    /// A code change or modification.
-    CodeChange,
-    /// A configuration setting.
-    Configuration,
-    /// Other type of fact.
-    Other,
 }
 
 /// Combined retrieval score that blends similarity, recency, and stored importance.

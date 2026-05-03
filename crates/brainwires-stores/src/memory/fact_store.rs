@@ -10,7 +10,7 @@ use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
 
-use super::tiered_memory::{FactType, KeyFact};
+use super::tier_types::{FactType, KeyFact};
 
 const TABLE_NAME: &str = "facts";
 

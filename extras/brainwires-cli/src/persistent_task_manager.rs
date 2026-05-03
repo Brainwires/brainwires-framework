@@ -12,7 +12,7 @@ use brainwires_core::{Task, TaskPriority, TaskStatus};
 
 use brainwires_storage::LanceDatabase;
 
-use crate::storage::task_store::TaskStore;
+use brainwires_stores::TaskStore;
 
 /// A TaskManager that automatically persists to the storage backend
 pub struct PersistentTaskManager {

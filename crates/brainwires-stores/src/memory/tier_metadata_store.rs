@@ -11,7 +11,7 @@ use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
-use super::tiered_memory::{MemoryAuthority, MemoryTier, TierMetadata};
+use super::tier_types::{MemoryAuthority, MemoryTier, TierMetadata};
 
 const TABLE_NAME: &str = "tier_metadata";
 

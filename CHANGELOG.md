@@ -27,13 +27,56 @@ Pre-1.0 hygiene pass: remove backwards-compat shims, close feature-flag half-wir
 
 ### Refactored (BREAKING)
 
-#### `brainwires-session` + `brainwires-memory` folded into new `brainwires-stores`
+#### Three-layer storage refactor: `brainwires-stores` (schema) + `brainwires-memory` (orchestration) + relocations
 
-The framework now ships an opinionated minimum set of data stores in
-one feature-gated crate. `brainwires-session` (sessions) and
-`brainwires-memory` (tiered hot/warm/cold + dream consolidation) were
-previously two small crates with overlapping concerns; they are now
-the `session` and `memory` features of `brainwires-stores`.
+The framework now has a clean three-layer storage architecture:
+
+- **`brainwires-storage`** — substrate (`StorageBackend` trait,
+  backends, embeddings, BM25, file-context, paths, image-types).
+  Unchanged.
+- **`brainwires-stores` (new)** — opinionated minimum **schema + CRUD**
+  set: `SessionStore`, `ConversationStore`, `TaskStore` /
+  `AgentStateStore`, `PlanStore`, `TemplateStore`, `LockStore`,
+  `ImageStore`, plus the five tier-schema stores (`MessageStore`,
+  `SummaryStore`, `FactStore`, `MentalModelStore`, `TierMetadataStore`)
+  and shared `tier_types` (`MemoryTier`, `MemoryAuthority`,
+  `TierMetadata`, `MessageSummary`, `KeyFact`, `FactType`). All built
+  on the `StorageBackend` trait. Default features: `session`, `task`,
+  `plan`, `conversation`. Opt-in: `memory`, `lock`, `image`, `sqlite`.
+- **`brainwires-memory`** — kept (revived after a brief Phase-10a
+  fold-in) as the orchestration layer. Owns `TieredMemory`
+  (multi-factor adaptive search across tiers + promotion / demotion),
+  `CanonicalWriteToken` (canonical-write capability gate),
+  `MultiFactorScore`, `TieredSearchResult`, and the offline `dream`
+  consolidation engine (summarisation, fact extraction, tier demotion)
+  behind the `dream` feature. Depends on `brainwires-stores` for the
+  schema types.
+
+The old `brainwires-session` is folded as the `session` feature of
+`brainwires-stores`. Neither it nor `brainwires-memory` was ever
+published — no tombstones.
+
+CLI-domain stores from `extras/brainwires-cli/src/storage/` were
+relocated:
+
+- **8 framework-clean stores** (`ConversationStore`, `TaskStore` /
+  `AgentStateStore`, `PlanStore`, `TemplateStore`, `LockStore`,
+  `ImageStore`) → `brainwires-stores`.
+- **`PatternStore` + `LanceDatabaseExt`** → `brainwires-agent::seal::pattern_store`
+  (couple to SEAL's `QueryPattern` / `QuestionType`; live next to their
+  types). The `seal` feature now pulls `brainwires-storage` +
+  `arrow-array` + `arrow-schema` + `lancedb` as gated deps.
+- **`PlanModeStore`** → `extras/brainwires-cli/src/plan_mode_store.rs`
+  (CLI-internal; couples to `crate::types::message::Message`,
+  `crate::types::plan_mode::PlanModeState`, `DisplayMessage`).
+- **`PersistentTaskManager`** → `extras/brainwires-cli/src/persistent_task_manager.rs`
+  (CLI-local helper wrapping `brainwires-agent::task_manager::TaskManager`
+  with `TaskStore` persistence; zero in-tree consumers).
+
+`extras/brainwires-cli/src/storage/mod.rs` is kept as a thin
+re-export aggregator so the 29 CLI files using
+`crate::storage::{...}` don't need import rewrites — that shim is a
+candidate for deletion in Phase 10c.
 
 - **`brainwires-stores` (new)** — opinionated minimum store set.
   Default features: `session`, `task`, `plan`, `conversation`. Opt-in:
@@ -44,20 +87,13 @@ the `session` and `memory` features of `brainwires-stores`.
   session + memory consolidation only.
 - **`brainwires-session` retired.** Folded as the `session` feature.
   Never published to crates.io.
-- **`brainwires-memory` retired.** Folded as the `memory` (tier
-  stores), `tiered` (orchestration), and `dream` (offline
-  consolidation) features. Never published to crates.io. The old
-  `native` feature is gone — `arrow-schema` is always pulled when
-  `memory` is enabled.
-
 API breakage:
 
 - `Cargo.toml`: `brainwires-session = "0.10"` → `brainwires-stores = { version = "0.11", features = ["session", "sqlite"] }` (`session` is default-on; only list it explicitly if `default-features = false`).
-- `Cargo.toml`: `brainwires-memory = { features = ["dream"] }` → `brainwires-stores = { default-features = false, features = ["dream"] }` (`dream` implies `tiered` implies `memory`).
+- `Cargo.toml`: `brainwires-memory = { features = ["dream"] }` continues to work — the crate's API is preserved; `dream` is unchanged. The schema types it operates over now live in `brainwires-stores`, and `brainwires-memory` re-exports them so existing imports keep compiling.
 - `use brainwires_session::*` → `use brainwires_stores::*` (or the fully-qualified `brainwires_stores::session::*`).
-- `use brainwires_memory::*` → `use brainwires_stores::*` (or `brainwires_stores::memory::*`).
-- `use brainwires_memory::dream::*` → `use brainwires_stores::memory::dream::*`.
-- The umbrella `brainwires` facade gains `session`, `task`, `plan`, `conversation`, `lock`, `image`, `tiered` features alongside the existing `memory` and `dream`.
+- `use brainwires_memory::{MessageStore, MessageMetadata, …}` continues to work via re-export, but new code should prefer `brainwires_stores::*` for the schema types and reserve `brainwires_memory::*` for orchestration (`TieredMemory`, `MultiFactorScore`, `dream`).
+- The umbrella `brainwires` facade gains `session`, `task`, `plan`, `conversation`, `lock`, `image`, `tiered` features. The existing `memory` feature now means "tier schema stores" (always-available); `tiered` adds `TieredMemory` orchestration; `dream` adds offline consolidation. The old `native` feature on `brainwires-memory` is gone — `arrow-schema` is always pulled when `memory` is enabled.
 
 There is no re-export shim.
 

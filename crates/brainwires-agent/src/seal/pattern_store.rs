@@ -14,21 +14,109 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::CachedEmbeddingProvider;
-use super::{LanceDatabase, LanceDatabaseExt};
-use brainwires::seal::{QueryPattern, QuestionType};
+use brainwires_storage::CachedEmbeddingProvider;
+use brainwires_storage::LanceDatabase;
 
-/// Metadata for a persisted SEAL pattern
+use super::learning::QueryPattern;
+use super::query_core::QuestionType;
+
+/// LanceDB extension trait: SEAL-patterns table management.
+///
+/// Lives next to [`PatternStore`] because the SEAL patterns table is its
+/// only consumer; previously declared in the CLI's `crate::storage`
+/// aggregator. Implemented for [`LanceDatabase`] below.
+pub trait LanceDatabaseExt {
+    /// Ensure the SEAL patterns table exists, creating it if missing.
+    fn ensure_seal_patterns_table(
+        &self,
+        embedding_dim: usize,
+    ) -> impl std::future::Future<Output = Result<()>> + Send;
+
+    /// Open the SEAL patterns table.
+    fn seal_patterns_table(
+        &self,
+    ) -> impl std::future::Future<Output = Result<lancedb::Table>> + Send;
+
+    /// Schema for the SEAL patterns table at the given embedding dimension.
+    fn seal_patterns_schema(dimension: usize) -> Arc<Schema>;
+}
+
+impl LanceDatabaseExt for LanceDatabase {
+    async fn ensure_seal_patterns_table(&self, embedding_dim: usize) -> Result<()> {
+        let table_name = "seal_patterns";
+        let table_names = self.connection().table_names().execute().await?;
+
+        if table_names.contains(&table_name.to_string()) {
+            return Ok(());
+        }
+
+        let schema = Self::seal_patterns_schema(embedding_dim);
+        let empty_batch = RecordBatch::new_empty(schema.clone());
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
+
+        self.connection()
+            .create_table(
+                table_name,
+                Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>,
+            )
+            .execute()
+            .await
+            .context("Failed to create seal_patterns table")?;
+
+        Ok(())
+    }
+
+    async fn seal_patterns_table(&self) -> Result<lancedb::Table> {
+        self.connection()
+            .open_table("seal_patterns")
+            .execute()
+            .await
+            .context("Failed to open seal_patterns table")
+    }
+
+    fn seal_patterns_schema(dimension: usize) -> Arc<Schema> {
+        Arc::new(Schema::new(vec![
+            Field::new(
+                "vector",
+                DataType::FixedSizeList(
+                    Arc::new(Field::new("item", DataType::Float32, true)),
+                    dimension as i32,
+                ),
+                false,
+            ),
+            Field::new("pattern_id", DataType::Utf8, false),
+            Field::new("question_type", DataType::Utf8, false),
+            Field::new("template", DataType::Utf8, false),
+            Field::new("entity_types", DataType::Utf8, false),
+            Field::new("success_count", DataType::Int32, false),
+            Field::new("failure_count", DataType::Int32, false),
+            Field::new("avg_results", DataType::Float32, false),
+            Field::new("last_used", DataType::Int64, false),
+            Field::new("created_at", DataType::Int64, false),
+        ]))
+    }
+}
+
+/// Metadata for a persisted SEAL pattern.
 #[derive(Debug, Clone)]
 pub struct PatternMetadata {
+    /// Stable identifier for the pattern row.
     pub pattern_id: String,
+    /// Serialized [`super::query_core::QuestionType`] (tag string).
     pub question_type: String,
+    /// Pattern template string (S-expression-like form).
     pub template: String,
+    /// Entity-type tags this pattern was derived from.
     pub entity_types: Vec<String>,
+    /// Times this pattern produced a useful result.
     pub success_count: u32,
+    /// Times this pattern failed to produce a useful result.
     pub failure_count: u32,
+    /// Average number of results returned when this pattern was used.
     pub avg_results: f32,
+    /// Last-used timestamp (Unix seconds).
     pub last_used: i64,
+    /// Creation timestamp (Unix seconds).
     pub created_at: i64,
 }
 

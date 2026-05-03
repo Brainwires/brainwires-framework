@@ -4,13 +4,15 @@
 //! adding messages with importance scores, and performing multi-factor
 //! adaptive search that blends similarity, recency, and importance.
 //!
-//! Run: cargo run -p brainwires-stores --example tiered_memory --features tiered
+//! Run: cargo run -p brainwires-memory --example tiered_memory
 
 use std::sync::Arc;
 
 use anyhow::Result;
+use brainwires_memory::{
+    MessageMetadata, MessageStore, MemoryTier, TieredMemory, TieredMemoryConfig,
+};
 use brainwires_storage::{CachedEmbeddingProvider, LanceDatabase};
-use brainwires_stores::{MessageMetadata, MessageStore, TieredMemory, TieredMemoryConfig};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -123,7 +125,7 @@ async fn main() -> Result<()> {
 
     // 9. Identify demotion candidates (lowest retention score)
     let candidates = tiered
-        .get_demotion_candidates(brainwires_stores::MemoryTier::Hot, 2)
+        .get_demotion_candidates(MemoryTier::Hot, 2)
         .await?;
     println!("\nDemotion candidates (lowest retention score):");
     for id in &candidates {

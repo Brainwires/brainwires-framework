@@ -56,10 +56,17 @@ pub mod storage {
     pub use brainwires_storage::*;
 }
 
-/// Tiered hot/warm/cold agent memory — message/summary/fact stores + orchestration.
+/// Tiered hot/warm/cold agent memory — message/summary/fact stores
+/// (schema, from `brainwires-stores`) plus the `TieredMemory` orchestration
+/// (from `brainwires-memory`, when the `tiered` feature is on).
 #[cfg(feature = "memory")]
 pub mod memory {
     pub use brainwires_stores::*;
+    #[cfg(feature = "tiered")]
+    pub use brainwires_memory::{
+        CanonicalWriteToken, MultiFactorScore, TieredMemory, TieredMemoryConfig,
+        TieredMemoryStats, TieredSearchResult,
+    };
 }
 
 /// MCP client — connect to external MCP servers and use their tools.
@@ -243,7 +250,7 @@ pub mod system {
 /// Offline memory consolidation — summarization, fact extraction, hot/warm/cold tier transitions.
 #[cfg(feature = "dream")]
 pub mod dream {
-    pub use brainwires_stores::memory::dream::*;
+    pub use brainwires_memory::dream::*;
 }
 
 /// Telemetry — analytics events, billing hooks, SQLite persistence, and cost/usage queries.
@@ -365,9 +372,9 @@ pub mod prelude {
     // Storage — available with "storage" feature
     #[cfg(feature = "storage")]
     pub use brainwires_storage::CachedEmbeddingProvider;
-    // Tiered memory — available with "memory" feature
-    #[cfg(feature = "memory")]
-    pub use brainwires_stores::TieredMemory;
+    // Tiered memory orchestration — available with "tiered" feature
+    #[cfg(feature = "tiered")]
+    pub use brainwires_memory::TieredMemory;
 
     // MCP — available with "mcp" feature
     #[cfg(feature = "mcp")]

@@ -160,7 +160,8 @@ brainwires-network = { workspace = true, features = ["auth-keyring"] }
 brainwires-provider.workspace = true
 brainwires-telemetry = { workspace = true, features = ["native"] }
 brainwires-storage = { workspace = true, features = ["native"] }
-brainwires-stores = { workspace = true, features = ["session", "task", "plan", "conversation", "memory", "tiered", "lock", "image"] }
+brainwires-stores = { workspace = true, features = ["session", "task", "plan", "conversation", "memory", "lock", "image"] }
+brainwires-memory = { workspace = true }
 brainwires-core = { workspace = true, features = ["native"] }
 
 petgraph = "0.8.3"

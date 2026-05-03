@@ -40,54 +40,56 @@ arrow-schema = { workspace = true, optional = true }
 # rusqlite — drives SqliteSessionStore + LockStore (Phase 10b)
 rusqlite = { workspace = true, optional = true }
 
-# Async streams (dream offline consolidation)
-futures = { workspace = true, optional = true }
+# sha2 — image_store hashing
+sha2 = { workspace = true, optional = true }
 
-# Optional telemetry hook for dream cycles
-brainwires-telemetry = { workspace = true, optional = true }
+# Filesystem paths — template_store + lock_store default DB locations
+dirs = { workspace = true, optional = true }
+
+# regex — template_store name validation
+regex = { workspace = true, optional = true }
+
+# Process liveness checking — lock_store stale-lock detection (unix only)
+[target.'cfg(unix)'.dependencies]
+libc = { version = "0.2", optional = true }
+
+# Hostname for lock-store ownership records
+[dependencies.gethostname]
+workspace = true
+optional = true
 
 [features]
 default = ["session", "task", "plan", "conversation"]
 
-# Session transcript persistence (was brainwires-session)
+# Session transcript persistence
 session = []
 sqlite = ["dep:rusqlite"]
 
-# Task / agent-state persistence (Phase 10b)
+# Task / agent-state persistence
 task = []
 
-# Plan + plan-template persistence (Phase 10b)
-plan = []
+# Plan + plan-template persistence
+plan = ["dep:dirs", "dep:regex"]
 
-# Conversation catalog metadata (Phase 10b)
+# Conversation catalog metadata
 conversation = []
 
-# Coordination locks (Phase 10b — rusqlite-backed)
-lock = ["dep:rusqlite"]
+# Coordination locks (rusqlite-backed)
+lock = ["dep:rusqlite", "dep:dirs", "dep:libc", "dep:gethostname"]
 
-# Image storage with metadata (Phase 10b)
-image = []
+# Image storage with metadata
+image = ["dep:sha2"]
 
-# Tiered hot/warm/cold memory (was brainwires-memory). Pulls arrow-schema
-# for the memory/*_schema() helpers.
+# Tier schema stores (MessageStore, SummaryStore, FactStore,
+# MentalModelStore, TierMetadataStore + tier_types). Pulls
+# arrow-schema for the *_schema() helpers. Orchestration
+# (TieredMemory) and the offline `dream` consolidation engine live
+# in the brainwires-memory crate, which depends on this feature.
 memory = ["dep:arrow-schema"]
-
-# TieredMemory orchestration over the memory tier stores
-tiered = ["memory"]
-
-# Offline consolidation engine — produces summaries / facts and demotes tiers
-dream = ["tiered", "dep:futures"]
-
-# Wire dream's `with_analytics` hook to brainwires-telemetry's AnalyticsCollector
-telemetry = ["dream", "dep:brainwires-telemetry"]
 
 [dev-dependencies]
 tempfile.workspace = true
 tokio = { workspace = true, features = ["full", "test-util"] }
-
-[[example]]
-name = "tiered_memory"
-required-features = ["tiered"]
 
 [package.metadata.docs.rs]
 all-features = true

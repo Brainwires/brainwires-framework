@@ -7,6 +7,7 @@ members = [
     "crates/brainwires-agent",
     "crates/brainwires-storage",
     "crates/brainwires-stores",
+    "crates/brainwires-memory",
     "crates/brainwires-mcp-client",
     "crates/brainwires-permission",
     "crates/brainwires-sandbox",
@@ -95,6 +96,7 @@ brainwires-tool-builtins = { path = "crates/brainwires-tool-builtins", version =
 brainwires-agent = { path = "crates/brainwires-agent", version = "0.11.0", default-features = false }
 brainwires-storage = { path = "crates/brainwires-storage", version = "0.11.0", default-features = false }
 brainwires-stores = { path = "crates/brainwires-stores", version = "0.11.0", default-features = false }
+brainwires-memory = { path = "crates/brainwires-memory", version = "0.11.0" }
 brainwires-mcp-client = { path = "crates/brainwires-mcp-client", version = "0.11.0" }
 brainwires-permission = { path = "crates/brainwires-permission", version = "0.11.0" }
 brainwires-sandbox = { path = "crates/brainwires-sandbox", version = "0.11.0", default-features = false }

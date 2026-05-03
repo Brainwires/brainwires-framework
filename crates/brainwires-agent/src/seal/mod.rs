@@ -75,6 +75,13 @@ pub mod feedback_bridge;
 #[cfg(feature = "seal-knowledge")]
 pub mod knowledge_integration;
 pub mod learning;
+/// LanceDB-backed pattern store for SEAL self-evolving learning.
+///
+/// Stores `QueryPattern` rows + their embeddings; consumed by the learning
+/// loop to find similar past patterns. Moved here from
+/// `extras/brainwires-cli/src/storage/pattern_store.rs` because the
+/// `QueryPattern` types it operates on live in this module.
+pub mod pattern_store;
 pub mod query_core;
 pub mod reflection;
 

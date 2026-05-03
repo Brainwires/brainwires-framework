@@ -10,7 +10,7 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::LanceDatabase;
+use brainwires_storage::LanceDatabase;
 use crate::types::message::Message;
 use crate::types::plan_mode::PlanModeState;
 use brainwires::agent_network::ipc::DisplayMessage;
