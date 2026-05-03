@@ -389,7 +389,7 @@ pub struct App {
     /// Flag indicating Session connection was lost and needs respawn
     pub ipc_needs_respawn: bool,
     /// Skill registry for agent skills
-    pub skill_registry: Option<brainwires_agents::skills::SkillRegistry>,
+    pub skill_registry: Option<brainwires_agent::skills::SkillRegistry>,
     /// Tool allowlist scoped to the next AI turn, set by `/skill` when the
     /// invoked skill declared `allowed_tools`. Cleared after the next
     /// successful AI response so subsequent turns see the full tool set again.
@@ -834,7 +834,7 @@ impl App {
             ipc_needs_respawn: false,
             // Skills system
             skill_registry: {
-                let mut registry = brainwires_agents::skills::SkillRegistry::new();
+                let mut registry = brainwires_agent::skills::SkillRegistry::new();
                 if let Err(e) = crate::utils::skills::discover_skills(&mut registry) {
                     tracing::warn!("Failed to discover skills: {}", e);
                 }
@@ -1160,7 +1160,7 @@ impl App {
             ipc_needs_respawn: false,
             // Skills system
             skill_registry: {
-                let mut registry = brainwires_agents::skills::SkillRegistry::new();
+                let mut registry = brainwires_agent::skills::SkillRegistry::new();
                 if let Err(e) = crate::utils::skills::discover_skills(&mut registry) {
                     tracing::warn!("Failed to discover skills: {}", e);
                 }

@@ -31,7 +31,7 @@ use chrono::{DateTime, Utc};
 use tokio::sync::{Mutex, RwLock, mpsc, oneshot};
 
 use anyhow::Result;
-use brainwires_agents::ChatAgent;
+use brainwires_agent::ChatAgent;
 use brainwires_core::{ContentBlock, MessageContent, Role, Tool, ToolContext, ToolResult, ToolUse};
 use brainwires_tools::{
     SessionBroker, SessionId, SessionMessage, SessionSummary, SessionsTool, SpawnRequest,

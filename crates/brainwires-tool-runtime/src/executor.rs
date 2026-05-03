@@ -1,7 +1,7 @@
 //! Tool Executor trait
 //!
 //! Defines the [`ToolExecutor`] trait for abstracted tool execution.
-//! Framework crates like `brainwires-agents` depend on this trait
+//! Framework crates like `brainwires-agent` depend on this trait
 //! to call tools without coupling to any concrete implementation.
 
 use anyhow::Result;

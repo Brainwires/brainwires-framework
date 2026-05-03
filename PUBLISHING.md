@@ -97,7 +97,7 @@ $ cargo xtask bump-version 0.4.1 --crates brainwires-core
 
 Patch bump to 0.4.1:
   Direct:  brainwires-core
-  Cascade: brainwires-agents, brainwires-autonomy, brainwires-mcp, ...
+  Cascade: brainwires-agent, brainwires-autonomy, brainwires-mcp, ...
   Total:   14 crate(s)
 ```
 
@@ -148,7 +148,7 @@ Source of truth: `scripts/publish.sh`. Reproduced here for reference.
 | 3 — Intelligence (storage-backed) | `brainwires-knowledge` |
 | 4 — Action | `brainwires-tools`, `brainwires-permissions` |
 | 4b — Reasoning (deps: tools) | `brainwires-reasoning` |
-| 5 — Agency | `brainwires-agents`, `brainwires-network` |
+| 5 — Agency | `brainwires-agent`, `brainwires-network` |
 | 6 — Training | `brainwires-training` |
 | 7 — Facade | `brainwires` |
 

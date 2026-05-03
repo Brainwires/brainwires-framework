@@ -11,7 +11,7 @@ use futures::stream;
 use tokio::sync::Mutex;
 
 use brainclaw::session_spawn::BrainClawSpawnFactory;
-use brainwires_agents::ChatAgent;
+use brainwires_agent::ChatAgent;
 use brainwires_core::{
     ChatOptions, ChatResponse, Message, Provider, Role, StreamChunk, Tool, ToolContext, Usage,
 };

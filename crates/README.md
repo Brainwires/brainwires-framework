@@ -45,7 +45,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 │        └─> tools (dep on ToolCategory in router.rs)
 │
 ├─── Agency
-│    ├── brainwires-agents             Agent runtime, communication hub, task decomposition, MDAP, SEAL, skills, eval
+│    ├── brainwires-agent             Agent runtime, communication hub, task decomposition, MDAP, SEAL, skills, eval
 │    │   └─> core
 │    │   └─> tools
 │    │   └─> knowledge (opt, "seal-knowledge" feature)

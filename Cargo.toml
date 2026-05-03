@@ -4,7 +4,7 @@ members = [
     "crates/brainwires",
     "crates/brainwires-tool-runtime",
     "crates/brainwires-tool-builtins",
-    "crates/brainwires-agents",
+    "crates/brainwires-agent",
     "crates/brainwires-storage",
     "crates/brainwires-memory",
     "crates/brainwires-mcp-client",
@@ -69,6 +69,7 @@ exclude = [
     "deprecated/brainwires-training",
     "deprecated/brainwires-mcp",
     "deprecated/brainwires-agent-network",
+    "deprecated/brainwires-agents",
     "deprecated/brainwires-skills",
     "deprecated/brainwires-datasets",
     "extras/brainclaw",
@@ -93,7 +94,7 @@ documentation = "https://docs.rs/brainwires"
 brainwires-core = { path = "crates/brainwires-core", version = "0.10.0", default-features = false }
 brainwires-tool-runtime = { path = "crates/brainwires-tool-runtime", version = "0.10.0", default-features = false }
 brainwires-tool-builtins = { path = "crates/brainwires-tool-builtins", version = "0.10.0", default-features = false }
-brainwires-agents = { path = "crates/brainwires-agents", version = "0.10.0", default-features = false }
+brainwires-agent = { path = "crates/brainwires-agent", version = "0.10.0", default-features = false }
 brainwires-storage = { path = "crates/brainwires-storage", version = "0.10.0", default-features = false }
 brainwires-memory = { path = "crates/brainwires-memory", version = "0.10.0" }
 brainwires-mcp-client = { path = "crates/brainwires-mcp-client", version = "0.10.0" }

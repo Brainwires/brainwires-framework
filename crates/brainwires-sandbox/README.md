@@ -156,5 +156,5 @@ refuses `SandboxRuntime::Host` explicitly.
 ## Consumed by
 
 `brainwires-tools` uses the `Sandbox` trait to execute bash / python tool
-calls under isolation; `brainwires-agents` composes per-agent sandbox
+calls under isolation; `brainwires-agent` composes per-agent sandbox
 policies.

@@ -19,7 +19,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-brainwires-agents.workspace = true
+brainwires-agent.workspace = true
 brainwires-network.workspace = true
 brainwires-core.workspace = true
 brainwires-tools = { workspace = true, features = ["sessions"] }

@@ -5,15 +5,15 @@
 //! - `brainwires_core::Provider` for LLM I/O (OpenAI-compatible).
 //! - `brainwires_call_policy::BudgetGuard` for hard token/cost caps.
 //! - `brainwires_session::SessionStore` for persistence across restarts.
-//! - `brainwires_agents::personas::PersonaProvider` for prompt assembly.
+//! - `brainwires_agent::personas::PersonaProvider` for prompt assembly.
 //! - `CacheStrategy::SystemAndTools` so the static persona is cached on
 //!   every turn instead of rebuilt from scratch.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use brainwires_agents::ChatAgent;
-use brainwires_agents::personas::{PersonaContext, PersonaProvider, blocks_to_system_text};
+use brainwires_agent::ChatAgent;
+use brainwires_agent::personas::{PersonaContext, PersonaProvider, blocks_to_system_text};
 use brainwires_core::ToolContext;
 use brainwires_core::{CacheStrategy, ChatOptions, Provider};
 use brainwires_hardware::audio::{

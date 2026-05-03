@@ -125,7 +125,7 @@ Per-file detail lives in [docs/parity.md](./docs/parity.md). Summary:
 |------------|-------------|--------|
 | `brainwires-core` | `@brainwires/core` | Faithful (+ event.ts, workflow_state.ts, output parsers) |
 | `brainwires-providers` | `@brainwires/providers` | Chat providers + Relay + 7 audio HTTP clients. `local_llm` (llama-cpp) stays Rust-only. |
-| `brainwires-agents` | `@brainwires/agents` | Runtime, task agent, coordination, MDAP, skills, seal, eval, system_prompts, roles |
+| `brainwires-agent` | `@brainwires/agents` | Runtime, task agent, coordination, MDAP, skills, seal, eval, system_prompts, roles |
 | `brainwires-mcp` | `@brainwires/mcp` | Client + stdio transport + JSON-RPC |
 | `brainwires-mcp-server` | folded into `@brainwires/network` | Server framework + middleware pipeline |
 | `brainwires-a2a` | `@brainwires/a2a` | JSON-RPC + REST (no gRPC by design) |

@@ -30,9 +30,9 @@ use wasm_bindgen::prelude::*;
 /// WASM crate and need access to core types (`Message`, `Tool`, `Task`, etc.).
 pub use brainwires_core;
 
-/// Re-export of the MDAP module from [`brainwires_agents`] for Rust consumers
+/// Re-export of the MDAP module from [`brainwires_agent`] for Rust consumers
 /// who need MDAP (Multi-Dimensional Adaptive Planning) types and configuration.
-pub use brainwires_agents::mdap;
+pub use brainwires_agent::mdap;
 
 /// Re-export of the interpreters module (requires the `interpreters` feature).
 ///

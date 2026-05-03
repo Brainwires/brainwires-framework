@@ -17,7 +17,7 @@ use brainwires_a2a::{
     A2aError, JsonRpcRequest, JsonRpcResponse, Message as A2aMessage, RequestId, Role as A2aRole,
     SendMessageRequest,
 };
-use brainwires_agents::ChatAgent;
+use brainwires_agent::ChatAgent;
 use brainwires_core::{
     ChatOptions, ChatResponse, Message as CoreMessage, Provider, StreamChunk, Tool, ToolContext,
     Usage,

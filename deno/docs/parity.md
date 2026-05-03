@@ -15,7 +15,7 @@ package diff from the actual filesystem.
 | `brainwires` (meta) | — | n/a — JSR packages are independent. |
 | `brainwires-core` | [`@brainwires/core`](../packages/core/) | Faithful. |
 | `brainwires-providers` | [`@brainwires/providers`](../packages/providers/) | Partial — see §Providers. |
-| `brainwires-agents` | [`@brainwires/agents`](../packages/agents/) | Faithful. |
+| `brainwires-agent` | [`@brainwires/agents`](../packages/agents/) | Faithful. |
 | `brainwires-mcp` | [`@brainwires/mcp`](../packages/mcp/) | Faithful. |
 | `brainwires-mcp-server` | folded into [`@brainwires/network`](../packages/network/) | Faithful. |
 | `brainwires-a2a` | [`@brainwires/a2a`](../packages/a2a/) | Faithful (no gRPC, by design). |

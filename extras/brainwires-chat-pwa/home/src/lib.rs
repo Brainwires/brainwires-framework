@@ -192,7 +192,7 @@ impl HomeServerBuilder {
     /// route inbound JSON-RPC frames through (M4).
     ///
     /// Production wiring (real provider, API keys, system prompt, ...)
-    /// happens before construction: callers build a [`brainwires_agents::ChatAgent`]
+    /// happens before construction: callers build a [`brainwires_agent::ChatAgent`]
     /// however they like, wrap it in an [`A2aBridge`], then hand it here.
     /// Tests use [`crate::a2a::test_support::echo_chat_agent`] to skip the
     /// network entirely.

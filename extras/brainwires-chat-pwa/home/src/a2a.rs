@@ -1,4 +1,4 @@
-//! A2A bridge: inbound JSON-RPC over WebRTC → brainwires-agents → reply.
+//! A2A bridge: inbound JSON-RPC over WebRTC → brainwires-agent → reply.
 //!
 //! For M4 we handle the `message/send` method end-to-end (the A2A 0.3
 //! `SendMessage` method, per the constants in `brainwires_a2a::jsonrpc`).
@@ -8,11 +8,11 @@
 //! # Why `ChatAgent` and not `TaskAgent`?
 //!
 //! The Phase-2 plan's `M4` writeup names "TaskAgent" as the target, but the
-//! framework's [`brainwires_agents::TaskAgent`] is the heavy autonomous-loop
+//! framework's [`brainwires_agent::TaskAgent`] is the heavy autonomous-loop
 //! agent (execution graph, validation loop, file-lock manager, agent
 //! communication hub). A chat-PWA dial-home daemon serving the A2A
 //! `message/send` method is exactly what
-//! [`brainwires_agents::ChatAgent::process_message`] was built for —
+//! [`brainwires_agent::ChatAgent::process_message`] was built for —
 //! provider + tool registry + a single text in / text out call. The plan
 //! explicitly calls out that the agent type is "TaskAgent (or whatever the
 //! actual type is called — could also be Agent, ChatAgent, etc.)", so we
@@ -26,7 +26,7 @@ use brainwires_a2a::{
     A2aError, JsonRpcRequest, JsonRpcResponse, Message as A2aMessage, Part as A2aPart, RequestId,
     Role as A2aRole, SendMessageRequest, jsonrpc::METHOD_MESSAGE_SEND,
 };
-use brainwires_agents::ChatAgent;
+use brainwires_agent::ChatAgent;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
@@ -210,7 +210,7 @@ pub(crate) mod test_support {
         ChatOptions, ChatResponse, Message as CoreMessage, Provider, StreamChunk, Tool,
         ToolContext, Usage,
     };
-    use brainwires_agents::ChatAgent;
+    use brainwires_agent::ChatAgent;
     use brainwires_tool_builtins::BuiltinToolExecutor;
     use brainwires_tool_runtime::ToolRegistry;
     use futures::stream;

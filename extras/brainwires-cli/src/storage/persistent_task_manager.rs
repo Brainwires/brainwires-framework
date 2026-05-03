@@ -7,7 +7,7 @@ use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use brainwires_agents::task_manager::TaskManager;
+use brainwires_agent::task_manager::TaskManager;
 use brainwires_core::{Task, TaskPriority, TaskStatus};
 
 use brainwires_storage::LanceDatabase;
@@ -244,7 +244,7 @@ impl PersistentTaskManager {
     }
 
     /// Get statistics
-    pub async fn get_stats(&self) -> brainwires_agents::task_manager::TaskStats {
+    pub async fn get_stats(&self) -> brainwires_agent::task_manager::TaskStats {
         self.manager.get_stats().await
     }
 

@@ -41,7 +41,7 @@ pub mod tools {
 /// Agent runtime, communication hub, task management, and validation.
 #[cfg(feature = "agents")]
 pub mod agents {
-    pub use brainwires_agents::*;
+    pub use brainwires_agent::*;
 }
 
 /// Reasoning — planners, validators, routers, strategies, output parsers.
@@ -71,7 +71,7 @@ pub mod mcp {
 /// MDAP — Multi-Dimensional Adaptive Planning with MAKER voting.
 #[cfg(feature = "mdap")]
 pub mod mdap {
-    pub use brainwires_agents::mdap::*;
+    pub use brainwires_agent::mdap::*;
 }
 
 /// Adaptive prompting — technique library, clustering, temperature optimization.
@@ -107,7 +107,7 @@ pub mod chat {
 /// SEAL — Self-Evolving Adaptive Learning for coreference and knowledge.
 #[cfg(feature = "seal")]
 pub mod seal {
-    pub use brainwires_agents::seal::*;
+    pub use brainwires_agent::seal::*;
 }
 
 // Orchestrator is re-exported via brainwires_tools::orchestrator when orchestrator feature is on
@@ -139,13 +139,13 @@ pub mod mcp_server_framework {
 /// Skills — SKILL.md parsing, skill registry, and execution.
 #[cfg(feature = "skills")]
 pub mod skills {
-    pub use brainwires_agents::skills::*;
+    pub use brainwires_agent::skills::*;
 }
 
 /// Evaluation framework — Monte Carlo runner, Wilson CI, adversarial tests.
 #[cfg(feature = "eval")]
 pub mod eval {
-    pub use brainwires_agents::eval::*;
+    pub use brainwires_agent::eval::*;
 }
 
 // proxy module removed — brainwires-proxy is an extras app, use it directly
@@ -337,7 +337,7 @@ pub mod prelude {
 
     // Agents — available with "agents" feature
     #[cfg(feature = "agents")]
-    pub use brainwires_agents::{
+    pub use brainwires_agent::{
         // Access control
         AccessControlManager,
         AgentExecutionResult,
@@ -375,7 +375,7 @@ pub mod prelude {
 
     // MDAP — available with "mdap" feature
     #[cfg(feature = "mdap")]
-    pub use brainwires_agents::mdap::{
+    pub use brainwires_agent::mdap::{
         Composer, FirstToAheadByKVoter, MdapError, MdapEstimate, MdapResult, MicroagentConfig,
         StandardRedFlagValidator,
     };

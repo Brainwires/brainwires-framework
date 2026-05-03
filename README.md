@@ -61,7 +61,7 @@ The Brainwires Framework is a workspace of 16 framework crates plus 25 extras (i
 | [**brainwires-core**](crates/brainwires-core/README.md) | Core types, traits, and error handling shared by all crates |
 | [**brainwires-providers**](crates/brainwires-providers/README.md) | Multi-provider AI interface (Anthropic, OpenAI, Google, Ollama, local LLMs) |
 | [**brainwires-tools**](crates/brainwires-tools/README.md) | Tool definitions, execution, interpreters, and system primitives for AI model interactions |
-| [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination, skills and slash commands |
+| [**brainwires-agent**](crates/brainwires-agent/README.md) | Multi-agent orchestration, task decomposition, file lock coordination, skills and slash commands |
 | [**brainwires-knowledge**](crates/brainwires-knowledge/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
 | [**brainwires-storage**](crates/brainwires-storage/README.md) | Unified database layer (9 backends), embeddings, BM25 keyword search, file-context primitives |
 | [**brainwires-memory**](crates/brainwires-memory/README.md) | Tiered hot/warm/cold agent memory — `MessageStore`, `SummaryStore`, `FactStore`, `MentalModelStore`, `TieredMemory` orchestration |
@@ -151,7 +151,7 @@ Each crate is independently publishable and usable:
 [dependencies]
 brainwires-core = "0.10"
 brainwires-providers = "0.10"
-brainwires-agents = "0.10"
+brainwires-agent = "0.10"
 ```
 
 ### Minimal Example
@@ -189,7 +189,7 @@ The `brainwires` facade crate exposes feature flags corresponding to each sub-cr
 |---------|---------|-----------------|
 | `core` | Always | Core types and traits (not feature-gated) |
 | `tools` | Yes | Tool definitions, execution, and interpreters (`brainwires-tools`) |
-| `agents` | Yes | Multi-agent orchestration, skills (`brainwires-agents`) |
+| `agents` | Yes | Multi-agent orchestration, skills (`brainwires-agent`) |
 | `providers` | No | AI provider integrations |
 | `storage` | No | Vector storage and semantic search |
 | `mcp` | No | MCP client support |
@@ -216,7 +216,7 @@ cargo build
 cargo build --release
 
 # Build a specific crate
-cargo build -p brainwires-agents
+cargo build -p brainwires-agent
 
 # Run all tests
 cargo test
@@ -229,7 +229,7 @@ cargo test -p brainwires-core
 
 ```text
   brainwires (facade)
-  ├── brainwires-agents
+  ├── brainwires-agent
   │   ├── brainwires-core
   │   ├── brainwires-tools
   │   └── brainwires-knowledge (seal-knowledge feature)

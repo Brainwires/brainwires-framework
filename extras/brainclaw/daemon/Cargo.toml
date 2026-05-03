@@ -21,7 +21,7 @@ doc = false
 
 [dependencies]
 brainwires-gateway.workspace = true
-brainwires-agents.workspace = true
+brainwires-agent.workspace = true
 brainwires-providers.workspace = true
 brainwires-tools.workspace = true
 brainwires-network.workspace = true

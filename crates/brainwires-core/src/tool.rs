@@ -255,7 +255,7 @@ pub trait StagingBackend: std::fmt::Debug + Send + Sync {
 /// Shared map of `path -> SHA-256 of most recently written content`.
 ///
 /// Populated by `write_file` (in `brainwires-tools`) after its post-write
-/// read-back succeeds, and read by the validation loop (in `brainwires-agents`)
+/// read-back succeeds, and read by the validation loop (in `brainwires-agent`)
 /// to detect *post-validation* clobber by a concurrent writer.
 ///
 /// Why this exists (in addition to the tool-level read-back check):

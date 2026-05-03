@@ -5,8 +5,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
-use brainwires_agents::eval::fault_report::analyze_suite_for_faults;
-use brainwires_agents::eval::{
+use brainwires_agent::eval::fault_report::analyze_suite_for_faults;
+use brainwires_agent::eval::{
     EvaluationCase, EvaluationSuite, RegressionSuite, SuiteConfig, SuiteResult,
 };
 use brainwires_core::Provider;

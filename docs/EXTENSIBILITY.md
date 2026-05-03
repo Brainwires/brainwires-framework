@@ -26,7 +26,7 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `VectorDatabase` | 10 methods (initialize, store, search, etc.) | Full RAG vector DB |
 | `RelationsProvider` | `extract_definitions`, `extract_references`, `supports_language`, `precision_level` | Code symbol extraction |
 
-### Agent Traits (brainwires-agents)
+### Agent Traits (brainwires-agent)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
@@ -42,7 +42,7 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `ToolExecutor` | `execute`, `available_tools` | Custom tool execution backend |
 | `ToolPreHook` | `before_execute` | Pre-execution tool gate |
 
-### MDAP Traits (brainwires-agents, feature `mdap`)
+### MDAP Traits (brainwires-agent, feature `mdap`)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
@@ -237,17 +237,17 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 | Feature | Enables | Transitive Dependencies |
 |---------|---------|------------------------|
 | `tools` | `brainwires-tools` | — |
-| `agents` | `brainwires-agents` | brainwires-tools |
+| `agents` | `brainwires-agent` | brainwires-tools |
 | `storage` | `brainwires-storage` (with native) | lancedb, arrow, fastembed |
 | `mcp` | `brainwires-mcp` | rmcp |
-| `mdap` | `brainwires-agents/mdap` | — |
+| `mdap` | `brainwires-agent/mdap` | — |
 | `prompting` | `brainwires-knowledge/prompting` | linfa-clustering, ndarray |
 | `permissions` | `brainwires-permissions` | — |
 | `rag` | `brainwires-knowledge/rag` + `brainwires-storage` | lancedb, tantivy, tree-sitter |
 | `providers` | `brainwires-providers` | reqwest |
-| `seal` | `brainwires-agents/seal` | — |
+| `seal` | `brainwires-agent/seal` | — |
 | `agent-network` | `brainwires-network` | — |
-| `skills` | `brainwires-agents` (skills) | — |
+| `skills` | `brainwires-agent` (skills) | — |
 | `audio` | `brainwires-hardware/audio` | — |
 | `gpio` | `brainwires-hardware/gpio` | — |
 | `bluetooth` | `brainwires-hardware/bluetooth` | — |
@@ -282,7 +282,7 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 brainwires (facade)
   ├── brainwires-core (always)       ← core traits, types, errors
   ├── brainwires-tools         ← ToolExecutor, built-in tools
-  ├── brainwires-agents              ← AgentRuntime, CommunicationHub, SEAL
+  ├── brainwires-agent              ← AgentRuntime, CommunicationHub, SEAL
   ├── brainwires-providers           ← Anthropic, OpenAI, Google, Ollama
   ├── brainwires-knowledge           ← RAG, Knowledge/Brain, Prompting, Spectral
   ├── brainwires-network       ← MCP server, IPC, remote, mesh
@@ -296,7 +296,7 @@ brainwires (facade)
 
 - **Pure types/traits with no heavy deps** → `brainwires-core`
 - **Tool implementations** → `brainwires-tools`
-- **Agent coordination** → `brainwires-agents`
+- **Agent coordination** → `brainwires-agent`
 - **RAG pipeline components** → `brainwires-knowledge`
 
 ### Error handling

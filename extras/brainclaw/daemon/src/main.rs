@@ -379,7 +379,7 @@ fn show_version() {
     println!();
     println!("Components:");
     println!("  Gateway:     brainwires-gateway (WebSocket + webhook)");
-    println!("  Agents:      brainwires-agents (ChatAgent with tool loops)");
+    println!("  Agents:      brainwires-agent (ChatAgent with tool loops)");
     println!("  Providers:   brainwires-providers (Anthropic, OpenAI, Google, etc.)");
     println!("  Tools:       brainwires-tools (bash, files, git, search, web, validation)");
     println!("  Skills:      brainwires-skills (SKILL.md-based extensibility)");

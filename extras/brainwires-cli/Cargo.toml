@@ -151,7 +151,7 @@ rhai = { version = "1.23", features = ["sync", "serde"] }
 brainwires = { path = "../../crates/brainwires", features = ["full"] }
 
 # ── Brainwires Framework crates (custom feature flags) ──
-brainwires-agents = { workspace = true, features = ["skills-registry"] }
+brainwires-agent = { workspace = true, features = ["skills-registry"] }
 brainwires-tool-runtime = { workspace = true, features = ["native", "orchestrator", "rag"] }
 brainwires-tool-builtins = { workspace = true, features = ["native", "interpreters", "rag"] }
 brainwires-knowledge = { workspace = true, features = ["alt-folder-name"] }

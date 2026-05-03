@@ -596,7 +596,7 @@ The framework crates, grouped by function:
 
 | Group | Crates |
 |-------|--------|
-| **Core** | `brainwires-core`, `brainwires-tools`, `brainwires-agents` |
+| **Core** | `brainwires-core`, `brainwires-tools`, `brainwires-agent` |
 | **Intelligence** | `brainwires-providers`, `brainwires-knowledge` (knowledge, prompting, RAG), `brainwires-storage` |
 | **Integration** | `brainwires-mcp`, `brainwires-mcp-server`, `brainwires-network` |
 | **Security** | `brainwires-permissions` |

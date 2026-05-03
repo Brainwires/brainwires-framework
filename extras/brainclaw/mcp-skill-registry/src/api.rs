@@ -9,7 +9,7 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
-use brainwires_agents::skills::SkillPackage;
+use brainwires_agent::skills::SkillPackage;
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;

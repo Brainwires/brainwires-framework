@@ -2,7 +2,7 @@
 
 Dial-home daemon for the [Brainwires chat PWA](../web/). Runs on the user's
 own hardware and exposes a WebRTC peer + A2A JSON-RPC bridge into
-[`brainwires-agents::TaskAgent`](../../../crates/brainwires-agents/), so the
+[`brainwires-agent::TaskAgent`](../../../crates/brainwires-agent/), so the
 PWA in a browser can talk to a powerful agent on the user's home machine
 without paying anyone a per-token markup.
 
@@ -148,7 +148,7 @@ Once paired (M8), the chat UI lists **"Home agent"** as a provider alongside
 the cloud (Anthropic / OpenAI / Google) and local (Gemma 4 E2B) options.
 Tap the provider chip in the composer to cycle to it; messages then route
 over the WebRTC data channel through the daemon's A2A bridge into
-`brainwires-agents::ChatAgent`.
+`brainwires-agent::ChatAgent`.
 
 The PWA-side code is in
 [`web/src/home-provider.js`](../web/src/home-provider.js). It implements

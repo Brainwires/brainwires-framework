@@ -136,7 +136,7 @@ All chat providers honour `ChatOptions::model: Option<String>`. When `Some`, pro
 
 ## Agent Orchestration
 
-**Crate:** `brainwires-agents`
+**Crate:** `brainwires-agent`
 
 Multi-agent infrastructure for autonomous task execution.
 
@@ -352,7 +352,7 @@ Agent IPC, remote bridge, 5-layer protocol stack, device allowlists, permission 
 
 ## MDAP Voting
 
-**Crate:** `brainwires-agents` (feature `mdap`)
+**Crate:** `brainwires-agent` (feature `mdap`)
 
 Multi-Dimensional Adaptive Planning implementing the MAKER paper.
 
@@ -477,7 +477,7 @@ Implements "Adaptive Selection of Prompting Techniques" (arXiv:2510.18162).
 
 ## SEAL (Self-Evolving Agentic Learning)
 
-**Crate:** `brainwires-agents` (feature: `seal`)
+**Crate:** `brainwires-agent` (feature: `seal`)
 
 Self-evolving agent capabilities without retraining.
 
@@ -815,7 +815,7 @@ Sandboxed multi-language code execution.
 
 ## Skills System
 
-**Crate:** `brainwires-agents` (absorbed from `brainwires-skills`)
+**Crate:** `brainwires-agent` (absorbed from `brainwires-skills`)
 
 Markdown-based agent skill packages.
 
@@ -1086,7 +1086,7 @@ All components accept `Arc<dyn Provider>` and fall back to pattern-based logic w
 
 ## Evaluation Framework
 
-**Module:** `brainwires-agents::eval` (feature: `eval`)
+**Module:** `brainwires-agent::eval` (feature: `eval`)
 
 Monte Carlo evaluation framework for agent quality assurance.
 

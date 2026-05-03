@@ -34,11 +34,11 @@ publish = false
 [workspace.dependencies]
 # Brainwires framework crates (path deps to monorepo)
 brainwires-core = { path = "../../crates/brainwires-core" }
-brainwires-agents = { path = "../../crates/brainwires-agents", features = ["skills-registry"] }
+brainwires-agent = { path = "../../crates/brainwires-agent", features = ["skills-registry"] }
 brainwires-providers = { path = "../../crates/brainwires-providers", default-features = false, features = ["native"] }
 brainwires-tools = { path = "../../crates/brainwires-tools", version = "0.10.0" }
 brainwires-network = { path = "../../crates/brainwires-network", features = ["channels"] }
-# skills now part of brainwires-agents
+# skills now part of brainwires-agent
 brainwires-hardware = { path = "../../crates/brainwires-hardware" }
 brainwires-gateway = { path = "gateway" }
 brainwires-telemetry = { path = "../../crates/brainwires-telemetry", default-features = false }

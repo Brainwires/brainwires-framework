@@ -19,12 +19,12 @@ This crate implements the hook surface defined in `crates/brainwires-billing`. T
 ```toml
 [dependencies]
 brainwires-billing-impl = { path = "extras/brainwires-billing" }
-brainwires-agents = { path = "crates/brainwires-agents", features = ["billing"] }
+brainwires-agent = { path = "crates/brainwires-agent", features = ["billing"] }
 ```
 
 ```rust
 use brainwires_billing_impl::{AgentWallet, SqliteLedger};
-use brainwires_agents::task_agent::{BillingHookRef, TaskAgentConfig};
+use brainwires_agent::task_agent::{BillingHookRef, TaskAgentConfig};
 use std::sync::Arc;
 
 // $5.00 budget per customer session

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::Result;
-use brainwires_agents::skills::{RegistryClient, SkillRegistry, SkillSource};
+use brainwires_agent::skills::{RegistryClient, SkillRegistry, SkillSource};
 use semver::VersionReq;
 
 /// Handles skill-based /commands from user messages.

@@ -557,7 +557,7 @@ mod local_llm_mdap {
     use crate::providers::local_llm::{LocalInferenceParams, LocalLlmProvider};
 
     /// Newtype wrapper around `LocalLlmProvider` to satisfy Rust's orphan
-    /// rules — both `MicroagentProvider` (defined in `brainwires_agents`) and
+    /// rules — both `MicroagentProvider` (defined in `brainwires_agent`) and
     /// `LocalLlmProvider` (re-exported from `brainwires::providers::local_llm`)
     /// are foreign to this crate, so the impl has to hang off a local type.
     pub struct LocalLlmMicroagent(pub Arc<LocalLlmProvider>);

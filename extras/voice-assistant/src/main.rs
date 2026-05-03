@@ -4,7 +4,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use brainwires_agents::personas::StaticPersonaProvider;
+use brainwires_agent::personas::StaticPersonaProvider;
 use brainwires_hardware::audio::{
     api::{OpenAiStt, OpenAiTts},
     assistant::{VoiceAssistant, VoiceAssistantConfig},

@@ -18,7 +18,7 @@ impl App {
     ///   to run via the `execute_script` tool. Tools are scoped to the
     ///   skill's allowlist so the script runs in a constrained context.
     pub(super) async fn handle_invoke_skill(&mut self, name: &str, args: Vec<String>) {
-        use brainwires_agents::skills::{SkillExecutionMode, SkillSource};
+        use brainwires_agent::skills::{SkillExecutionMode, SkillSource};
 
         if self.skill_registry.is_none() {
             self.add_console_message("Skill registry not initialized".to_string());
@@ -59,7 +59,7 @@ impl App {
                     let name_s = skill.name().to_string();
                     let desc = skill.description().to_string();
                     let body =
-                        brainwires_agents::skills::render_template(&skill.instructions, &arg_map);
+                        brainwires_agent::skills::render_template(&skill.instructions, &arg_map);
                     (body, desc, src, mode, allowed, name_s)
                 }
                 Err(e) => {
@@ -153,7 +153,7 @@ impl App {
 
     /// Handle /skills - list all available skills
     pub(super) async fn handle_list_skills(&mut self) {
-        use brainwires_agents::skills::SkillSource;
+        use brainwires_agent::skills::SkillSource;
 
         let result = if let Some(ref registry) = self.skill_registry {
             let skills = registry.list_skills();
@@ -237,7 +237,7 @@ impl App {
 
     /// Handle /skill:show <name> - show skill details
     pub(super) async fn handle_show_skill(&mut self, name: &str) {
-        use brainwires_agents::skills::SkillSource;
+        use brainwires_agent::skills::SkillSource;
 
         let result = if let Some(ref mut registry) = self.skill_registry {
             // Collect the resource listing first (shared borrow scope) so it

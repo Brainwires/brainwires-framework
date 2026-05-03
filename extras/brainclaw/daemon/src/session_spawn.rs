@@ -23,7 +23,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::{Mutex, mpsc};
 
-use brainwires_agents::ChatAgent;
+use brainwires_agent::ChatAgent;
 use brainwires_core::{ChatOptions, Provider};
 use brainwires_gateway::sessions_broker::SessionSpawnFactory;
 use brainwires_tools::{SessionId, SessionMessage, SpawnRequest, ToolExecutor};

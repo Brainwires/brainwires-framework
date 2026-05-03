@@ -19,7 +19,7 @@ wake-word-rustpotter = ["brainwires-hardware/wake-word-rustpotter"]
 brainwires-hardware = { workspace = true, features = ["voice-assistant"] }
 brainwires-provider = { workspace = true }
 brainwires-core = { workspace = true }
-brainwires-agents = { workspace = true }
+brainwires-agent = { workspace = true }
 brainwires-tool-runtime = { workspace = true }
 brainwires-tool-builtins = { workspace = true }
 brainwires-call-policy = { workspace = true }

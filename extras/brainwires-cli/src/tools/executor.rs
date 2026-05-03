@@ -2415,7 +2415,7 @@ impl Default for ToolExecutor {
 // ── Framework trait implementation ──────────────────────────────────────────
 
 /// Implement the framework's `ToolExecutor` trait so that the CLI's concrete
-/// executor can be used with `brainwires-agents`' `TaskAgent` and `AgentPool`.
+/// executor can be used with `brainwires-agent`' `TaskAgent` and `AgentPool`.
 #[async_trait::async_trait]
 impl brainwires::tools::ToolExecutor for ToolExecutor {
     async fn execute(

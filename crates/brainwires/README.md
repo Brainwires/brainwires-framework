@@ -65,7 +65,7 @@ Source of truth: [`Cargo.toml`](Cargo.toml). Listed in rough capability order.
 | Feature | Default | Activates | Description |
 |---------|---------|-----------|-------------|
 | `tools` | **yes** | `brainwires-tools` | File, bash, git, search, web, and validation tools |
-| `agents` | **yes** | `brainwires-agents` | Agent runtime, communication hub, task manager, validation loop |
+| `agents` | **yes** | `brainwires-agent` | Agent runtime, communication hub, task manager, validation loop |
 | `wasm` | no | `brainwires-core/wasm` | WASM-safe build of `brainwires-core` (no native deps) |
 | `storage` | no | `brainwires-storage` | Unified database layer (9 backends), tiered memory (hot/warm/cold) |
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
@@ -74,7 +74,7 @@ Source of truth: [`Cargo.toml`](Cargo.toml). Listed in rough capability order.
 | `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol (JSON-RPC 2.0, HTTP, gRPC) |
 | `agent-network` | no | `brainwires-network` | 5-layer networking stack (IPC, TCP, A2A, pub/sub) |
 | `mesh` | no | `brainwires-network/mesh` | Mesh networking for distributed agents (implies `agent-network`) |
-| `mdap` | no | `brainwires-agents/mdap` | Multi-Dimensional Adaptive Planning with k-agent voting (implies `agents`) |
+| `mdap` | no | `brainwires-agent/mdap` | Multi-Dimensional Adaptive Planning with k-agent voting (implies `agents`) |
 | `prompting` | no | `brainwires-knowledge/prompting` | Prompt generation, technique library, temperature optimizer |
 | `knowledge` | no | `brainwires-knowledge/knowledge` | Persistent knowledge caches — BKS/PKS behavioral + personal stores, entity graphs |
 | `dream` | no | `brainwires-knowledge/dream` | Offline consolidation / replay passes over knowledge stores |
@@ -91,10 +91,10 @@ Source of truth: [`Cargo.toml`](Cargo.toml). Listed in rough capability order.
 | `vertex-ai` | no | `brainwires-providers/vertex-ai` | Google Vertex AI provider (implies `providers`) |
 | `llama-cpp-2` | no | `brainwires-providers/llama-cpp-2` | Local LLM inference (implies `providers`) |
 | `reasoning` | no | `brainwires-reasoning` | Reasoning strategies (planners, validators, routers, scorers) |
-| `seal` | no | `brainwires-agents/seal` | Self-Evolving Autonomous Learner |
-| `skills` | no | `brainwires-agents/skills-registry` | Pluggable skills system |
-| `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents |
-| `otel` | no | `brainwires-agents/otel` | OpenTelemetry span export for agent traces |
+| `seal` | no | `brainwires-agent/seal` | Self-Evolving Autonomous Learner |
+| `skills` | no | `brainwires-agent/skills-registry` | Pluggable skills system |
+| `eval` | no | `brainwires-agent/eval` | Evaluation framework for benchmarking agents |
+| `otel` | no | `brainwires-agent/otel` | OpenTelemetry span export for agent traces |
 | `telemetry` | no | `brainwires-telemetry` | OutcomeMetrics, Prometheus export, billing hooks |
 | `audio` | no | `brainwires-hardware/audio` | Audio capture, STT, TTS (16 cloud providers + local Whisper) |
 | `vad` | no | `brainwires-hardware/vad` | WebRTC voice activity detection (`EnergyVad` always available with `audio`) |
@@ -133,7 +133,7 @@ interop, and `seal + knowledge` when you want self-improving behavior.
 |---------|---------|----------|
 | `agent-full` | `agents` + `permissions` + `prompting` + `tools` | Complete agent workflow with permissions |
 | `researcher` | `providers` + `agents` + `storage` + `rag` + `training` + `datasets` | Full research workflow |
-| `learning` | `seal` + `knowledge` + `brainwires-agents/seal-knowledge` + `brainwires-agents/seal-feedback` | Full learning subsystem with knowledge integration |
+| `learning` | `seal` + `knowledge` + `brainwires-agent/seal-knowledge` + `brainwires-agent/seal-feedback` | Full learning subsystem with knowledge integration |
 | `full` | Everything | Kitchen sink — all sub-crates and cross-crate features |
 
 ## Prelude

@@ -55,8 +55,8 @@ pub async fn get_smart_tools_with_local(
 
 // ── CLI-specific: skill-integrated variants ───────────────────────────────
 
-use brainwires_agents::skills::metadata::SkillMatch;
-use brainwires_agents::skills::router::SkillRouter;
+use brainwires_agent::skills::metadata::SkillMatch;
+use brainwires_agent::skills::router::SkillRouter;
 
 /// Analyze query and return both tool categories and skill matches
 pub async fn analyze_with_skills(

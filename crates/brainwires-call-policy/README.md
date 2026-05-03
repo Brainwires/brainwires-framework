@@ -170,4 +170,4 @@ Only `Transient` is retried.
 
 The decorators are stable; integration into the default `ChatAgent`
 construction path is opt-in via `ChatAgentBuilder::with_resilience` (in
-`brainwires-agents`). This crate is `#[deny(missing_docs)]`.
+`brainwires-agent`). This crate is `#[deny(missing_docs)]`.

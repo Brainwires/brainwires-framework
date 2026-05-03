@@ -28,7 +28,7 @@ The framework is a Cargo workspace organized around a facade pattern. For the fu
 cargo build
 
 # Single crate
-cargo build -p brainwires-agents
+cargo build -p brainwires-agent
 
 # With specific features
 cargo build --features "providers,storage,rag"
@@ -49,7 +49,7 @@ cargo test
 cargo test -p brainwires-core
 
 # Specific test
-cargo test -p brainwires-agents test_task_agent
+cargo test -p brainwires-agent test_task_agent
 
 # With output
 cargo test -- --nocapture
@@ -105,7 +105,7 @@ We follow [Keep a Changelog](https://keepachangelog.com/). If your change is use
 
 ```markdown
 ### Added
-#### Agents (`brainwires-agents`)
+#### Agents (`brainwires-agent`)
 - New retry strategy for task execution
 ```
 

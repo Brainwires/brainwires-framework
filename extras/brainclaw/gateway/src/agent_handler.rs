@@ -15,7 +15,7 @@ use dashmap::{DashMap, DashSet};
 use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
-use brainwires_agents::ChatAgent;
+use brainwires_agent::ChatAgent;
 use brainwires_core::lifecycle::{LifecycleEvent, LifecycleHook};
 use brainwires_core::{ChatOptions, Provider, ToolContext, ToolUse};
 use brainwires_network::channels::events::ChannelEvent;

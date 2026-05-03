@@ -13,7 +13,7 @@ into a small number of "god-crates":
 - `brainwires-prompting` and `brainwires-rag` were merged into
   `brainwires-knowledge`.
 - `brainwires-mdap`, `brainwires-seal`, and `brainwires-skills` were
-  merged into `brainwires-agents`.
+  merged into `brainwires-agent`.
 - `brainwires-mesh`, `brainwires-channels`, and `brainwires-agent-network`
   were merged into `brainwires-network`.
 - `brainwires-code-interpreters`, `brainwires-system`, and

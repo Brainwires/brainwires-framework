@@ -1,1 +1,1 @@
-pub use brainwires_agents::AgentToolRegistry;
+pub use brainwires_agent::AgentToolRegistry;

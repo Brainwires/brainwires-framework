@@ -40,8 +40,12 @@ esac
 # Excluded (publish = false): brainwires-autonomy, brainwires-wasm
 # Excluded (webrtc git-only dep): brainwires-channels (tombstone only)
 # Retired (deprecated/, picked up by the auto-detect loop below):
-#   brainwires-tools — split in 0.11 into brainwires-tool-runtime +
-#                      brainwires-tool-builtins (Phase 5).
+#   brainwires-tools — split into brainwires-tool-runtime + brainwires-tool-builtins.
+#   brainwires-permissions, brainwires-providers, brainwires-mcp,
+#   brainwires-resilience, brainwires-agents — singularized.
+#   brainwires-resilience also got a content-rename to brainwires-call-policy.
+#   brainwires-training — name retired temporarily; new placeholder also
+#   named brainwires-training is published (different generation).
 CRATES=(
     # Layer 0: Contracts
     brainwires-core
@@ -81,7 +85,7 @@ CRATES=(
     brainwires-tool-builtins
 
     # Layer 5: Agency
-    brainwires-agents
+    brainwires-agent
     brainwires-network
 
     # Layer 6: Fine-tuning + training placeholder

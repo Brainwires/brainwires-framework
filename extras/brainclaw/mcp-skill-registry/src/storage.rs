@@ -3,7 +3,7 @@
 //! Uses SQLite with FTS5 for full-text search over skill metadata.
 
 use anyhow::{Context, Result};
-use brainwires_agents::skills::{SkillManifest, SkillPackage};
+use brainwires_agent::skills::{SkillManifest, SkillPackage};
 use rusqlite::Connection;
 
 use super::search;
