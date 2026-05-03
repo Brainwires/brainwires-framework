@@ -11,7 +11,7 @@ use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
-use crate::tiered_memory::{MemoryAuthority, MemoryTier, TierMetadata};
+use super::tiered_memory::{MemoryAuthority, MemoryTier, TierMetadata};
 
 const TABLE_NAME: &str = "tier_metadata";
 
@@ -120,7 +120,7 @@ impl<B: StorageBackend> TierMetadataStore<B> {
     }
 
     /// Arrow schema for the tier metadata table, used by `LanceDatabase` table creation.
-    #[cfg(feature = "native")]
+    
     pub fn tier_metadata_schema() -> Arc<arrow_schema::Schema> {
         Arc::new(arrow_schema::Schema::new(vec![
             arrow_schema::Field::new("message_id", arrow_schema::DataType::Utf8, false),

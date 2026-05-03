@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use brainwires_agent::eval::{EvaluationCase, TrialResult, ndcg_at_k};
-use brainwires_memory::{MemoryAuthority, MemoryTier, MultiFactorScore, TierMetadata};
+use brainwires_stores::{MemoryAuthority, MemoryTier, MultiFactorScore, TierMetadata};
 use chrono::Utc;
 
 // ── Scenario helpers ──────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@
 
 #![cfg(feature = "sqlite")]
 
-use brainwires_session::{ListOptions, Message, SessionId, SessionStore, SqliteSessionStore};
+use brainwires_stores::{ListOptions, Message, SessionId, SessionStore, SqliteSessionStore};
 
 fn open_tmp_store() -> (SqliteSessionStore, tempfile::TempDir) {
     let tmp = tempfile::tempdir().expect("tempdir");

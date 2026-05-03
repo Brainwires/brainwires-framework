@@ -44,8 +44,11 @@ esac
 #   brainwires-permissions, brainwires-providers, brainwires-mcp,
 #   brainwires-resilience, brainwires-agents — singularized.
 #   brainwires-resilience also got a content-rename to brainwires-call-policy.
-#   brainwires-training — name retired temporarily; new placeholder also
-#   named brainwires-training is published (different generation).
+#
+# brainwires-training stays in the active CRATES list — the v0.10 content
+# (which was actually fine-tune code) was renamed to brainwires-finetune,
+# and the brainwires-training name is now a v0.11 placeholder reserved
+# for future training-from-scratch work. No tombstone.
 CRATES=(
     # Layer 0: Contracts
     brainwires-core

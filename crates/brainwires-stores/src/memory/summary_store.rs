@@ -10,7 +10,7 @@ use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
 
-use crate::tiered_memory::MessageSummary;
+use super::tiered_memory::MessageSummary;
 
 const TABLE_NAME: &str = "summaries";
 
@@ -31,7 +31,6 @@ pub fn summaries_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
 }
 
 /// Arrow schema for the summaries table, used by `LanceDatabase` table creation.
-#[cfg(feature = "native")]
 pub fn summaries_schema(embedding_dim: usize) -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
 

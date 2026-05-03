@@ -4,7 +4,7 @@
 //!
 //! - `brainwires_core::Provider` for LLM I/O (OpenAI-compatible).
 //! - `brainwires_call_policy::BudgetGuard` for hard token/cost caps.
-//! - `brainwires_session::SessionStore` for persistence across restarts.
+//! - `brainwires_stores::SessionStore` for persistence across restarts.
 //! - `brainwires_agent::personas::PersonaProvider` for prompt assembly.
 //! - `CacheStrategy::SystemAndTools` so the static persona is cached on
 //!   every turn instead of rebuilt from scratch.
@@ -20,7 +20,7 @@ use brainwires_hardware::audio::{
     assistant::VoiceAssistantHandler, error::AudioError, types::Transcript,
 };
 use brainwires_call_policy::BudgetGuard;
-use brainwires_session::{ArcSessionStore, SessionId};
+use brainwires_stores::{ArcSessionStore, SessionId};
 use brainwires_tool_builtins::BuiltinToolExecutor;
 use brainwires_tool_runtime::{ToolExecutor, ToolRegistry};
 use tokio::sync::Mutex;

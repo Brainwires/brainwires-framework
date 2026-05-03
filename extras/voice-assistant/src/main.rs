@@ -16,7 +16,7 @@ use brainwires_hardware::audio::{
 };
 use brainwires_provider::{OpenAiChatProvider, OpenAiClient};
 use brainwires_call_policy::{BudgetConfig, BudgetGuard};
-use brainwires_session::{ArcSessionStore, InMemorySessionStore, SessionId, SqliteSessionStore};
+use brainwires_stores::{ArcSessionStore, InMemorySessionStore, SessionId, SqliteSessionStore};
 use clap::Parser;
 use tracing::info;
 use tracing_subscriber::EnvFilter;

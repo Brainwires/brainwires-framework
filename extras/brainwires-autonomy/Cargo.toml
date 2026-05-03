@@ -20,7 +20,7 @@ brainwires-finetune = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
-brainwires-memory = { workspace = true, optional = true }
+brainwires-stores = { workspace = true, default-features = false, features = ["memory", "tiered"], optional = true }
 brainwires-reasoning = { workspace = true, optional = true }
 
 serde = { workspace = true }
@@ -73,7 +73,7 @@ eval-driven = [
     "dep:brainwires-agent", "brainwires-agent/eval",
     "dep:brainwires-reasoning",
     "dep:brainwires-knowledge", "brainwires-knowledge/knowledge",
-    "dep:brainwires-memory",
+    "dep:brainwires-stores",
     "dep:futures",
 ]
 

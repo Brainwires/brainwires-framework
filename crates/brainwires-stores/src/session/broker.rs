@@ -22,7 +22,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::types::SessionId;
+use super::types::SessionId;
 
 /// Summary metadata for a single session, returned by `sessions_list`.
 #[derive(Debug, Clone, Serialize, Deserialize)]

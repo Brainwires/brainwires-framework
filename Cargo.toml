@@ -6,7 +6,7 @@ members = [
     "crates/brainwires-tool-builtins",
     "crates/brainwires-agent",
     "crates/brainwires-storage",
-    "crates/brainwires-memory",
+    "crates/brainwires-stores",
     "crates/brainwires-mcp-client",
     "crates/brainwires-permission",
     "crates/brainwires-sandbox",
@@ -17,7 +17,6 @@ members = [
     "crates/brainwires-provider",
     "crates/brainwires-provider-speech",
     "crates/brainwires-call-policy",
-    "crates/brainwires-session",
     "crates/brainwires-hardware",
     "crates/brainwires-finetune",
     "crates/brainwires-finetune-local",
@@ -66,7 +65,6 @@ exclude = [
     "deprecated/brainwires-tools",
     "deprecated/brainwires-permissions",
     "deprecated/brainwires-providers",
-    "deprecated/brainwires-training",
     "deprecated/brainwires-mcp",
     "deprecated/brainwires-agent-network",
     "deprecated/brainwires-agents",
@@ -96,7 +94,7 @@ brainwires-tool-runtime = { path = "crates/brainwires-tool-runtime", version = "
 brainwires-tool-builtins = { path = "crates/brainwires-tool-builtins", version = "0.11.0", default-features = false }
 brainwires-agent = { path = "crates/brainwires-agent", version = "0.11.0", default-features = false }
 brainwires-storage = { path = "crates/brainwires-storage", version = "0.11.0", default-features = false }
-brainwires-memory = { path = "crates/brainwires-memory", version = "0.11.0" }
+brainwires-stores = { path = "crates/brainwires-stores", version = "0.11.0", default-features = false }
 brainwires-mcp-client = { path = "crates/brainwires-mcp-client", version = "0.11.0" }
 brainwires-permission = { path = "crates/brainwires-permission", version = "0.11.0" }
 brainwires-sandbox = { path = "crates/brainwires-sandbox", version = "0.11.0", default-features = false }
@@ -106,7 +104,6 @@ brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.11.0", default-f
 brainwires-provider = { path = "crates/brainwires-provider", version = "0.11.0", default-features = false, features = ["native"] }
 brainwires-provider-speech = { path = "crates/brainwires-provider-speech", version = "0.11.0", default-features = false }
 brainwires-call-policy = { path = "crates/brainwires-call-policy", version = "0.11.0", default-features = false }
-brainwires-session = { path = "crates/brainwires-session", version = "0.11.0" }
 brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.11.0" }
 brainwires-finetune = { path = "crates/brainwires-finetune", version = "0.11.0" }
 brainwires-finetune-local = { path = "crates/brainwires-finetune-local", version = "0.11.0" }

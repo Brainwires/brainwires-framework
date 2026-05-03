@@ -52,7 +52,6 @@ fn table_schema(embedding_dim: usize) -> Vec<FieldDef> {
 }
 
 /// Arrow `Schema` for the messages table (LanceDatabase compatibility).
-#[cfg(feature = "native")]
 pub fn messages_schema(embedding_dim: usize) -> Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field, Schema};
 

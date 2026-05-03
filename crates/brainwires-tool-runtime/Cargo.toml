@@ -59,8 +59,8 @@ reqwest = { workspace = true, optional = true }
 # sandbox
 brainwires-sandbox = { workspace = true, optional = true }
 
-# sessions
-brainwires-session = { workspace = true, optional = true }
+# sessions — pulls the `session` feature of the consolidated stores crate
+brainwires-stores = { workspace = true, default-features = false, features = ["session"], optional = true }
 chrono = { workspace = true, optional = true }
 
 # rag (tool_embedding + tool_search RAG path)
@@ -94,9 +94,9 @@ openapi = ["dep:openapiv3", "dep:serde_yml", "dep:reqwest"]
 # Container-sandbox executor wrapper
 sandbox = ["native", "dep:brainwires-sandbox"]
 
-# Agent-facing session-control tools (depend on brainwires-session for the
-# SessionBroker trait + SessionId).
-sessions = ["native", "dep:brainwires-session", "dep:chrono"]
+# Agent-facing session-control tools (depend on brainwires-stores `session`
+# feature for the SessionBroker trait + SessionId).
+sessions = ["native", "dep:brainwires-stores", "dep:chrono"]
 
 # RAG-powered tool discovery (FastEmbed-backed ToolEmbeddingIndex used by
 # ToolSearchTool's semantic mode).

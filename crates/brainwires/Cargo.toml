@@ -22,7 +22,7 @@ brainwires-agent = { workspace = true, optional = true }
 brainwires-tool-runtime = { workspace = true, optional = true }
 brainwires-tool-builtins = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
-brainwires-memory = { workspace = true, optional = true }
+brainwires-stores = { workspace = true, default-features = false, optional = true }
 brainwires-mcp-client = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
@@ -102,7 +102,15 @@ wasm = ["brainwires-core/wasm"]
 tools = ["dep:brainwires-tool-runtime", "dep:brainwires-tool-builtins"]
 agents = ["dep:brainwires-agent"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
-memory = ["dep:brainwires-memory", "storage"]
+session = ["dep:brainwires-stores", "brainwires-stores/session"]
+session-sqlite = ["session", "brainwires-stores/sqlite"]
+task = ["dep:brainwires-stores", "brainwires-stores/task", "storage"]
+plan = ["dep:brainwires-stores", "brainwires-stores/plan", "storage"]
+conversation = ["dep:brainwires-stores", "brainwires-stores/conversation", "storage"]
+lock = ["dep:brainwires-stores", "brainwires-stores/lock"]
+image = ["dep:brainwires-stores", "brainwires-stores/image", "storage"]
+memory = ["dep:brainwires-stores", "brainwires-stores/memory", "storage"]
+tiered = ["memory", "brainwires-stores/tiered"]
 mcp = ["dep:brainwires-mcp-client"]
 mdap = ["agents", "brainwires-agent/mdap"]
 knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
@@ -143,7 +151,7 @@ training-local = ["dep:brainwires-finetune-local"]
 training-full = ["training", "training-local", "brainwires-finetune/full", "datasets"]
 # autonomy feature requires brainwires-autonomy (publish = false, workspace-only)
 system = ["tools", "brainwires-tool-builtins/system"]
-dream = ["memory", "brainwires-memory/dream"]
+dream = ["tiered", "brainwires-stores/dream"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-provider?/telemetry"]
 bedrock = ["providers", "brainwires-provider/bedrock"]
 vertex-ai = ["providers", "brainwires-provider/vertex-ai"]

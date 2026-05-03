@@ -10,7 +10,7 @@ use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
 
-use crate::tiered_memory::{FactType, KeyFact};
+use super::tiered_memory::{FactType, KeyFact};
 
 const TABLE_NAME: &str = "facts";
 
@@ -30,7 +30,6 @@ pub fn facts_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
 }
 
 /// Arrow schema for the facts table, used by `LanceDatabase` table creation.
-#[cfg(feature = "native")]
 pub fn facts_schema(embedding_dim: usize) -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
 

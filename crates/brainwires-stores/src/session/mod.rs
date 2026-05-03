@@ -1,15 +1,15 @@
 #![deny(missing_docs)]
 //! Pluggable session-persistence for the Brainwires Agent Framework.
 //!
-//! See crate README.md for an overview. The [`SessionStore`] trait is the
-//! single extension point; [`InMemorySessionStore`] is the default impl used
-//! by tests and ephemeral sessions, and [`SqliteSessionStore`] (behind the
-//! `sqlite` feature) provides disk-backed persistence.
+//! See the crate-level README for an overview. The [`SessionStore`] trait is
+//! the single extension point; [`InMemorySessionStore`] is the default impl
+//! used by tests and ephemeral sessions, and `SqliteSessionStore` (behind the
+//! crate's `sqlite` feature) provides disk-backed persistence.
 
 /// Interactive session-broker surface (live registry, spawn/list/send/history).
 pub mod broker;
 mod error;
-mod memory;
+mod in_memory;
 #[cfg(feature = "sqlite")]
 mod sqlite;
 mod types;
@@ -22,7 +22,7 @@ use async_trait::async_trait;
 pub use brainwires_core::Message;
 pub use broker::{SessionBroker, SessionMessage, SessionSummary, SpawnRequest, SpawnedSession};
 pub use error::SessionError;
-pub use memory::InMemorySessionStore;
+pub use in_memory::InMemorySessionStore;
 #[cfg(feature = "sqlite")]
 pub use sqlite::SqliteSessionStore;
 pub use types::{SessionId, SessionRecord};

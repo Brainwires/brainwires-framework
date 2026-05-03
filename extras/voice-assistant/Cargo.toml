@@ -23,7 +23,7 @@ brainwires-agent = { workspace = true }
 brainwires-tool-runtime = { workspace = true }
 brainwires-tool-builtins = { workspace = true }
 brainwires-call-policy = { workspace = true }
-brainwires-session = { workspace = true, features = ["sqlite"] }
+brainwires-stores = { workspace = true, features = ["session", "sqlite"] }
 
 tokio = { workspace = true, features = ["full"] }
 async-trait.workspace = true

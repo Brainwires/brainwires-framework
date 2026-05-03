@@ -27,6 +27,40 @@ Pre-1.0 hygiene pass: remove backwards-compat shims, close feature-flag half-wir
 
 ### Refactored (BREAKING)
 
+#### `brainwires-session` + `brainwires-memory` folded into new `brainwires-stores`
+
+The framework now ships an opinionated minimum set of data stores in
+one feature-gated crate. `brainwires-session` (sessions) and
+`brainwires-memory` (tiered hot/warm/cold + dream consolidation) were
+previously two small crates with overlapping concerns; they are now
+the `session` and `memory` features of `brainwires-stores`.
+
+- **`brainwires-stores` (new)** — opinionated minimum store set.
+  Default features: `session`, `task`, `plan`, `conversation`. Opt-in:
+  `memory`, `tiered`, `dream`, `lock`, `image`, `sqlite`. All built on
+  the `brainwires-storage` `StorageBackend` trait. Phase 10b will pull
+  the remaining task / plan / conversation / lock / image / template
+  stores up from `extras/brainwires-cli/`; Phase 10a is the
+  session + memory consolidation only.
+- **`brainwires-session` retired.** Folded as the `session` feature.
+  Never published to crates.io.
+- **`brainwires-memory` retired.** Folded as the `memory` (tier
+  stores), `tiered` (orchestration), and `dream` (offline
+  consolidation) features. Never published to crates.io. The old
+  `native` feature is gone — `arrow-schema` is always pulled when
+  `memory` is enabled.
+
+API breakage:
+
+- `Cargo.toml`: `brainwires-session = "0.10"` → `brainwires-stores = { version = "0.11", features = ["session", "sqlite"] }` (`session` is default-on; only list it explicitly if `default-features = false`).
+- `Cargo.toml`: `brainwires-memory = { features = ["dream"] }` → `brainwires-stores = { default-features = false, features = ["dream"] }` (`dream` implies `tiered` implies `memory`).
+- `use brainwires_session::*` → `use brainwires_stores::*` (or the fully-qualified `brainwires_stores::session::*`).
+- `use brainwires_memory::*` → `use brainwires_stores::*` (or `brainwires_stores::memory::*`).
+- `use brainwires_memory::dream::*` → `use brainwires_stores::memory::dream::*`.
+- The umbrella `brainwires` facade gains `session`, `task`, `plan`, `conversation`, `lock`, `image`, `tiered` features alongside the existing `memory` and `dream`.
+
+There is no re-export shim.
+
 #### `brainwires-training` renamed to `brainwires-finetune`; new `brainwires-training` placeholder
 
 The crate previously named `brainwires-training` only ever did

@@ -25,8 +25,8 @@ use uuid::Uuid;
 use brainwires_storage::CachedEmbeddingProvider;
 use brainwires_storage::databases::{LanceDatabase, StorageBackend};
 
-use crate::mental_model_store::{MentalModel, MentalModelStore, ModelType};
-use crate::{FactStore, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
+use super::mental_model_store::{MentalModel, MentalModelStore, ModelType};
+use super::{FactStore, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
 
 const SECS_PER_HOUR: f32 = 3600.0;
 const SIMILARITY_WEIGHT: f32 = 0.50;

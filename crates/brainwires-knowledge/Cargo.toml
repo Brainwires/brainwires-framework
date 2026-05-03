@@ -57,7 +57,7 @@ urlencoding = { workspace = true, optional = true }
 [features]
 default = ["knowledge"]
 
-# Dream (offline memory consolidation) lives in `brainwires-memory`
+# Dream (offline memory consolidation) lives in `brainwires-stores`
 # under its `dream` feature — depend on that crate directly.
 
 # Analytics integration — enables DreamCycle event recording

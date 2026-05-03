@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 
 use brainwires_core::Message;
 
-use crate::{SessionId, SessionRecord, SessionStore};
+use super::{SessionId, SessionRecord, SessionStore};
 
 #[derive(Debug)]
 struct Entry {

@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 
 use brainwires_core::Message;
 
-use crate::{ListOptions, SessionId, SessionRecord, SessionStore};
+use super::{ListOptions, SessionId, SessionRecord, SessionStore};
 
 /// Disk-backed session store. Access is serialised through a single
 /// connection — adequate for single-node agent workloads.
