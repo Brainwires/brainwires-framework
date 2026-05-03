@@ -1645,32 +1645,9 @@ async fn build_and_stream_gemma4(
 
     pipeline.clear_kv_cache();
 
-    let last = &messages[messages.len() - 1];
-    let prefix = build_history_prefix(&messages[..messages.len() - 1], &last.role);
-
-    let mut prompt_text = String::new();
     let mut image_bytes: Vec<Vec<u8>> = Vec::new();
-
-    match &last.content {
-        JsContent::Text(t) => {
-            prompt_text.push_str(&prefix);
-            prompt_text.push_str(t);
-        }
-        JsContent::Parts(parts) => {
-            prompt_text.push_str(&prefix);
-            for p in parts {
-                match p {
-                    JsPart::Text { text } => prompt_text.push_str(text),
-                    JsPart::Image { data, .. } => {
-                        let bytes = BASE64.decode(data.as_bytes()).map_err(|e| {
-                            Gemma4PipelineError::InvalidInput(format!("base64: {e}"))
-                        })?;
-                        image_bytes.push(bytes);
-                    }
-                }
-            }
-        }
-    }
+    let prompt_text = build_gemma_chat_prompt(messages, &mut image_bytes)
+        .map_err(Gemma4PipelineError::InvalidInput)?;
 
     let target_size = 768u32;
     let pixel_tensors: Vec<Tensor> = image_bytes
@@ -1714,32 +1691,9 @@ async fn build_and_generate_gemma4(
 
     pipeline.clear_kv_cache();
 
-    let last = &messages[messages.len() - 1];
-    let prefix = build_history_prefix(&messages[..messages.len() - 1], &last.role);
-
-    let mut prompt_text = String::new();
     let mut image_bytes: Vec<Vec<u8>> = Vec::new();
-
-    match &last.content {
-        JsContent::Text(t) => {
-            prompt_text.push_str(&prefix);
-            prompt_text.push_str(t);
-        }
-        JsContent::Parts(parts) => {
-            prompt_text.push_str(&prefix);
-            for p in parts {
-                match p {
-                    JsPart::Text { text } => prompt_text.push_str(text),
-                    JsPart::Image { data, .. } => {
-                        let bytes = BASE64.decode(data.as_bytes()).map_err(|e| {
-                            Gemma4PipelineError::InvalidInput(format!("base64: {e}"))
-                        })?;
-                        image_bytes.push(bytes);
-                    }
-                }
-            }
-        }
-    }
+    let prompt_text = build_gemma_chat_prompt(messages, &mut image_bytes)
+        .map_err(Gemma4PipelineError::InvalidInput)?;
 
     // Preprocess images to [1, 3, target, target] f32 in [0,1].
     // Gemma4 default vision input is 768px (48 patches of 16).
@@ -1758,6 +1712,81 @@ async fn build_and_generate_gemma4(
     pipeline
         .generate_greedy(&prompt_text, &pixel_tensors, max_new, eos)
         .await
+}
+
+/// Build the Gemma chat-template prompt for a full message list.
+///
+/// Format (matches the official Gemma tokenizer's `chat_template`):
+///
+/// ```text
+/// <bos><start_of_turn>user
+/// hello<end_of_turn>
+/// <start_of_turn>model
+/// hi<end_of_turn>
+/// <start_of_turn>user
+/// how are you<end_of_turn>
+/// <start_of_turn>model
+/// ```
+///
+/// The trailing `<start_of_turn>model\n` is the generation prompt that
+/// cues the model to begin its response. `<bos>`, `<start_of_turn>`,
+/// and `<end_of_turn>` are special-token strings the Gemma 4 tokenizer
+/// recognizes verbatim — `tokenizer.encode(text, false)` produces the
+/// correct integer IDs without `add_special_tokens=true`.
+///
+/// Role mapping: `"assistant" → "model"` per the official template.
+/// Other roles pass through unchanged.
+///
+/// `Image` parts are emitted as `<start_of_image>` literal markers. The
+/// downstream `Gemma4MultiModal::generate_greedy` finds those positions
+/// in the encoded prompt by `cfg.image_token_id` and splices in the
+/// vision-embedder output. Image bytes are returned alongside in
+/// `image_bytes` in the order they appeared.
+///
+/// Replaces the older `"role: text\n"` plain-join prefix that was
+/// fine for text-only Gemma 3 turn-token-aware paths but produced
+/// degenerate output on Gemma 4 base / instruction-tuned checkpoints
+/// (the model has never seen `"user: hello\nassistant: "` during
+/// training, only the chat-template form).
+fn build_gemma_chat_prompt(
+    messages: &[JsMessage],
+    image_bytes: &mut Vec<Vec<u8>>,
+) -> Result<String, String> {
+    let mut buf = String::from("<bos>");
+    for m in messages {
+        let role: &str = if m.role == "assistant" {
+            "model"
+        } else {
+            m.role.as_str()
+        };
+        let text = match &m.content {
+            JsContent::Text(t) => t.clone(),
+            JsContent::Parts(parts) => {
+                let mut out = String::new();
+                for p in parts {
+                    match p {
+                        JsPart::Text { text } => out.push_str(text),
+                        JsPart::Image { data, .. } => {
+                            let bytes = BASE64
+                                .decode(data.as_bytes())
+                                .map_err(|e| format!("base64: {e}"))?;
+                            image_bytes.push(bytes);
+                            out.push_str("<start_of_image>");
+                        }
+                    }
+                }
+                out
+            }
+        };
+        buf.push_str("<start_of_turn>");
+        buf.push_str(role);
+        buf.push('\n');
+        buf.push_str(text.trim());
+        buf.push_str("<end_of_turn>\n");
+    }
+    // Generation cue.
+    buf.push_str("<start_of_turn>model\n");
+    Ok(buf)
 }
 
 /// Build a `<role>: <text>\n…` prefix from earlier turns. Plain join — same
