@@ -78,7 +78,7 @@ pub fn create_blocks(config: &TransformerConfig) -> Vec<TransformerBlock> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::local::architectures::SmallLmConfig;
+    use crate::architectures::SmallLmConfig;
 
     #[test]
     fn test_create_blocks() {

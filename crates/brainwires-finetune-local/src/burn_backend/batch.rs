@@ -2,7 +2,7 @@ use burn_core::prelude::*;
 use burn_wgpu::WgpuDevice;
 
 use super::types::TrainBackend;
-use crate::local::dataset_loader::{PreferenceDataset, Tokenizer, TrainingDataset};
+use crate::dataset_loader::{PreferenceDataset, Tokenizer, TrainingDataset};
 
 /// Build a training batch from dataset examples as (input, target) tensors.
 pub(super) fn make_batch(

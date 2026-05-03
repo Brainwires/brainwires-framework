@@ -10,8 +10,8 @@ use safetensors::SafeTensors;
 use tracing::{info, warn};
 
 use brainwires_finetune::error::TrainingError;
-use crate::local::architectures::config::TransformerConfig;
-use crate::local::quantization::{QuantConfig, dequantize_tensor, quantize_tensor};
+use crate::architectures::config::TransformerConfig;
+use crate::quantization::{QuantConfig, dequantize_tensor, quantize_tensor};
 
 /// Loader for SafeTensors model weight files.
 pub struct SafeTensorsLoader {

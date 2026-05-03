@@ -8,12 +8,12 @@ use tracing::{info, warn};
 use super::batch::make_batch;
 use super::weights::{finalize_training, try_load_quantized_weights, try_load_safetensors_weights};
 use brainwires_finetune::error::TrainingError;
-use crate::local::burn_modules::{DoraLinearConfig, LoraLinearConfig, QLoraLinearConfig};
-use crate::local::checkpointing::{CheckpointManager, CheckpointMeta};
-use crate::local::dataset_loader::{Tokenizer, TrainingDataset};
-use crate::local::lr_schedule::LrSchedule;
-use crate::local::weight_loader::SafeTensorsLoader;
-use crate::local::{LocalTrainingConfig, TrainedModelArtifact};
+use crate::burn_modules::{DoraLinearConfig, LoraLinearConfig, QLoraLinearConfig};
+use crate::checkpointing::{CheckpointManager, CheckpointMeta};
+use crate::dataset_loader::{Tokenizer, TrainingDataset};
+use crate::lr_schedule::LrSchedule;
+use crate::weight_loader::SafeTensorsLoader;
+use crate::{LocalTrainingConfig, TrainedModelArtifact};
 use brainwires_finetune::types::TrainingProgress;
 
 /// Run LoRA fine-tuning with real dataset.

@@ -6,10 +6,10 @@ use tracing::{info, warn};
 
 use super::types::TrainBackend;
 use brainwires_finetune::error::TrainingError;
-use crate::local::dataset_loader::{ModelTokenizer, SimpleTokenizer, Tokenizer};
-use crate::local::quantization::QuantConfig;
-use crate::local::weight_loader::SafeTensorsLoader;
-use crate::local::{LocalTrainingConfig, TrainedModelArtifact};
+use crate::dataset_loader::{ModelTokenizer, SimpleTokenizer, Tokenizer};
+use crate::quantization::QuantConfig;
+use crate::weight_loader::SafeTensorsLoader;
+use crate::{LocalTrainingConfig, TrainedModelArtifact};
 
 /// Create the appropriate tokenizer based on config.
 pub(super) fn create_tokenizer(
@@ -56,7 +56,7 @@ pub(super) fn finalize_training(
         .map_err(|e| TrainingError::Backend(format!("Failed to write adapter weights: {}", e)))?;
     info!("Wrote {} bytes of adapter weights", buf.len());
 
-    let metadata = crate::local::export::ExportMetadata {
+    let metadata = crate::export::ExportMetadata {
         format: "adapter_only".to_string(),
         base_model: config.model_path.to_string_lossy().to_string(),
         adapter_method: Some(format!("{:?}", config.lora.method)),
@@ -64,7 +64,7 @@ pub(super) fn finalize_training(
         final_loss: Some(running_loss as f64),
         exported_at: chrono::Utc::now(),
     };
-    crate::local::export::write_export_metadata(&config.output_dir, &metadata)
+    crate::export::write_export_metadata(&config.output_dir, &metadata)
         .map_err(TrainingError::Io)?;
 
     Ok(TrainedModelArtifact {

@@ -10,8 +10,8 @@ use tracing::info;
 
 use brainwires_finetune::config::{AdapterMethod, AlignmentMethod};
 use brainwires_finetune::error::TrainingError;
-use crate::local::dataset_loader::{PreferenceDataset, TrainingDataset};
-use crate::local::{ComputeDevice, LocalTrainingConfig, TrainedModelArtifact, TrainingBackend};
+use crate::dataset_loader::{PreferenceDataset, TrainingDataset};
+use crate::{ComputeDevice, LocalTrainingConfig, TrainedModelArtifact, TrainingBackend};
 use brainwires_finetune::types::TrainingProgress;
 
 impl TrainingBackend for BurnBackend {
