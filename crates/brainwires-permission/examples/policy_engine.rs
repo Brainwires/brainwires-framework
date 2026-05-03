@@ -3,10 +3,10 @@
 //! Demonstrates declarative policy rules with `PolicyEngine` — deny, allow-with-audit,
 //! and require-approval actions evaluated against various request types.
 //!
-//! Run: cargo run -p brainwires-permissions --features native --example policy_engine
+//! Run: cargo run -p brainwires-permission --features native --example policy_engine
 
 use anyhow::Result;
-use brainwires_permissions::{
+use brainwires_permission::{
     GitOperation, Policy, PolicyAction, PolicyCondition, PolicyEngine, PolicyRequest,
 };
 

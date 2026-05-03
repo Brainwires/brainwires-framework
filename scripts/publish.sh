@@ -68,7 +68,7 @@ CRATES=(
 
     # Layer 4a: Tool runtime — split out of the old `brainwires-tools` in 0.11
     brainwires-tool-runtime       # ToolExecutor, ToolRegistry, validation, smart_router, +optional rag
-    brainwires-permissions
+    brainwires-permission
 
     # Layer 4b: Reasoning — depends on tool-runtime (ToolCategory in router.rs).
     # Prior releases had reasoning as a Layer 3 re-export facade with no tools

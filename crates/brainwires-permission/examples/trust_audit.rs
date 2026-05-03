@@ -4,10 +4,10 @@
 //! logging with `AuditLogger`. Records successes and violations for an agent,
 //! observes trust level changes, then queries the audit log for statistics.
 //!
-//! Run: cargo run -p brainwires-permissions --features native --example trust_audit
+//! Run: cargo run -p brainwires-permission --features native --example trust_audit
 
 use anyhow::Result;
-use brainwires_permissions::{
+use brainwires_permission::{
     ActionOutcome, AuditEvent, AuditEventType, AuditLogger, AuditQuery, TrustManager,
     ViolationSeverity,
 };

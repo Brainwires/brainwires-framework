@@ -12,7 +12,7 @@
 //! These properties sweep randomized inputs to catch prefix-confusion and
 //! suffix-confusion bypass attempts that a hand-written table might miss.
 
-use brainwires_permissions::{PolicyCondition, PolicyRequest};
+use brainwires_permission::{PolicyCondition, PolicyRequest};
 use proptest::prelude::*;
 
 fn matches_wildcard(pattern: &str, domain: &str) -> bool {

@@ -33,7 +33,7 @@
 //! ```
 
 use anyhow::Result;
-use brainwires_permissions::audit::{
+use brainwires_permission::audit::{
     AuditEventType, AuditLogger, AuditQuery, FeedbackPolarity, FeedbackSignal,
 };
 use chrono::{DateTime, Utc};

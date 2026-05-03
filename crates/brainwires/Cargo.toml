@@ -27,7 +27,7 @@ brainwires-mcp = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
 brainwires-prompting = { workspace = true, optional = true }
-brainwires-permissions = { workspace = true, optional = true }
+brainwires-permission = { workspace = true, optional = true }
 brainwires-reasoning = { workspace = true, optional = true }
 
 # Providers
@@ -107,7 +107,7 @@ mcp = ["dep:brainwires-mcp"]
 mdap = ["agents", "brainwires-agents/mdap"]
 knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 prompting = ["dep:brainwires-prompting", "brainwires-prompting/knowledge", "knowledge"]
-permissions = ["dep:brainwires-permissions"]
+permissions = ["dep:brainwires-permission"]
 orchestrator = ["tools", "brainwires-tool-runtime/orchestrator", "brainwires-tool-builtins/orchestrator"]
 openapi = ["tools", "brainwires-tool-runtime/openapi"]
 rag = ["dep:brainwires-rag", "dep:brainwires-storage", "brainwires-storage/lance-backend", "tools", "brainwires-tool-builtins/rag", "brainwires-tool-runtime/rag"]

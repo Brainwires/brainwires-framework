@@ -10,7 +10,7 @@
 //! Events are fabricated with explicit timestamps so window aging is
 //! deterministic — no `sleep` involved. The fixture implements
 //! `ObservedEvent` directly so the test does not depend on
-//! `brainwires-permissions` (where the canonical `AuditEvent` impl lives).
+//! `brainwires-permission` (where the canonical `AuditEvent` impl lives).
 
 use brainwires_telemetry::anomaly::{
     AnomalyConfig, AnomalyDetector, AnomalyKind, EventCategory, ObservedEvent,

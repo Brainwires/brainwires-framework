@@ -7,7 +7,7 @@
 //!
 //! This module is consumer-agnostic: it operates on any type that implements
 //! [`ObservedEvent`]. The canonical implementation lives in
-//! `brainwires-permissions::audit::AuditEvent`, but other crates can plug in
+//! `brainwires-permission::audit::AuditEvent`, but other crates can plug in
 //! their own event types without dragging in the permissions crate.
 //!
 //! # Example (with a synthetic event)
@@ -38,7 +38,7 @@ use std::sync::{Arc, Mutex};
 
 /// Category of event the anomaly detector branches on.
 ///
-/// Concrete event-type enums (e.g., `AuditEventType` in `brainwires-permissions`)
+/// Concrete event-type enums (e.g., `AuditEventType` in `brainwires-permission`)
 /// project onto this small set when implementing [`ObservedEvent::category`].
 /// The `Other` variant captures anything the detector should ignore.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,7 +56,7 @@ pub enum EventCategory {
 /// Minimum surface required by [`AnomalyDetector::observe`].
 ///
 /// Implementations exist out-of-crate (e.g., for `AuditEvent` in
-/// `brainwires-permissions`); telemetry itself does not depend on permissions.
+/// `brainwires-permission`); telemetry itself does not depend on permissions.
 pub trait ObservedEvent {
     /// Unix timestamp in seconds when the event occurred.
     fn timestamp_secs(&self) -> i64;

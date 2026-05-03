@@ -61,7 +61,7 @@ thiserror = { workspace = true, optional = true }
 
 # ── SEAL deps ──────────────────────────────────────────────────────────
 brainwires-knowledge = { workspace = true, optional = true }
-brainwires-permissions = { workspace = true, optional = true }
+brainwires-permission = { workspace = true, optional = true }
 
 # OpenTelemetry (optional, for otel feature)
 opentelemetry = { version = "0.28", optional = true }
@@ -86,7 +86,7 @@ tempfile.workspace = true
 tracing-subscriber = "0.3"
 brainwires-knowledge = { workspace = true, features = ["knowledge"] }
 brainwires-prompting = { workspace = true, features = ["knowledge"] }
-brainwires-permissions = { workspace = true }
+brainwires-permission = { workspace = true }
 
 [features]
 default = ["native"]
@@ -103,7 +103,7 @@ mdap = ["dep:thiserror"]
 # SEAL (Self-Evolving Agentic Learning)
 seal = []
 seal-mdap = ["seal", "mdap"]
-seal-feedback = ["seal", "dep:brainwires-permissions"]
+seal-feedback = ["seal", "dep:brainwires-permission"]
 seal-knowledge = ["seal", "dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 # Skills (absorbed from brainwires-skills)
 skills-registry = ["dep:reqwest"]

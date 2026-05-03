@@ -1,5 +1,5 @@
 [package]
-name = "brainwires-permissions"
+name = "brainwires-permission"
 description = "Permission policies, audit logging, and trust profiles for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
-documentation = "https://docs.rs/brainwires-permissions"
+documentation = "https://docs.rs/brainwires-permission"
 keywords = ["permissions", "access-control", "security", "trust", "audit"]
 categories = ["development-tools"]
 

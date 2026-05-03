@@ -13,7 +13,7 @@
 //! These tests drive a `tempdir`-backed logger so they're deterministic and
 //! parallel-safe.
 
-use brainwires_permissions::audit::{
+use brainwires_permission::audit::{
     ActionOutcome, AuditEvent, AuditEventType, AuditLogger, AuditQuery,
 };
 use std::fs;

@@ -7,7 +7,7 @@
 //! agent slips past a policy. Keep tests blunt and explicit — prefer a
 //! larger table to clever loops.
 
-use brainwires_permissions::{
+use brainwires_permission::{
     GitOperation, PolicyAction, PolicyCondition, PolicyEngine, PolicyRequest, ToolCategory,
     policy::{EnforcementMode, Policy},
 };

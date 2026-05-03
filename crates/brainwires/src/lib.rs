@@ -83,7 +83,7 @@ pub mod prompting {
 /// Permissions — capability profiles, policy engine, audit logging.
 #[cfg(feature = "permissions")]
 pub mod permissions {
-    pub use brainwires_permissions::*;
+    pub use brainwires_permission::*;
 }
 
 /// AI provider implementations — OpenAI, Anthropic, Google, Ollama, and more.
@@ -395,7 +395,7 @@ pub mod prelude {
 
     // Permissions — available with "permissions" feature
     #[cfg(feature = "permissions")]
-    pub use brainwires_permissions::{
+    pub use brainwires_permission::{
         AgentCapabilities, ApprovalAction, ApprovalResponse, ApprovalSeverity, AuditLogger,
         CapabilityProfile, PermissionsConfig, PolicyEngine, TrustLevel, TrustManager,
     };
