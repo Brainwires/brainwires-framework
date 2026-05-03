@@ -23,7 +23,8 @@ use brainwires_core::{
     Usage,
 };
 use brainwires_home::{HomeServer, a2a::A2aBridge};
-use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
+use brainwires_tool_builtins::BuiltinToolExecutor;
+use brainwires_tool_runtime::ToolRegistry;
 use futures::stream;
 use serde_json::Value;
 use tokio::sync::mpsc;

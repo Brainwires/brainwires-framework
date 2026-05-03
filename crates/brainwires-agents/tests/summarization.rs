@@ -13,7 +13,8 @@ use brainwires_core::ToolContext;
 use brainwires_core::{
     ChatOptions, ChatResponse, Message, Provider, Role, StreamChunk, Tool, Usage,
 };
-use brainwires_tools::{BuiltinToolExecutor, ToolExecutor, ToolRegistry};
+use brainwires_tool_builtins::BuiltinToolExecutor;
+use brainwires_tool_runtime::{ToolExecutor, ToolRegistry};
 
 /// Minimal provider — never called by compact_history() itself.
 struct NoopProvider;

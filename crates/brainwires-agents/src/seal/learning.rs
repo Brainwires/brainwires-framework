@@ -43,7 +43,7 @@
 use super::query_core::{QueryCore, QuestionType};
 use crate::confidence::ResponseConfidence;
 use brainwires_core::graph::EntityType;
-use brainwires_tools::{ToolErrorCategory, ToolOutcome};
+use brainwires_tool_runtime::{ToolErrorCategory, ToolOutcome};
 use chrono::Utc;
 use std::collections::HashMap;
 

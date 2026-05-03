@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use brainwires_core::WorkingSet;
-use brainwires_tools::{ToolExecutor, ToolPreHook};
+use brainwires_tool_runtime::{ToolExecutor, ToolPreHook};
 
 use crate::agent_hooks::AgentLifecycleHooks;
 use crate::communication::CommunicationHub;

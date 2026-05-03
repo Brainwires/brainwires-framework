@@ -21,10 +21,21 @@ pub mod core {
     pub use brainwires_core::*;
 }
 
-/// Model tools — file ops, bash, git, search, validation, and web tools.
+/// Model tools — both halves at one path. Runtime types (`ToolExecutor`,
+/// `ToolRegistry`, error taxonomy, validation, transactions, smart router,
+/// plus optional orchestrator / OAuth / OpenAPI / sandbox / sessions /
+/// RAG-tool modules) and the concrete builtins (`BashTool`, `FileOpsTool`,
+/// `GitTool`, `WebTool`, `SearchTool`, `BuiltinToolExecutor`,
+/// `registry_with_builtins`, plus optional `code_exec` / `interpreters` /
+/// `semantic_search` / `browser` / `email` / `calendar` / `system`).
+///
+/// Underlying crates: [`brainwires-tool-runtime`](https://docs.rs/brainwires-tool-runtime)
+/// and [`brainwires-tool-builtins`](https://docs.rs/brainwires-tool-builtins).
+/// Depend on those directly if you don't want the whole umbrella.
 #[cfg(feature = "tools")]
 pub mod tools {
-    pub use brainwires_tools::*;
+    pub use brainwires_tool_builtins::*;
+    pub use brainwires_tool_runtime::*;
 }
 
 /// Agent runtime, communication hub, task management, and validation.
@@ -102,9 +113,6 @@ pub mod seal {
 // Orchestrator is re-exported via brainwires_tools::orchestrator when orchestrator feature is on
 
 /// RAG — codebase indexing, semantic search, and retrieval-augmented generation.
-///
-/// Moved into the standalone `brainwires-rag` crate in Phase 6. Re-exported
-/// here so `brainwires::rag::*` keeps working.
 #[cfg(feature = "rag")]
 pub mod rag {
     pub use brainwires_rag::rag::*;
@@ -113,7 +121,7 @@ pub mod rag {
 /// Sandboxed code interpreters — Rhai, Lua, JavaScript (Boa), Python (RustPython).
 #[cfg(feature = "interpreters")]
 pub mod interpreters {
-    pub use brainwires_tools::interpreters::*;
+    pub use brainwires_tool_builtins::interpreters::*;
 }
 
 /// Agent network — IPC, remote bridge, mesh networking, routing, discovery.
@@ -229,14 +237,10 @@ pub mod training {
 /// Generic OS-level primitives — filesystem event reactor, service management.
 #[cfg(feature = "system")]
 pub mod system {
-    pub use brainwires_tools::system::*;
+    pub use brainwires_tool_builtins::system::*;
 }
 
 /// Offline memory consolidation — summarization, fact extraction, hot/warm/cold tier transitions.
-///
-/// Folded into `brainwires-memory` in Phase 6 (it's the consolidation
-/// engine that writes to the same tiers). Re-exported here for backward
-/// compat — `brainwires::dream::*` keeps working.
 #[cfg(feature = "dream")]
 pub mod dream {
     pub use brainwires_memory::dream::*;
@@ -324,9 +328,11 @@ pub mod prelude {
 
     // Tools — available with "tools" feature
     #[cfg(feature = "tools")]
-    pub use brainwires_tools::{
-        BashTool, FileOpsTool, GitTool, RetryStrategy, SearchTool, ToolCategory, ToolErrorCategory,
-        ToolOutcome, ToolRegistry, ToolSearchTool, ValidationTool, WebTool, classify_error,
+    pub use brainwires_tool_builtins::{BashTool, FileOpsTool, GitTool, SearchTool, WebTool};
+    #[cfg(feature = "tools")]
+    pub use brainwires_tool_runtime::{
+        RetryStrategy, ToolCategory, ToolErrorCategory, ToolOutcome, ToolRegistry, ToolSearchTool,
+        ValidationTool, classify_error,
     };
 
     // Agents — available with "agents" feature

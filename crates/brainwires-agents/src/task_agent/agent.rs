@@ -14,7 +14,7 @@ use brainwires_core::{
     MessageContent, Provider, Role, Task, ToolContext, ToolResult, ToolUse,
     estimate_tokens_from_size,
 };
-use brainwires_tools::{PreHookDecision, wrap_with_content_source};
+use brainwires_tool_runtime::{PreHookDecision, wrap_with_content_source};
 
 use crate::agent_hooks::{ConversationView, IterationContext, IterationDecision, ToolDecision};
 use crate::communication::AgentMessage;

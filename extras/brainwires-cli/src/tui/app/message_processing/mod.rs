@@ -250,7 +250,7 @@ impl App {
                 // Smart routing: analyze messages to determine needed tools
                 crate::tools::get_smart_tools(
                     &conversation_clone,
-                    &brainwires_tools::registry_with_builtins(),
+                    &brainwires_tool_builtins::registry_with_builtins(),
                 )
             }
             _ => self.tools.clone(),

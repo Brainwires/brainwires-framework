@@ -150,7 +150,7 @@ pub async fn handle_plan(
         working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
         user_id,
         conversation_history: Vec::new(),
-        tools: brainwires_tools::registry_with_builtins().get_all().to_vec(),
+        tools: brainwires_tool_builtins::registry_with_builtins().get_all().to_vec(),
         metadata: std::collections::HashMap::new(),
         working_set: crate::types::WorkingSet::new(),
         capabilities: brainwires::permissions::AgentCapabilities::standard_dev(),

@@ -32,8 +32,8 @@
 // Re-export core types
 pub use brainwires_core;
 
-// Re-export brainwires-tools for ToolExecutor trait
-pub use brainwires_tools;
+// Re-export the tool runtime for ToolExecutor / ToolRegistry trait surface.
+pub use brainwires_tool_runtime;
 
 // ── Chat agent (ready-to-use completion loop) ────────────────────────────────
 
@@ -213,7 +213,7 @@ pub use state_model::{StateModelProposedOperation, StateSnapshot, ThreeStateMode
 pub use wait_queue::WaitQueue;
 
 // Concrete agent types
-pub use brainwires_tools::{PreHookDecision, ToolPreHook};
+pub use brainwires_tool_runtime::{PreHookDecision, ToolPreHook};
 pub use context::AgentContext;
 pub use execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};
 pub use pool::{AgentPool, AgentPoolStats};
@@ -269,7 +269,7 @@ pub mod prelude {
     pub use super::validator_agent::{
         ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult, ValidatorAgentStatus,
     };
-    pub use brainwires_tools::{PreHookDecision, ToolPreHook};
+    pub use brainwires_tool_runtime::{PreHookDecision, ToolPreHook};
 
     // Core components
     pub use super::communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType};

@@ -21,7 +21,7 @@ use serde_json::{Value, json};
 use tokio::sync::RwLock;
 
 use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult, ToolUse};
-use brainwires_tools::ToolExecutor;
+use brainwires_tool_runtime::ToolExecutor;
 
 use super::executor::SkillExecutor;
 use super::metadata::SkillResult;
@@ -146,7 +146,8 @@ impl ToolExecutor for SkillToolExecutor {
 mod tests {
     use super::*;
     use crate::skills::metadata::SkillSource;
-    use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
+    use brainwires_tool_builtins::BuiltinToolExecutor;
+    use brainwires_tool_runtime::ToolRegistry;
 
     async fn build_registry_with(name: &str, description: &str) -> Arc<RwLock<SkillRegistry>> {
         // Use a temp SKILL.md so parser can actually load the full content

@@ -7,7 +7,7 @@ use brainwires_core::{
     ChatOptions, ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk, Task,
     Tool, ToolContext, ToolResult, ToolUse, Usage,
 };
-use brainwires_tools::ToolExecutor;
+use brainwires_tool_runtime::ToolExecutor;
 use futures::stream::BoxStream;
 
 use anyhow::Result;
@@ -192,7 +192,7 @@ async fn test_result_has_execution_graph() {
 
 #[tokio::test]
 async fn test_pre_execute_hook_reject() {
-    use brainwires_tools::{PreHookDecision, ToolPreHook};
+    use brainwires_tool_runtime::{PreHookDecision, ToolPreHook};
 
     struct RejectAll;
     #[async_trait]

@@ -45,14 +45,12 @@ pub use brainwires_core;
 #[cfg(feature = "knowledge")]
 pub mod knowledge;
 
-// Prompting moved to the standalone `brainwires-prompting` crate in
-// Phase 6. Consumers should depend on `brainwires-prompting` directly.
+// Prompting lives in `brainwires-prompting` — depend on that directly.
 
 // ── RAG, spectral, code_analysis ──────────────────────────────────────────
-// All three moved into the standalone `brainwires-rag` crate in Phase 6.
-// Spectral and code_analysis travel with RAG (no external consumers, only
-// used by `rag::client::*`). Consumers should depend on `brainwires-rag`
-// directly.
+// All three live in `brainwires-rag`. Spectral and code_analysis travel
+// with RAG (no external consumers, only used by `rag::client::*`).
+// Depend on `brainwires-rag` directly.
 
 // ── Re-exports (knowledge) ─────────────────────────────────────────────────
 
@@ -79,9 +77,8 @@ pub use knowledge::types::{
     SearchMemoryRequest, SearchMemoryResponse,
 };
 
-// Prompting / RAG / spectral / code-analysis re-exports were dropped from
-// this crate when those modules moved out in Phase 6. Use `brainwires-rag`
-// or `brainwires-prompting` directly.
+// Prompting / RAG / spectral / code-analysis live in `brainwires-prompting`
+// and `brainwires-rag` — there are no re-exports here.
 
 /// Prelude for convenient imports.
 pub mod prelude {

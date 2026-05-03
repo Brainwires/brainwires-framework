@@ -2,10 +2,10 @@
 //! `brainwires-rag` — codebase indexing + hybrid retrieval (vector + BM25)
 //! for the Brainwires Agent Framework.
 //!
-//! Originally lived in `brainwires-knowledge::rag`; extracted in Phase 6
-//! of the layout refactor because the dep weight (lancedb, tantivy, git2,
-//! tree-sitter + 12 grammars, rmcp, rayon, …) was forcing every
-//! `brainwires-knowledge` consumer to compile against it.
+//! Standalone so its dep weight (lancedb, tantivy, git2, tree-sitter +
+//! 12 grammars, rmcp, rayon, …) doesn't fall on consumers that only want
+//! `brainwires-knowledge` (BKS/PKS/brain client) or
+//! `brainwires-prompting`.
 //!
 //! ## Public surface
 //!

@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-rag"
-description = "Codebase indexing + hybrid retrieval (vector + BM25) for the Brainwires Agent Framework. Includes AST-aware chunking via tree-sitter (12 languages), Git history search, and reranking via spectral diversity / cross-encoder. Extracted from brainwires-knowledge."
+description = "Codebase indexing + hybrid retrieval (vector + BM25) for the Brainwires Agent Framework. Includes AST-aware chunking via tree-sitter (12 languages), Git history search, and reranking via spectral diversity / cross-encoder."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -79,9 +79,7 @@ tree-sitter-php = "0.24"
 ndarray = { workspace = true }
 
 # MCP server bindings — used by `rag::client` for progress reporting +
-# the rag-server CLI. Always-on after the Phase 6 extraction (the gate
-# previously sat on the `rag` feature itself, which no longer exists
-# now that this crate IS the rag feature).
+# the rag-server CLI.
 rmcp = { version = "1.1", features = ["server", "transport-io", "macros"] }
 schemars = { workspace = true }
 clap = { version = "4", features = ["derive", "env"] }

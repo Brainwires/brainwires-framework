@@ -39,7 +39,7 @@ pub use brainwires_agents::mdap;
 /// Provides sandboxed code execution capabilities for languages like JavaScript and Python
 /// within the WASM environment.
 #[cfg(feature = "interpreters")]
-pub use brainwires_tools::interpreters;
+pub use brainwires_tool_builtins::interpreters;
 
 /// WASM orchestrator module providing JavaScript-compatible bindings for the tool orchestrator.
 ///

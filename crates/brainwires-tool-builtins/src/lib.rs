@@ -105,9 +105,10 @@ pub use browser::BrowserTool;
 /// the `brainwires-tools` façade composes those on top via its own
 /// `registry_with_builtins()` that has visibility into both crates.
 ///
-/// This is the relocated half of the historical
-/// `ToolRegistry::with_builtins()` constructor — see Phase 5 commit
-/// notes for the split rationale.
+/// Replaces the historical `ToolRegistry::with_builtins()` constructor
+/// that lived in the runtime crate before the runtime/builtins split —
+/// the runtime can't reference concrete builtins, so the convenience
+/// constructor lives here where it can.
 pub fn registry_with_builtins() -> brainwires_tool_runtime::ToolRegistry {
     let mut registry = brainwires_tool_runtime::ToolRegistry::with_runtime_meta_tools();
 

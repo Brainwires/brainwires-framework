@@ -21,7 +21,8 @@ use brainwires_hardware::audio::{
 };
 use brainwires_resilience::BudgetGuard;
 use brainwires_session::{ArcSessionStore, SessionId};
-use brainwires_tools::{BuiltinToolExecutor, ToolExecutor, ToolRegistry};
+use brainwires_tool_builtins::BuiltinToolExecutor;
+use brainwires_tool_runtime::{ToolExecutor, ToolRegistry};
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 

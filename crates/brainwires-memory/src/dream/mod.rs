@@ -6,10 +6,9 @@
 //! engine paired with the data structures in [`crate::tiered_memory`] /
 //! [`crate::summary_store`] / [`crate::fact_store`].
 //!
-//! Originally lived in `brainwires-knowledge::dream`; folded into
-//! `brainwires-memory` in Phase 6 of the layout refactor — dream and the
-//! tiered memory stores it writes to are one concern, and splitting them
-//! across crates created two halves that don't stand alone.
+//! Lives in `brainwires-memory` rather than a separate crate because dream
+//! and the tiered memory stores it writes to are one concern — splitting
+//! them creates two halves that don't stand alone.
 
 /// Orchestrates summarisation + fact extraction over a [`consolidator::DreamSessionStore`].
 pub mod consolidator;

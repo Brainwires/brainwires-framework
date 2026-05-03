@@ -19,6 +19,8 @@ brainwires-core.workspace = true
 
 # Feature-gated framework crates
 brainwires-agents = { workspace = true, optional = true }
+brainwires-tool-runtime = { workspace = true, optional = true }
+brainwires-tool-builtins = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-memory = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
@@ -95,7 +97,7 @@ required-features = ["memory", "rag"]
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]
-tools = []
+tools = ["dep:brainwires-tool-runtime", "dep:brainwires-tool-builtins"]
 agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 memory = ["dep:brainwires-memory", "storage"]
@@ -104,13 +106,13 @@ mdap = ["agents", "brainwires-agents/mdap"]
 knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 prompting = ["dep:brainwires-prompting", "brainwires-prompting/knowledge", "knowledge"]
 permissions = ["dep:brainwires-permissions"]
-orchestrator = ["tools"]
-openapi = ["tools"]
-rag = ["dep:brainwires-rag", "dep:brainwires-storage", "brainwires-storage/lance-backend", "tools"]
-# Tree-sitter language parsers are always-on in `brainwires-rag` post-Phase-6,
-# so this feature is now equivalent to `rag` and kept only for back-compat.
+orchestrator = ["tools", "brainwires-tool-runtime/orchestrator", "brainwires-tool-builtins/orchestrator"]
+openapi = ["tools", "brainwires-tool-runtime/openapi"]
+rag = ["dep:brainwires-rag", "dep:brainwires-storage", "brainwires-storage/lance-backend", "tools", "brainwires-tool-builtins/rag", "brainwires-tool-runtime/rag"]
+# Tree-sitter language parsers are always-on in `brainwires-rag`, so this
+# feature is equivalent to `rag` and kept only for back-compat.
 rag-full-languages = ["rag"]
-interpreters = ["tools"]
+interpreters = ["tools", "brainwires-tool-builtins/interpreters"]
 providers = ["dep:brainwires-providers"]
 chat = ["providers"]
 reasoning = ["dep:brainwires-reasoning"]
@@ -138,7 +140,7 @@ training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets"]
 # autonomy feature requires brainwires-autonomy (publish = false, workspace-only)
-system = ["tools"]
+system = ["tools", "brainwires-tool-builtins/system"]
 dream = ["memory", "brainwires-memory/dream"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-providers?/telemetry"]
 bedrock = ["providers", "brainwires-providers/bedrock"]

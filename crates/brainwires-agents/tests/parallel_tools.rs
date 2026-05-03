@@ -20,7 +20,7 @@ use brainwires_core::{
     ChatOptions, ChatResponse, ContentBlock, Message, MessageContent, Provider, StreamChunk, Tool,
     ToolContext, ToolInputSchema, ToolResult, ToolUse, Usage,
 };
-use brainwires_tools::ToolExecutor;
+use brainwires_tool_runtime::ToolExecutor;
 
 /// Provider that on the first stream_chat emits N tool uses, then on the
 /// second call emits a single final text chunk. Sufficient to drive one

@@ -15,6 +15,7 @@ categories = ["development-tools"]
 
 [dependencies]
 brainwires-core = { workspace = true }
+brainwires-tool-runtime = { workspace = true }
 
 # Async primitives used by scorers
 async-trait = { workspace = true }

@@ -16,9 +16,8 @@
 //! [`SessionBroker`] over their real registry and hand an
 //! `Arc<dyn SessionBroker>` to the consumer.
 //!
-//! Originally lived in `brainwires-tools::sessions::broker`; moved here in
-//! Phase 4 of the layout refactor so all session abstractions sit together
-//! and the duplicate `SessionId` type is eliminated.
+//! Lives here so all session abstractions sit together and the
+//! `SessionId` type is shared between persistence and brokering.
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

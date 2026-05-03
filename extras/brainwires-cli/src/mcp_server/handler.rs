@@ -77,7 +77,7 @@ impl McpServerHandler {
             .await
             .context("Failed to create provider")?;
 
-        let tool_registry = brainwires_tools::registry_with_builtins();
+        let tool_registry = brainwires_tool_builtins::registry_with_builtins();
         let agent_tool_registry = Arc::new(RwLock::new(AgentToolRegistry::new()));
         let communication_hub = Arc::new(CommunicationHub::new());
         let file_lock_manager = Arc::new(FileLockManager::new());
@@ -1003,7 +1003,7 @@ mod tests {
     /// Test is_mcp_allowed_tool function
     #[test]
     fn test_is_mcp_allowed_tool_agent_tools() {
-        let registry = brainwires_tools::registry_with_builtins();
+        let registry = brainwires_tool_builtins::registry_with_builtins();
         let handler = TestableHandler {
             tool_registry: registry,
         };
@@ -1020,7 +1020,7 @@ mod tests {
 
     #[test]
     fn test_is_mcp_allowed_tool_task_tools() {
-        let registry = brainwires_tools::registry_with_builtins();
+        let registry = brainwires_tool_builtins::registry_with_builtins();
         let handler = TestableHandler {
             tool_registry: registry,
         };
@@ -1036,7 +1036,7 @@ mod tests {
 
     #[test]
     fn test_is_mcp_allowed_tool_planning_tools() {
-        let registry = brainwires_tools::registry_with_builtins();
+        let registry = brainwires_tool_builtins::registry_with_builtins();
         let handler = TestableHandler {
             tool_registry: registry,
         };
@@ -1049,7 +1049,7 @@ mod tests {
 
     #[test]
     fn test_is_mcp_allowed_tool_disallowed() {
-        let registry = brainwires_tools::registry_with_builtins();
+        let registry = brainwires_tool_builtins::registry_with_builtins();
         let handler = TestableHandler {
             tool_registry: registry,
         };

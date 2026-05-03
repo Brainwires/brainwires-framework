@@ -131,7 +131,7 @@ pub(crate) fn apply_sandbox(command: &str, mode: BashSandboxMode) -> SandboxedCo
             #[cfg(not(target_os = "linux"))]
             {
                 tracing::warn!(
-                    target: "brainwires_tools::bash::sandbox",
+                    target: "brainwires_tool_builtins::bash::sandbox",
                     "network-deny sandbox requested but only Linux seccomp is supported; running unrestricted"
                 );
                 SandboxedCommand {

@@ -19,7 +19,7 @@ use std::time::Instant;
 use anyhow::Result;
 
 use brainwires_core::{Provider, TaskPriority};
-use brainwires_tools::ToolExecutor;
+use brainwires_tool_runtime::ToolExecutor;
 
 use crate::communication::{AgentMessage, CommunicationHub};
 use crate::context::AgentContext;

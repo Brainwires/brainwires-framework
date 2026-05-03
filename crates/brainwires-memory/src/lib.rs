@@ -19,9 +19,9 @@
 //! the same code runs against any backend the storage crate exposes.
 
 /// Offline consolidation engine — the write path that produces summaries
-/// and facts and demotes tiers. Folded in from the original
-/// `brainwires-knowledge::dream` in Phase 6 because dream and the tiered
-/// memory stores it writes to are one concern.
+/// and facts and demotes tiers. Lives here (rather than in a separate
+/// crate) because dream and the tiered-memory stores it writes to are
+/// one concern.
 #[cfg(feature = "dream")]
 pub mod dream;
 

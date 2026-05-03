@@ -927,7 +927,7 @@ impl App {
         ));
 
         // Initialize tools and tool executor with core tools only to reduce token cost
-        let registry = brainwires_tools::registry_with_builtins();
+        let registry = brainwires_tool_builtins::registry_with_builtins();
         let tools: Vec<_> = registry.get_core().into_iter().cloned().collect();
         let mut tool_executor = ToolExecutor::new(PermissionMode::Auto);
 

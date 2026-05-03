@@ -83,7 +83,7 @@ pub async fn handle_batch_mode(
 
                 // Process each prompt independently
                 let user_id = session.as_ref().map(|s| s.user.user_id.clone());
-                let registry = brainwires_tools::registry_with_builtins();
+                let registry = brainwires_tool_builtins::registry_with_builtins();
                 let mut context = AgentContext {
                     working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
                     user_id,

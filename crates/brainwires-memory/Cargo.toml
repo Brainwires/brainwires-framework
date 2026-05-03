@@ -52,9 +52,9 @@ brainwires-telemetry = { workspace = true, optional = true }
 default = ["native"]
 native = ["dep:arrow-schema"]
 
-# Offline consolidation engine (folded in from brainwires-knowledge in Phase 6).
-# Pulls `futures` for the async cycle plumbing; everything else is already in
-# the always-on dep set (tokio sync/time, async-trait, anyhow, serde, chrono).
+# Offline consolidation engine — produces summaries / facts and demotes
+# tiers. Pulls `futures` for the async cycle plumbing; everything else
+# is already in the always-on dep set.
 dream = ["dep:futures"]
 
 # Wire dream's `with_analytics` hook to brainwires-telemetry's AnalyticsCollector.

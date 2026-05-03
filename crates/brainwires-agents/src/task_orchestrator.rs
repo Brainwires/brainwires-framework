@@ -462,7 +462,7 @@ mod tests {
         ChatOptions, ChatResponse, Message, Provider, StreamChunk, Tool, ToolContext, ToolResult,
         ToolUse, Usage,
     };
-    use brainwires_tools::ToolExecutor;
+    use brainwires_tool_runtime::ToolExecutor;
     use futures::stream::BoxStream;
 
     // ── Mock provider that returns "Done" immediately ────────────────────

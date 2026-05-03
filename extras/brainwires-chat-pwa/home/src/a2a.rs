@@ -211,7 +211,8 @@ pub(crate) mod test_support {
         ToolContext, Usage,
     };
     use brainwires_agents::ChatAgent;
-    use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
+    use brainwires_tool_builtins::BuiltinToolExecutor;
+    use brainwires_tool_runtime::ToolRegistry;
     use futures::stream;
 
     /// Provider that replies `"echo: <last user text>"`. Intended for tests.

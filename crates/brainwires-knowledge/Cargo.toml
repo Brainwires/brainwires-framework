@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-knowledge"
-description = "Knowledge layer — knowledge graphs, BKS/PKS, brain client, entity extraction for the Brainwires Agent Framework. RAG / spectral / code-analysis moved to `brainwires-rag`, prompting moved to `brainwires-prompting` in Phase 6."
+description = "Knowledge layer — knowledge graphs, BKS/PKS, brain client, entity extraction for the Brainwires Agent Framework. RAG / spectral / code-analysis live in `brainwires-rag`; prompting lives in `brainwires-prompting`."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -51,15 +51,14 @@ rusqlite = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 urlencoding = { workspace = true, optional = true }
 
-# Prompting moved to brainwires-prompting in Phase 6 (with linfa /
-# linfa-clustering / ndarray / bincode). Removed from this crate's deps.
+# Prompting (linfa / linfa-clustering / ndarray / bincode) lives in
+# `brainwires-prompting`.
 
 [features]
 default = ["knowledge"]
 
-# Dream (offline memory consolidation) lives in the standalone
-# `brainwires-dream` crate as of Phase 6 of the layout refactor.
-# Consumers should depend on `brainwires-dream` directly.
+# Dream (offline memory consolidation) lives in `brainwires-memory`
+# under its `dream` feature — depend on that crate directly.
 
 # Analytics integration — enables DreamCycle event recording
 telemetry = ["dep:brainwires-telemetry"]
@@ -72,19 +71,17 @@ knowledge = [
     "brainwires-core/native",
 ]
 
-# Adaptive prompting features moved to `brainwires-prompting` in Phase 6.
+# Adaptive prompting features live on `brainwires-prompting`.
 
 # RAG (with internal spectral + code-analysis subdomains), tree-sitter
 # language parsers, PDF/document processing, and the lancedb-backend /
-# qdrant-backend selectors all moved to the standalone `brainwires-rag`
-# crate as of Phase 6 of the layout refactor. Consumers should depend on
-# `brainwires-rag` directly.
+# qdrant-backend selectors live on `brainwires-rag` — depend on that
+# crate directly.
 
 # Alternative folder name for data storage
 alt-folder-name = []
 
-# Native = everything left in this crate after the rag/spectral/code-analysis
-# extraction in Phase 6.
+# Native = everything in this crate (knowledge + telemetry + persistence).
 native = [
     "knowledge", "telemetry",
 ]
@@ -99,13 +96,13 @@ tracing-subscriber = { workspace = true }
 criterion = { version = "0.5", features = ["async_tokio"] }
 filetime = "0.2"
 
-# `prompting_techniques` example moved to brainwires-prompting in Phase 6.
+# `prompting_techniques` example lives in brainwires-prompting.
 
 [[example]]
 name = "knowledge_graph"
 required-features = ["knowledge"]
 
-# `rag_search` and `code_analysis` examples moved to brainwires-rag in Phase 6.
+# `rag_search` and `code_analysis` examples live in brainwires-rag.
 
 [package.metadata.docs.rs]
 all-features = true

@@ -20,6 +20,8 @@ brainwires-hardware = { workspace = true, features = ["voice-assistant"] }
 brainwires-providers = { workspace = true }
 brainwires-core = { workspace = true }
 brainwires-agents = { workspace = true }
+brainwires-tool-runtime = { workspace = true }
+brainwires-tool-builtins = { workspace = true }
 brainwires-resilience = { workspace = true }
 brainwires-session = { workspace = true, features = ["sqlite"] }
 

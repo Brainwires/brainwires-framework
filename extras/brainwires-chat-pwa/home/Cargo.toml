@@ -23,6 +23,8 @@ path = "src/main.rs"
 [dependencies]
 # Framework crates (depended on, not modified)
 brainwires-agents = { workspace = true }
+brainwires-tool-runtime = { workspace = true }
+brainwires-tool-builtins = { workspace = true }
 brainwires-a2a = { workspace = true }
 brainwires-core = { workspace = true }
 

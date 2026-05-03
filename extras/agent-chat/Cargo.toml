@@ -18,6 +18,8 @@ path = "src/main.rs"
 brainwires-core.workspace = true
 brainwires-providers.workspace = true
 brainwires-agents.workspace = true
+brainwires-tool-runtime = { workspace = true }
+brainwires-tool-builtins = { workspace = true }
 
 tokio = { workspace = true }
 anyhow = { workspace = true }

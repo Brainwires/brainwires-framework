@@ -13,7 +13,7 @@ use brainwires_core::{
     ToolContext, ToolUse, Usage,
 };
 use brainwires_resilience::BudgetGuard;
-use brainwires_tools::{PreHookDecision, ToolExecutor, ToolPreHook};
+use brainwires_tool_runtime::{PreHookDecision, ToolExecutor, ToolPreHook};
 
 use crate::summarization::Summarizer;
 
@@ -32,7 +32,7 @@ use crate::summarization::Summarizer;
 /// use std::sync::Arc;
 ///
 /// let provider = /* create a provider */;
-/// let registry = brainwires_tools::registry_with_builtins();
+/// let registry = brainwires_tool_builtins::registry_with_builtins();
 /// let context = ToolContext::default();
 /// let executor = Arc::new(BuiltinToolExecutor::new(registry, context));
 /// let options = ChatOptions::default();
@@ -605,7 +605,8 @@ async fn execute_one_tool(
 mod tests {
     use super::*;
     use brainwires_core::{ToolContext, ToolInputSchema};
-    use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
+    use brainwires_tool_builtins::BuiltinToolExecutor;
+    use brainwires_tool_runtime::ToolRegistry;
     use futures::stream;
     use std::collections::HashMap;
 
