@@ -171,6 +171,8 @@ candle-wgpu = [
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 reqwest = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
 
 [[example]]
 name = "provider_factory"
@@ -179,6 +181,14 @@ required-features = ["native"]
 [[example]]
 name = "rate_limited_client"
 required-features = ["native"]
+
+# Native Gemma 4 forward-pass diagnostic rig. Reproduces the chat-pwa's
+# step-0 diag scaffold against a candle WGPU device (or CPU). Used to
+# verify candle-fork bug fixes without spinning up the chat-pwa Docker
+# stack. See `examples/gemma4_diag.rs` for usage.
+[[example]]
+name = "gemma4_diag"
+required-features = ["native", "local-llm-vision", "candle-wgpu"]
 
 [package.metadata.docs.rs]
 all-features = true

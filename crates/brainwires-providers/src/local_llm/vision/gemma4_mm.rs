@@ -81,6 +81,51 @@ fn log_step_diag(step: usize, logits: &Tensor, next_id: u32, tokenizer: &Tokeniz
     ));
 }
 
+// ── Process-global NaN tally ──────────────────────────────────────────────
+//
+// `nan_scan` invocations record into these statics so external test
+// drivers (e.g. the `gemma4_diag` example binary) can detect failure
+// without parsing stderr. Tokio task migration across worker threads is
+// safe — `AtomicUsize` and `Mutex` are process-global.
+//
+// Reset before each generate call via `nan_scan_reset`. Read after via
+// `nan_scan_count` and `nan_scan_first_label`.
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static NAN_SCAN_COUNT: AtomicUsize = AtomicUsize::new(0);
+static NAN_SCAN_FIRST_LABEL: Mutex<Option<String>> = Mutex::new(None);
+
+fn nan_scan_record(label: &str) {
+    NAN_SCAN_COUNT.fetch_add(1, Ordering::Relaxed);
+    if let Ok(mut slot) = NAN_SCAN_FIRST_LABEL.lock() {
+        if slot.is_none() {
+            *slot = Some(label.to_string());
+        }
+    }
+}
+
+/// Number of `nan_scan` invocations that observed at least one
+/// non-finite cell since the last call to [`nan_scan_reset`].
+pub fn nan_scan_count() -> usize {
+    NAN_SCAN_COUNT.load(Ordering::Relaxed)
+}
+
+/// Label of the first `nan_scan` that observed a non-finite cell since
+/// the last reset, if any.
+pub fn nan_scan_first_label() -> Option<String> {
+    NAN_SCAN_FIRST_LABEL.lock().ok().and_then(|s| s.clone())
+}
+
+/// Reset the global NaN tally. Test drivers should call this immediately
+/// before invoking a forward pass they want to monitor.
+pub fn nan_scan_reset() {
+    NAN_SCAN_COUNT.store(0, Ordering::Relaxed);
+    if let Ok(mut slot) = NAN_SCAN_FIRST_LABEL.lock() {
+        *slot = None;
+    }
+}
+
 /// One-shot NaN/Inf scan over a tensor's values. Logs `label` with the
 /// shape, dtype, count of non-finite cells, abs-max, and a few sample
 /// values so we can bisect *where* a forward-pass corruption first
@@ -122,6 +167,9 @@ async fn nan_scan(label: &str, t: &Tensor) {
     let nans = flat.iter().filter(|x| x.is_nan()).count();
     let infs = flat.iter().filter(|x| x.is_infinite()).count();
     let finite_n = flat.len() - nans - infs;
+    if nans > 0 || infs > 0 {
+        nan_scan_record(label);
+    }
     let preview: Vec<String> = flat.iter().take(4).map(|x| format!("{x:.4}")).collect();
     let abs_max = flat
         .iter()
@@ -393,10 +441,16 @@ impl Gemma4MultiModal {
         // lm_head is applied separately afterward via `lm_head(hidden)`.
         let mut layer_states: Vec<(usize, Tensor)> = Vec::new();
         // Intra-layer states are only captured for `target_intra_layer`
-        // to keep memory and async-readback cost bounded. Adjust to
-        // bisect a different layer's forward; `None` disables intra
-        // capture entirely (back to per-layer post-state only).
-        let target_intra_layer: Option<usize> = Some(8);
+        // to keep memory and async-readback cost bounded. Test drivers
+        // override via the `BW_GEMMA4_DIAG_LAYER` env var ("none"
+        // disables intra-capture entirely; any non-numeric value also
+        // disables; default is layer 8 since that's the current bug
+        // bisection target).
+        let target_intra_layer: Option<usize> = match std::env::var("BW_GEMMA4_DIAG_LAYER") {
+            Ok(v) if v.eq_ignore_ascii_case("none") => None,
+            Ok(v) => v.parse::<usize>().ok(),
+            Err(_) => Some(8),
+        };
         let mut intra_states: Vec<(usize, String, Tensor)> = Vec::new();
         let hidden_gpu = model.language_model.forward_embeds_hidden_with_intra_hook(
             &embeds,
