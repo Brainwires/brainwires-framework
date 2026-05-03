@@ -20,6 +20,18 @@
 //!
 //! First run downloads ~10 GB of Gemma 4 E2B weights to
 //! `~/.cache/huggingface/hub/`. Subsequent runs reuse the cache.
+//!
+//! Notes on `--device wgpu`:
+//! - On a host with a real GPU (NVIDIA / AMD / Intel desktop), the wgpu
+//!   path runs the same WGSL kernels the chat-pwa runs in WebGPU. Real
+//!   GPUs typically advertise `max_storage_buffer_binding_size` ≥ 1 GB,
+//!   which is enough to hold the 805 MB tied embed_tokens / lm_head
+//!   matrix as a single bind-group entry.
+//! - On a VM with only Mesa's `llvmpipe` (CPU-emulated Vulkan), the
+//!   adapter caps `max_storage_buffer_binding_size` at 128 MB. The
+//!   forward pass through all 35 decoder layers runs cleanly, but the
+//!   final lm_head matmul fails validation. CPU mode (`--device cpu`)
+//!   bypasses this and is the recommended default on VMs.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -149,11 +161,32 @@ fn remap_candle_to_hf(name: &str) -> std::borrow::Cow<'_, str> {
     }
 }
 
+/// Tensors that must remain on the CPU device regardless of the
+/// VarBuilder's nominal device. Mirrors the chat-pwa's `cpu_pinned`
+/// HashSet (vision.rs:1293-1297). Names are in candle's post-remap form
+/// (with the inner `.model.` segment).
+///
+/// Why: `Gemma4MultiModal::generate_greedy` builds `input_ids` on the
+/// CPU device and calls `embed_tokens(input_ids)` directly, which is
+/// an `index-select` op that requires both operands on the same
+/// device. Same for the per-layer-input projection, which the pipeline
+/// computes on CPU before transferring to GPU. Pinning these three
+/// tensors to CPU makes the cross-device dance work.
+fn is_cpu_pinned(candle_name: &str) -> bool {
+    matches!(
+        candle_name,
+        "model.language_model.model.embed_tokens.weight"
+            | "model.language_model.model.per_layer_model_projection.weight"
+            | "model.language_model.model.per_layer_projection_norm.weight"
+    )
+}
+
 /// Wraps an inner `SimpleBackend` and (a) reports any tensor matching
 /// `gemma4_skip_reason` as absent so candle's PLE construction falls
-/// back to the projection-only path, and (b) translates candle's
+/// back to the projection-only path, (b) translates candle's
 /// double-`model.` lookup names back to HF's single-`model.` safetensors
-/// keys.
+/// keys, and (c) forces selected tensors onto the CPU device regardless
+/// of `vb.device()` so the chat-pwa's mixed-device pipeline works.
 struct FilteredBackend {
     inner: Box<dyn SimpleBackend + 'static>,
 }
@@ -174,7 +207,8 @@ impl SimpleBackend for FilteredBackend {
                  contains_tensor first"
             )));
         }
-        self.inner.get(shape, &hf_name, h, dtype, dev)
+        let target_dev: &Device = if is_cpu_pinned(name) { &Device::Cpu } else { dev };
+        self.inner.get(shape, &hf_name, h, dtype, target_dev)
     }
 
     fn get_unchecked(
@@ -189,7 +223,8 @@ impl SimpleBackend for FilteredBackend {
                 "tensor `{name}` filtered ({reason})"
             )));
         }
-        self.inner.get_unchecked(&hf_name, dtype, dev)
+        let target_dev: &Device = if is_cpu_pinned(name) { &Device::Cpu } else { dev };
+        self.inner.get_unchecked(&hf_name, dtype, target_dev)
     }
 
     fn contains_tensor(&self, name: &str) -> bool {
