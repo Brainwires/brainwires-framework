@@ -8,11 +8,11 @@ pub use types::BurnBackend;
 
 use tracing::info;
 
-use crate::config::{AdapterMethod, AlignmentMethod};
-use crate::error::TrainingError;
+use brainwires_training::config::{AdapterMethod, AlignmentMethod};
+use brainwires_training::error::TrainingError;
 use crate::local::dataset_loader::{PreferenceDataset, TrainingDataset};
 use crate::local::{ComputeDevice, LocalTrainingConfig, TrainedModelArtifact, TrainingBackend};
-use crate::types::TrainingProgress;
+use brainwires_training::types::TrainingProgress;
 
 impl TrainingBackend for BurnBackend {
     fn name(&self) -> &str {

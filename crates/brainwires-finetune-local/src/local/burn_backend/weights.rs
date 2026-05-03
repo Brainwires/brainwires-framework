@@ -5,7 +5,7 @@ use burn_wgpu::WgpuDevice;
 use tracing::{info, warn};
 
 use super::types::TrainBackend;
-use crate::error::TrainingError;
+use brainwires_training::error::TrainingError;
 use crate::local::dataset_loader::{ModelTokenizer, SimpleTokenizer, Tokenizer};
 use crate::local::quantization::QuantConfig;
 use crate::local::weight_loader::SafeTensorsLoader;
@@ -71,7 +71,7 @@ pub(super) fn finalize_training(
         model_path: output_path,
         format: "adapter_only".to_string(),
         base_model: config.model_path.to_string_lossy().to_string(),
-        metrics: crate::types::TrainingMetrics {
+        metrics: brainwires_training::types::TrainingMetrics {
             final_train_loss: Some(running_loss as f64),
             final_eval_loss: None,
             total_steps,

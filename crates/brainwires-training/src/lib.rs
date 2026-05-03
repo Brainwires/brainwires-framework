@@ -6,11 +6,6 @@
 //! Supports cloud fine-tuning (OpenAI, Together, Fireworks, Anyscale, Bedrock, Vertex)
 //! and local adapter training (LoRA, QLoRA, DoRA) via Burn framework.
 
-// Re-export burn_core as `burn` so that Burn's derive macros (Module, Config) can resolve
-// their internal `burn::` paths when using individual burn-* crates.
-#[cfg(feature = "local")]
-extern crate burn_core as burn;
-
 /// Training configuration and hyperparameters.
 pub mod config;
 /// Training error types.
@@ -25,9 +20,7 @@ pub mod datasets;
 #[cfg(feature = "cloud")]
 pub mod cloud;
 
-/// Local adapter training (LoRA/QLoRA/DoRA).
-#[cfg(feature = "local")]
-pub mod local;
+// Local adapter training (LoRA/QLoRA/DoRA) lives in `brainwires-finetune-local`.
 
 /// Training job management.
 pub mod manager;
@@ -42,8 +35,5 @@ pub use types::{
 
 #[cfg(feature = "cloud")]
 pub use cloud::{CloudFineTuneConfig, FineTuneProvider, FineTuneProviderFactory};
-
-#[cfg(feature = "local")]
-pub use local::{ComputeDevice, LocalTrainingConfig, TrainedModelArtifact, TrainingBackend};
 
 pub use manager::TrainingManager;

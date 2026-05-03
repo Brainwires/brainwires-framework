@@ -9,7 +9,7 @@ use std::path::Path;
 use safetensors::SafeTensors;
 use tracing::{info, warn};
 
-use crate::error::TrainingError;
+use brainwires_training::error::TrainingError;
 use crate::local::architectures::config::TransformerConfig;
 use crate::local::quantization::{QuantConfig, dequantize_tensor, quantize_tensor};
 

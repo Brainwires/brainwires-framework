@@ -52,6 +52,7 @@ brainwires-hardware = { workspace = true, optional = true }
 
 # Datasets & Training
 brainwires-training = { workspace = true, optional = true }
+brainwires-finetune-local = { workspace = true, optional = true }
 
 
 
@@ -138,8 +139,8 @@ voice-assistant = ["dep:brainwires-hardware", "brainwires-hardware/voice-assista
 datasets = ["training", "brainwires-training/datasets-full"]
 training = ["dep:brainwires-training"]
 training-cloud = ["training", "brainwires-training/cloud"]
-training-local = ["training", "brainwires-training/local"]
-training-full = ["training", "brainwires-training/full", "datasets"]
+training-local = ["dep:brainwires-finetune-local"]
+training-full = ["training", "training-local", "brainwires-training/full", "datasets"]
 # autonomy feature requires brainwires-autonomy (publish = false, workspace-only)
 system = ["tools", "brainwires-tool-builtins/system"]
 dream = ["memory", "brainwires-memory/dream"]

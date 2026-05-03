@@ -2,7 +2,7 @@
 //!
 //! Implements warmup + decay schedules matching `LrScheduler` config variants.
 
-use crate::config::LrScheduler;
+use brainwires_training::config::LrScheduler;
 
 /// A learning rate schedule that computes LR for each training step.
 pub struct LrSchedule {
