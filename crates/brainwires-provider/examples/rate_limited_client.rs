@@ -5,9 +5,9 @@
 //! clients with and without rate limits, inspect available tokens, and
 //! observe token consumption on each request.
 //!
-//! Run: cargo run -p brainwires-providers --example rate_limited_client --features native
+//! Run: cargo run -p brainwires-provider --example rate_limited_client --features native
 
-use brainwires_providers::{RateLimitedClient, RateLimiter};
+use brainwires_provider::{RateLimitedClient, RateLimiter};
 
 #[tokio::main]
 async fn main() {

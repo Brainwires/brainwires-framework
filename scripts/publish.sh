@@ -51,7 +51,7 @@ CRATES=(
     brainwires-storage
 
     # Layer 1b: Infrastructure — deps on 1a
-    brainwires-providers          # optional dep: telemetry (LLM clients only)
+    brainwires-provider           # optional dep: telemetry (LLM clients only)
     brainwires-provider-speech    # speech TTS / STT clients
     brainwires-hardware           # optional dep: providers + provider-speech
     brainwires-memory             # dep: storage (tiered hot/warm/cold + dream consolidation)

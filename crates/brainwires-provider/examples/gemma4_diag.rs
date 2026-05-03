@@ -45,7 +45,7 @@ use clap::{Parser, ValueEnum};
 use hf_hub::api::tokio::Api;
 use tokenizers::Tokenizer;
 
-use brainwires_providers::local_llm::vision::{
+use brainwires_provider::local_llm::vision::{
     Gemma4MultiModal, gemma4_mm::nan_scan_count, gemma4_mm::nan_scan_first_label,
     gemma4_mm::nan_scan_reset,
 };

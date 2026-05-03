@@ -157,7 +157,7 @@ brainwires-tool-builtins = { workspace = true, features = ["native", "interprete
 brainwires-knowledge = { workspace = true, features = ["alt-folder-name"] }
 brainwires-rag = { workspace = true, features = ["documents"] }
 brainwires-network = { workspace = true, features = ["auth-keyring"] }
-brainwires-providers.workspace = true
+brainwires-provider.workspace = true
 brainwires-telemetry = { workspace = true, features = ["native"] }
 brainwires-storage = { workspace = true, features = ["native"] }
 brainwires-memory.workspace = true
@@ -187,9 +187,9 @@ interpreter-javascript = []
 interpreter-python = []
 interpreter-all = ["interpreter-javascript", "interpreter-python"]
 piston = []
-bedrock = ["brainwires-providers/bedrock"]
-vertex-ai = ["brainwires-providers/vertex-ai"]
-llama-cpp-2 = ["brainwires-providers/llama-cpp-2"]
+bedrock = ["brainwires-provider/bedrock"]
+vertex-ai = ["brainwires-provider/vertex-ai"]
+llama-cpp-2 = ["brainwires-provider/llama-cpp-2"]
 full = ["interpreter-all", "llama-cpp-2", "bedrock", "vertex-ai"]
 
 [build-dependencies]

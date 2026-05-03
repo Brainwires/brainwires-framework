@@ -12,7 +12,7 @@ use crate::audio::wav::encode_wav;
 
 /// Fish Audio speech-to-text (ASR) implementation.
 ///
-/// Wraps a [`FishClient`] from `brainwires-providers`.
+/// Wraps a [`FishClient`] from `brainwires-provider`.
 pub struct FishStt {
     client: Arc<FishClient>,
 }

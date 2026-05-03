@@ -14,7 +14,7 @@ members = [
     "crates/brainwires-network",
     "crates/brainwires-mcp-server",
     "crates/brainwires-a2a",
-    "crates/brainwires-providers",
+    "crates/brainwires-provider",
     "crates/brainwires-provider-speech",
     "crates/brainwires-resilience",
     "crates/brainwires-session",
@@ -65,6 +65,8 @@ exclude = [
     "deprecated/brainwires-tool-system",
     "deprecated/brainwires-tools",
     "deprecated/brainwires-permissions",
+    "deprecated/brainwires-providers",
+    "deprecated/brainwires-training",
     "deprecated/brainwires-agent-network",
     "deprecated/brainwires-skills",
     "deprecated/brainwires-datasets",
@@ -99,7 +101,7 @@ brainwires-sandbox = { path = "crates/brainwires-sandbox", version = "0.10.0", d
 brainwires-network = { path = "crates/brainwires-network", version = "0.10.0" }
 brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.10.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.10.0", default-features = false }
-brainwires-providers = { path = "crates/brainwires-providers", version = "0.10.0", default-features = false, features = ["native"] }
+brainwires-provider = { path = "crates/brainwires-provider", version = "0.10.0", default-features = false, features = ["native"] }
 brainwires-provider-speech = { path = "crates/brainwires-provider-speech", version = "0.10.0", default-features = false }
 brainwires-resilience = { path = "crates/brainwires-resilience", version = "0.10.0", default-features = false }
 brainwires-session = { path = "crates/brainwires-session", version = "0.10.0" }

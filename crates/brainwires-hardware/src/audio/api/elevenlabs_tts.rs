@@ -14,7 +14,7 @@ use crate::audio::types::{
 
 /// ElevenLabs text-to-speech implementation.
 ///
-/// Wraps an [`ElevenLabsClient`] from `brainwires-providers` for the actual HTTP
+/// Wraps an [`ElevenLabsClient`] from `brainwires-provider` for the actual HTTP
 /// transport; this struct adds the `TextToSpeech` trait and audio-domain logic.
 pub struct ElevenLabsTts {
     client: Arc<ElevenLabsClient>,

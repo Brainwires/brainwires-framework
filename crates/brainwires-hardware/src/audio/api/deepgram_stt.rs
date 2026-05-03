@@ -12,7 +12,7 @@ use crate::audio::wav::encode_wav;
 
 /// Deepgram Nova STT speech-to-text implementation.
 ///
-/// Wraps a [`DeepgramClient`] from `brainwires-providers` for the actual HTTP
+/// Wraps a [`DeepgramClient`] from `brainwires-provider` for the actual HTTP
 /// transport; this struct adds the `SpeechToText` trait and audio-domain logic.
 pub struct DeepgramStt {
     client: Arc<DeepgramClient>,

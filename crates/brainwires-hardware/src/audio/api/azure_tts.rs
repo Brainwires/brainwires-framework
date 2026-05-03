@@ -12,7 +12,7 @@ use crate::audio::wav::decode_wav;
 
 /// Azure Cognitive Services text-to-speech implementation.
 ///
-/// Wraps an [`AzureSpeechClient`] from `brainwires-providers`.
+/// Wraps an [`AzureSpeechClient`] from `brainwires-provider`.
 pub struct AzureTts {
     client: Arc<AzureSpeechClient>,
 }

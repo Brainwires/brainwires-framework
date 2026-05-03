@@ -4,7 +4,7 @@
 //! Standalone so consumers (typically `brainwires-hardware`'s audio surface
 //! and the chat-pwa wasm bridge) can pull just the speech clients without
 //! dragging in the LLM provider stack (candle / llama.cpp / huggingface,
-//! aws-sigv4, gcp_auth, …) that lives in `brainwires-providers`.
+//! aws-sigv4, gcp_auth, …) that lives in `brainwires-provider`.
 //!
 //! ## Native cloud providers (`native` feature)
 //! - [`azure_speech`] — Microsoft Azure Cognitive Services Speech.
@@ -20,7 +20,7 @@
 
 /// Token-bucket rate limiter shared by every native provider.
 ///
-/// Duplicated from `brainwires-providers::rate_limiter` rather than
+/// Duplicated from `brainwires-provider::rate_limiter` rather than
 /// imported across crates — both copies are 146 lines of standalone
 /// stdlib-only code, and avoiding the cross-crate edge keeps this crate
 /// independent of the LLM-providers stack.

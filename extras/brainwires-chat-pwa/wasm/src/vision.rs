@@ -18,20 +18,20 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use brainwires_providers::local_llm::candle_provider::default_gemma_e2b_config;
-use brainwires_providers::local_llm::vision::{
+use brainwires_provider::local_llm::candle_provider::default_gemma_e2b_config;
+use brainwires_provider::local_llm::vision::{
     Gemma3MultiModal, ImageInput, MmPipelineError, MultiModalProjector, PROJECTOR_DEFAULT_EPS,
     SiglipVisionTower, preprocess_image_bytes,
 };
-use brainwires_providers::local_llm::vision::gemma3_mm::{
+use brainwires_provider::local_llm::vision::gemma3_mm::{
     Config as Gemma3MmConfig, Model as Gemma3MmModel,
 };
-use brainwires_providers::local_llm::vision::{
+use brainwires_provider::local_llm::vision::{
     Gemma4MultiModal, Gemma4PipelineError, preprocess_image_for_gemma4,
 };
-use brainwires_providers::gemma4::config::Gemma4Config;
-use brainwires_providers::gemma4::Model as Gemma4Model;
-use brainwires_providers::{
+use brainwires_provider::gemma4::config::Gemma4Config;
+use brainwires_provider::gemma4::Model as Gemma4Model;
+use brainwires_provider::{
     CandleDType as DType, CandleDevice as Device, CandleTensor as Tensor, CandleVarBuilder,
 };
 use candle_nn::Activation;
@@ -75,9 +75,9 @@ struct Gemma4LazyState {
     read_fn: Function,
     tensor_meta: Vec<(String, StTensorInfo)>,
     data_start: u64,
-    cfg: brainwires_providers::gemma4::config::Gemma4Config,
+    cfg: brainwires_provider::gemma4::config::Gemma4Config,
     device: Device,
-    wgpu_dev: Option<brainwires_providers::WgpuDevice>,
+    wgpu_dev: Option<brainwires_provider::WgpuDevice>,
 }
 
 /// Multimodal Gemma handle. Loaded separately from the text-only
@@ -108,15 +108,15 @@ impl LocalMultiModalHandle {
         match &self.inner {
             MultimodalInner::Gemma3(p) => {
                 match p.device().location() {
-                    brainwires_providers::CandleDeviceLocation::Cpu => "cpu".into(),
-                    brainwires_providers::CandleDeviceLocation::Wgpu { .. } => "webgpu".into(),
+                    brainwires_provider::CandleDeviceLocation::Cpu => "cpu".into(),
+                    brainwires_provider::CandleDeviceLocation::Wgpu { .. } => "webgpu".into(),
                     _ => "unknown".into(),
                 }
             }
             MultimodalInner::Gemma4 { gpu_device, .. } => {
                 match gpu_device.location() {
-                    brainwires_providers::CandleDeviceLocation::Cpu => "cpu".into(),
-                    brainwires_providers::CandleDeviceLocation::Wgpu { .. } => "webgpu".into(),
+                    brainwires_provider::CandleDeviceLocation::Cpu => "cpu".into(),
+                    brainwires_provider::CandleDeviceLocation::Wgpu { .. } => "webgpu".into(),
                     _ => "unknown".into(),
                 }
             }
@@ -447,7 +447,7 @@ fn build_gemma4_config(
         None
     };
 
-    use brainwires_providers::gemma4::config::*;
+    use brainwires_provider::gemma4::config::*;
 
     Ok(Gemma4Config {
         text_config: Gemma4TextConfig {
@@ -888,7 +888,7 @@ async fn try_webgpu_device() -> Result<Device, String> {
         return Err("navigator.gpu not available".into());
     }
 
-    let gpu_device = brainwires_providers::WgpuDevice::new_async()
+    let gpu_device = brainwires_provider::WgpuDevice::new_async()
         .await
         .map_err(|e| format!("{e}"))?;
     Ok(Device::Wgpu(gpu_device))
@@ -974,7 +974,7 @@ fn load_one_tensor(
     data_start: u64,
     read_fn: &Function,
     device: &Device,
-    wgpu_dev: Option<&brainwires_providers::WgpuDevice>,
+    wgpu_dev: Option<&brainwires_provider::WgpuDevice>,
     force_cpu: bool,
 ) -> Result<Tensor, JsValue> {
     let offset = data_start + info.data_offsets.0;

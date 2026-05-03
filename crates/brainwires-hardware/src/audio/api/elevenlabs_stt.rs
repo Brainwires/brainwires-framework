@@ -12,7 +12,7 @@ use crate::audio::wav::encode_wav;
 
 /// ElevenLabs speech-to-text implementation.
 ///
-/// Wraps an [`ElevenLabsClient`] from `brainwires-providers` for the actual HTTP
+/// Wraps an [`ElevenLabsClient`] from `brainwires-provider` for the actual HTTP
 /// transport; this struct adds the `SpeechToText` trait and audio-domain logic.
 pub struct ElevenLabsStt {
     client: Arc<ElevenLabsClient>,

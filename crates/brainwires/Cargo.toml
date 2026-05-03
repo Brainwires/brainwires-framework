@@ -31,7 +31,7 @@ brainwires-permission = { workspace = true, optional = true }
 brainwires-reasoning = { workspace = true, optional = true }
 
 # Providers
-brainwires-providers = { workspace = true, optional = true }
+brainwires-provider = { workspace = true, optional = true }
 brainwires-provider-speech = { workspace = true, optional = true }
 
 # Agent network (IPC, remote bridge, mesh)
@@ -115,7 +115,7 @@ rag = ["dep:brainwires-rag", "dep:brainwires-storage", "brainwires-storage/lance
 # feature is equivalent to `rag` and kept only for back-compat.
 rag-full-languages = ["rag"]
 interpreters = ["tools", "brainwires-tool-builtins/interpreters"]
-providers = ["dep:brainwires-providers"]
+providers = ["dep:brainwires-provider"]
 chat = ["providers"]
 reasoning = ["dep:brainwires-reasoning"]
 seal = ["agents", "brainwires-agents/seal"]
@@ -144,11 +144,11 @@ training-full = ["training", "training-local", "brainwires-finetune/full", "data
 # autonomy feature requires brainwires-autonomy (publish = false, workspace-only)
 system = ["tools", "brainwires-tool-builtins/system"]
 dream = ["memory", "brainwires-memory/dream"]
-telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-providers?/telemetry"]
-bedrock = ["providers", "brainwires-providers/bedrock"]
-vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
-llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
-local-llm-candle = ["providers", "brainwires-providers/local-llm-candle"]
+telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-provider?/telemetry"]
+bedrock = ["providers", "brainwires-provider/bedrock"]
+vertex-ai = ["providers", "brainwires-provider/vertex-ai"]
+llama-cpp-2 = ["providers", "brainwires-provider/llama-cpp-2"]
+local-llm-candle = ["providers", "brainwires-provider/local-llm-candle"]
 web-speech = ["dep:brainwires-provider-speech", "brainwires-provider-speech/web-speech"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration

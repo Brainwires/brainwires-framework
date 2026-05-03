@@ -16,7 +16,7 @@ use crate::audio::wav::decode_wav;
 
 /// Cartesia text-to-speech implementation.
 ///
-/// Wraps a [`CartesiaClient`] from `brainwires-providers`.
+/// Wraps a [`CartesiaClient`] from `brainwires-provider`.
 pub struct CartesiaTts {
     client: Arc<CartesiaClient>,
     model: String,

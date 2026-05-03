@@ -1,5 +1,5 @@
 [package]
-name = "brainwires-providers"
+name = "brainwires-provider"
 description = "LLM provider implementations (Anthropic, OpenAI Chat + Responses, Google Gemini, Ollama, Bedrock, Vertex AI, local llama.cpp / Candle) for the Brainwires Agent Framework. Speech (TTS/STT) providers live in `brainwires-provider-speech`."
 version.workspace = true
 edition.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
-documentation = "https://docs.rs/brainwires-providers"
+documentation = "https://docs.rs/brainwires-provider"
 keywords = ["ai-providers", "llm", "anthropic", "openai", "google"]
 categories = ["api-bindings"]
 
@@ -97,7 +97,7 @@ web-sys = { version = "0.3", features = ["console"] }
 
 [features]
 # No default features. Native callers must opt into `native` (the workspace
-# `brainwires-providers` declaration enables it for them). This lets
+# `brainwires-provider` declaration enables it for them). This lets
 # `cargo check ... --target wasm32-unknown-unknown --features web-speech`
 # (and similar) succeed without `--no-default-features`.
 default = []

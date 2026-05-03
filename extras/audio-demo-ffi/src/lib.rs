@@ -10,7 +10,7 @@ pub mod types_ffi;
 use std::sync::Arc;
 
 use brainwires_hardware::*;
-use brainwires_providers::openai_responses::ResponsesClient;
+use brainwires_provider::openai_responses::ResponsesClient;
 
 pub use error::FfiAudioError;
 pub use types_ffi::*;

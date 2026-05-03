@@ -15,7 +15,7 @@
 
 use std::sync::Mutex;
 
-use brainwires_providers::{
+use brainwires_provider::{
     CandleDType as DType, CandleDevice as Device, CandleTensor as Tensor, CandleVarBuilder,
 };
 use candle_transformers::models::bert::{

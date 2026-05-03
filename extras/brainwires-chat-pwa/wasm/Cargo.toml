@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # Framework crates — only `crates/*` allowed; never depend on other extras.
 brainwires-core = { path = "../../../crates/brainwires-core", default-features = false, features = ["wasm"] }
-brainwires-providers = { path = "../../../crates/brainwires-providers", default-features = false, features = ["local-llm-candle", "local-llm-vision", "candle-wgpu"] }
+brainwires-provider = { path = "../../../crates/brainwires-provider", default-features = false, features = ["local-llm-candle", "local-llm-vision", "candle-wgpu"] }
 brainwires-provider-speech = { path = "../../../crates/brainwires-provider-speech", default-features = false, features = ["web-speech"] }
 
 # Enable the WebGPU backend for wgpu. The candle fork declares wgpu with
@@ -29,7 +29,7 @@ candle-transformers = { version = "0.10", default-features = false }
 # `candle_nn::Activation` when constructing the `gemma3_mm::Config`. The
 # providers crate re-exports `VarBuilder` but not the full `candle_nn`
 # surface, so we depend on it directly here. The `wgpu` feature is
-# pulled in transitively via `brainwires-providers/candle-wgpu`.
+# pulled in transitively via `brainwires-provider/candle-wgpu`.
 candle-nn = { version = "0.10", default-features = false }
 
 # HF tokenizer with `unstable_wasm` for wasm32 target. The provider crate

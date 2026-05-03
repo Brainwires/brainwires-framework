@@ -16,7 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 brainwires-core.workspace = true
-brainwires-providers.workspace = true
+brainwires-provider.workspace = true
 brainwires-agents.workspace = true
 brainwires-tool-runtime = { workspace = true }
 brainwires-tool-builtins = { workspace = true }
@@ -42,5 +42,5 @@ tempfile = { workspace = true }
 
 [features]
 default = []
-bedrock = ["brainwires-providers/bedrock"]
-vertex-ai = ["brainwires-providers/vertex-ai"]
+bedrock = ["brainwires-provider/bedrock"]
+vertex-ai = ["brainwires-provider/vertex-ai"]

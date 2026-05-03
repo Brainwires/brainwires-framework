@@ -17,7 +17,7 @@ use crate::audio::types::{
 
 /// Google Cloud TTS text-to-speech implementation.
 ///
-/// Wraps a [`GoogleTtsClient`] from `brainwires-providers`.
+/// Wraps a [`GoogleTtsClient`] from `brainwires-provider`.
 pub struct GoogleTts {
     client: Arc<GoogleTtsClient>,
 }

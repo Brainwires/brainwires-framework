@@ -33,7 +33,7 @@ tiktoken-rs = { workspace = true, optional = true }
 # Cloud feature
 reqwest = { version = "0.12", features = ["json", "stream", "multipart"], optional = true }
 tokio = { workspace = true, optional = true }
-brainwires-providers = { workspace = true, optional = true }
+brainwires-provider = { workspace = true, optional = true }
 
 # Local feature — individual burn crates to avoid cubecl-cpu links conflict
 burn-core = { workspace = true, optional = true }
@@ -56,7 +56,7 @@ gcp_auth = { workspace = true, optional = true }
 
 [features]
 default = ["cloud"]
-cloud = ["dep:reqwest", "dep:tokio", "dep:brainwires-providers"]
+cloud = ["dep:reqwest", "dep:tokio", "dep:brainwires-provider"]
 local = [
     "dep:tokio",
     "dep:burn-core", "dep:burn-nn", "dep:burn-optim",

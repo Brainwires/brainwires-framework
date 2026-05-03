@@ -14,7 +14,7 @@ use crate::audio::wav::decode_wav;
 
 /// Deepgram Aura TTS text-to-speech implementation.
 ///
-/// Wraps a [`DeepgramClient`] from `brainwires-providers` for the actual HTTP
+/// Wraps a [`DeepgramClient`] from `brainwires-provider` for the actual HTTP
 /// transport; this struct adds the `TextToSpeech` trait and audio-domain logic.
 pub struct DeepgramTts {
     client: Arc<DeepgramClient>,

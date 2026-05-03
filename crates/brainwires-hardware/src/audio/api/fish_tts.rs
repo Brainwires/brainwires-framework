@@ -12,7 +12,7 @@ use crate::audio::wav::decode_wav;
 
 /// Fish Audio text-to-speech implementation.
 ///
-/// Wraps a [`FishClient`] from `brainwires-providers`.
+/// Wraps a [`FishClient`] from `brainwires-provider`.
 pub struct FishTts {
     client: Arc<FishClient>,
 }

@@ -32,7 +32,7 @@ cpal = { version = "0.15", optional = true }
 tokio-stream = { workspace = true, optional = true }
 
 # Provider API clients (audio feature)
-brainwires-providers = { workspace = true, optional = true }
+brainwires-provider = { workspace = true, optional = true }
 brainwires-provider-speech = { workspace = true, optional = true }
 
 # Base64 decoding (needed for Google TTS response)
@@ -113,7 +113,7 @@ default = []
 audio = [
     "dep:cpal",
     "dep:tokio-stream",
-    "dep:brainwires-providers",
+    "dep:brainwires-provider",
     "dep:brainwires-provider-speech", "brainwires-provider-speech/native",
     "dep:async-stream",
     "dep:base64",

@@ -89,16 +89,16 @@ pub mod permissions {
 /// AI provider implementations — OpenAI, Anthropic, Google, Ollama, and more.
 #[cfg(feature = "providers")]
 pub mod providers {
-    pub use brainwires_providers::*;
+    pub use brainwires_provider::*;
 }
 
 /// Chat provider implementations (Provider trait wrappers over API clients).
 ///
-/// Re-exported from `brainwires_providers` — Groq, Together, Fireworks, and
+/// Re-exported from `brainwires_provider` — Groq, Together, Fireworks, and
 /// Anyscale are now served by `OpenAiChatProvider` with a custom provider name.
 #[cfg(feature = "chat")]
 pub mod chat {
-    pub use brainwires_providers::{
+    pub use brainwires_provider::{
         AnthropicChatProvider, ChatProviderFactory, GoogleChatProvider, OllamaChatProvider,
         OpenAiChatProvider, OpenAiResponsesProvider,
     };

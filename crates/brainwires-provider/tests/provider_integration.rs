@@ -1,4 +1,4 @@
-/// Integration tests for the brainwires-providers crate.
+/// Integration tests for the brainwires-provider crate.
 ///
 /// These tests validate the Provider trait contract using a MockProvider,
 /// and exercise per-provider request/response serialization logic without
@@ -11,7 +11,7 @@ use brainwires_core::{
     provider::ChatOptions,
     tool::Tool,
 };
-use brainwires_providers::Provider;
+use brainwires_provider::Provider;
 use futures::stream::{self, BoxStream};
 
 // ── MockProvider ──────────────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ fn chat_options_builder_sets_temperature() {
 
 #[cfg(feature = "bedrock")]
 mod bedrock_tests {
-    use brainwires_providers::anthropic::bedrock::{bedrock_invoke_url, bedrock_stream_url};
+    use brainwires_provider::anthropic::bedrock::{bedrock_invoke_url, bedrock_stream_url};
 
     #[test]
     fn invoke_url_format() {
@@ -169,7 +169,7 @@ mod bedrock_tests {
 
 #[cfg(feature = "vertex-ai")]
 mod vertex_tests {
-    use brainwires_providers::anthropic::vertex::{vertex_raw_predict_url, vertex_stream_url};
+    use brainwires_provider::anthropic::vertex::{vertex_raw_predict_url, vertex_stream_url};
 
     #[test]
     fn stream_url_format() {

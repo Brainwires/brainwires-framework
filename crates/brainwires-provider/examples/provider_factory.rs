@@ -4,9 +4,9 @@
 //! create chat providers via `ChatProviderFactory`, and list available
 //! models with the `ModelLister` trait.
 //!
-//! Run: cargo run -p brainwires-providers --example provider_factory --features native
+//! Run: cargo run -p brainwires-provider --example provider_factory --features native
 
-use brainwires_providers::{
+use brainwires_provider::{
     ChatProviderFactory, ProviderConfig, ProviderType, create_model_lister, registry,
 };
 
@@ -110,7 +110,7 @@ fn main() {
         "whisper-1",
     ];
     for id in &test_ids {
-        let caps = brainwires_providers::model_listing::infer_openai_capabilities(id);
+        let caps = brainwires_provider::model_listing::infer_openai_capabilities(id);
         let names: Vec<String> = caps.iter().map(|c| format!("{}", c)).collect();
         println!("  {:30} -> [{}]", id, names.join(", "));
     }

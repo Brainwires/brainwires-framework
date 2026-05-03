@@ -40,11 +40,11 @@ use std::sync::Arc;
 
 use brainwires_core::message::{Message, StreamChunk};
 use brainwires_core::provider::{ChatOptions, Provider};
-use brainwires_providers::local_llm::CandleLlmProvider;
-use brainwires_providers::local_llm::candle_provider::default_gemma_e2b_config;
-use brainwires_providers::CandleDevice as Device;
-use brainwires_providers::{CandleDType as DType, CandleTensor as Tensor, CandleVarBuilder};
-use brainwires_providers::{CandleStorage as Storage, WgpuDevice, WgpuStorage};
+use brainwires_provider::local_llm::CandleLlmProvider;
+use brainwires_provider::local_llm::candle_provider::default_gemma_e2b_config;
+use brainwires_provider::CandleDevice as Device;
+use brainwires_provider::{CandleDType as DType, CandleTensor as Tensor, CandleVarBuilder};
+use brainwires_provider::{CandleStorage as Storage, WgpuDevice, WgpuStorage};
 use brainwires_provider_speech::web_speech::{
     WebSpeechStt, WebSpeechSttOptions, WebSpeechTts, WebSpeechTtsOptions,
 };
@@ -123,8 +123,8 @@ impl LocalModelHandle {
     pub fn device_type(&self) -> String {
         let loc = self.inner.device().location();
         match loc {
-            brainwires_providers::CandleDeviceLocation::Cpu => "cpu".into(),
-            brainwires_providers::CandleDeviceLocation::Wgpu { .. } => "webgpu".into(),
+            brainwires_provider::CandleDeviceLocation::Cpu => "cpu".into(),
+            brainwires_provider::CandleDeviceLocation::Wgpu { .. } => "webgpu".into(),
             _ => "unknown".into(),
         }
     }
@@ -195,7 +195,7 @@ async fn try_webgpu_device() -> Result<Device, String> {
         return Err("navigator.gpu not available".into());
     }
 
-    let gpu_device = brainwires_providers::WgpuDevice::new_async()
+    let gpu_device = brainwires_provider::WgpuDevice::new_async()
         .await
         .map_err(|e| format!("{e}"))?;
     Ok(Device::Wgpu(gpu_device))

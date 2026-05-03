@@ -210,7 +210,7 @@ impl ToolRegistry {
     /// can extend the default set with extras from config without forking the
     /// list. Keep alphabetised so the serialised tools array is a stable
     /// prefix — that is what makes the Anthropic prompt cache break points
-    /// in `brainwires_providers::anthropic` actually land cache hits.
+    /// in `brainwires_provider::anthropic` actually land cache hits.
     pub const CORE_TOOL_NAMES: &'static [&'static str] = &[
         "edit_file",
         "execute_command",

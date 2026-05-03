@@ -12,7 +12,7 @@ use crate::audio::wav::decode_wav;
 
 /// Murf AI text-to-speech implementation.
 ///
-/// Wraps a [`MurfClient`] from `brainwires-providers`.
+/// Wraps a [`MurfClient`] from `brainwires-provider`.
 pub struct MurfTts {
     client: Arc<MurfClient>,
 }
