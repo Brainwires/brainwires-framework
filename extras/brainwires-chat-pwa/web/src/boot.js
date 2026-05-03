@@ -20,7 +20,7 @@ import {
     events as stateEvents,
     isSessionUnlocked,
 } from './state.js';
-import { isDownloaded } from './model-store.js';
+import { isDownloaded, KNOWN_MODELS, KNOWN_EMBEDDING_MODELS } from './model-store.js';
 import { getSetting } from './sql-db.js';
 import * as views from './views.js';
 import { mountBanner } from './ui-download-banner.js';
@@ -185,6 +185,22 @@ async function boot() {
     try { maybeInstallHomeDevToggle(); }
     catch (e) { console.warn('home-dev-toggle install failed:', e && e.message ? e.message : e); }
 
+    // GC orphaned OPFS model directories. The chat-pwa stores each
+    // downloaded model at `model-downloads/<modelId>/`. When the
+    // registry rotates a model id (e.g. `gemma-4-e2b → gemma-4-e2b-it`
+    // when we switched from base to instruction-tuned), the old
+    // directory is left behind — typically ~10 GB per model. Walk the
+    // root, drop any entry whose name isn't in the current
+    // `KNOWN_MODELS` or `KNOWN_EMBEDDING_MODELS` registries.
+    try {
+        await pruneOrphanedOpfsModels();
+    } catch (e) {
+        // OPFS unavailable (Safari iOS < 16, SSR, private mode quirks)
+        // or one of the directory ops threw — ignore. Leaking a
+        // directory is harmless, just suboptimal.
+        console.debug('opfs prune skipped:', e && e.message ? e.message : e);
+    }
+
     // Probe whether the default local model is already cached.
     try {
         const cached = await isDownloaded('gemma-4-e2b-it');
@@ -192,6 +208,48 @@ async function boot() {
             detail: { modelId: 'gemma-4-e2b-it', cached },
         }));
     } catch (_) { /* Cache Storage may be unavailable in tests/SSR */ }
+}
+
+/// Remove any OPFS `model-downloads/<id>/` whose `<id>` isn't a
+/// currently-known model or embedding model. Skips silently if OPFS
+/// isn't available.
+async function pruneOrphanedOpfsModels() {
+    if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) {
+        return;
+    }
+    const root = await navigator.storage.getDirectory();
+    let dlDir;
+    try {
+        dlDir = await root.getDirectoryHandle('model-downloads', { create: false });
+    } catch {
+        return; // No download directory yet — nothing to prune.
+    }
+    const known = new Set([
+        ...Object.keys(KNOWN_MODELS),
+        ...Object.keys(KNOWN_EMBEDDING_MODELS),
+    ]);
+    // FileSystemDirectoryHandle is async-iterable in modern browsers;
+    // the older `entries()` method is also accepted. Try the iterator
+    // form first, fall back if needed.
+    const entries = [];
+    try {
+        for await (const [name, handle] of dlDir.entries()) {
+            entries.push([name, handle]);
+        }
+    } catch (e) {
+        console.debug('opfs prune: directory iteration unavailable', e);
+        return;
+    }
+    for (const [name, handle] of entries) {
+        if (handle.kind !== 'directory') continue;
+        if (known.has(name)) continue;
+        console.info(`[opfs prune] removing orphaned model directory: ${name}`);
+        try {
+            await dlDir.removeEntry(name, { recursive: true });
+        } catch (e) {
+            console.warn(`[opfs prune] failed to remove ${name}:`, e && e.message ? e.message : e);
+        }
+    }
 }
 
 boot().catch((err) => {
