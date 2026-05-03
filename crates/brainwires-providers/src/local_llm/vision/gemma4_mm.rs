@@ -392,7 +392,13 @@ impl Gemma4MultiModal {
         // bad. Decoder + final norm are emitted by the hooked fn;
         // lm_head is applied separately afterward via `lm_head(hidden)`.
         let mut layer_states: Vec<(usize, Tensor)> = Vec::new();
-        let hidden_gpu = model.language_model.forward_embeds_hidden_with_per_layer_hooked(
+        // Intra-layer states are only captured for `target_intra_layer`
+        // to keep memory and async-readback cost bounded. Adjust to
+        // bisect a different layer's forward; `None` disables intra
+        // capture entirely (back to per-layer post-state only).
+        let target_intra_layer: Option<usize> = Some(8);
+        let mut intra_states: Vec<(usize, String, Tensor)> = Vec::new();
+        let hidden_gpu = model.language_model.forward_embeds_hidden_with_intra_hook(
             &embeds,
             per_layer_inputs_gpu.as_ref(),
             0,
@@ -400,6 +406,11 @@ impl Gemma4MultiModal {
             prompt_len,
             |layer_idx: usize, state: &Tensor| {
                 layer_states.push((layer_idx, state.clone()));
+            },
+            |layer_idx: usize, step: &str, state: &Tensor| {
+                if Some(layer_idx) == target_intra_layer {
+                    intra_states.push((layer_idx, step.to_string(), state.clone()));
+                }
             },
         )?;
         for (idx, state) in &layer_states {
@@ -409,6 +420,9 @@ impl Gemma4MultiModal {
                 format!("step0/layers/{idx:02}_post")
             };
             nan_scan(&label, state).await;
+        }
+        for (idx, step, state) in &intra_states {
+            nan_scan(&format!("step0/layers/{idx:02}/{step}"), state).await;
         }
         nan_scan("step0/hidden_gpu_pre_lm_head", &hidden_gpu).await;
         let logits_gpu = model.language_model.lm_head(&hidden_gpu)?;
