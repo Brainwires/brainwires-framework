@@ -16,7 +16,7 @@ categories = ["network-programming"]
 [dependencies]
 # Core framework
 brainwires-core = { workspace = true }
-brainwires-mcp = { workspace = true, optional = true }
+brainwires-mcp-client = { workspace = true, optional = true }
 
 # Async runtime
 tokio = { workspace = true, features = ["io-std", "io-util", "sync", "time", "macros", "net", "process", "fs", "rt", "rt-multi-thread"] }
@@ -88,7 +88,7 @@ pnet_datalink = { version = "0.35", optional = true }
 
 [features]
 default = ["client", "ipc-transport", "remote-transport"]
-client = ["dep:brainwires-mcp"]
+client = ["dep:brainwires-mcp-client"]
 ipc-transport = []
 remote-transport = []
 tcp-transport = []

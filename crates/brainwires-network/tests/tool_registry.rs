@@ -7,7 +7,7 @@ use brainwires_network::ToolFilterMiddleware;
 use brainwires_network::connection::RequestContext;
 use brainwires_network::middleware::MiddlewareChain;
 use brainwires_network::registry::{McpToolRegistry, ToolHandler};
-use brainwires_mcp::{CallToolResult, JsonRpcRequest};
+use brainwires_mcp_client::{CallToolResult, JsonRpcRequest};
 use serde_json::{Value, json};
 
 /// A test handler that returns a success result with no content.

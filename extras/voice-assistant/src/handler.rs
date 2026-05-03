@@ -3,7 +3,7 @@
 //! Replaces the legacy direct-OpenAI loop with the full `ChatAgent` pipeline:
 //!
 //! - `brainwires_core::Provider` for LLM I/O (OpenAI-compatible).
-//! - `brainwires_resilience::BudgetGuard` for hard token/cost caps.
+//! - `brainwires_call_policy::BudgetGuard` for hard token/cost caps.
 //! - `brainwires_session::SessionStore` for persistence across restarts.
 //! - `brainwires_agents::personas::PersonaProvider` for prompt assembly.
 //! - `CacheStrategy::SystemAndTools` so the static persona is cached on
@@ -19,7 +19,7 @@ use brainwires_core::{CacheStrategy, ChatOptions, Provider};
 use brainwires_hardware::audio::{
     assistant::VoiceAssistantHandler, error::AudioError, types::Transcript,
 };
-use brainwires_resilience::BudgetGuard;
+use brainwires_call_policy::BudgetGuard;
 use brainwires_session::{ArcSessionStore, SessionId};
 use brainwires_tool_builtins::BuiltinToolExecutor;
 use brainwires_tool_runtime::{ToolExecutor, ToolRegistry};
@@ -155,7 +155,7 @@ impl VoiceAssistantHandler for LlmHandler {
 
 /// Produce a short TTS-friendly message for a harness error.
 fn short_error_for_tts(e: &anyhow::Error) -> String {
-    use brainwires_resilience::ResilienceError;
+    use brainwires_call_policy::ResilienceError;
     if let Some(re) = e.downcast_ref::<ResilienceError>() {
         return match re {
             ResilienceError::BudgetExceeded { kind, .. } => {

@@ -8,8 +8,8 @@
 
 #![cfg(all(unix, feature = "native"))]
 
-use brainwires_mcp::transport::StdioTransport;
-use brainwires_mcp::types::{JsonRpcMessage, JsonRpcRequest};
+use brainwires_mcp_client::transport::StdioTransport;
+use brainwires_mcp_client::types::{JsonRpcMessage, JsonRpcRequest};
 use serde_json::{Value, json};
 
 /// Bash one-liner that echoes a fixed JSON-RPC success envelope on every input

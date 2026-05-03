@@ -57,8 +57,8 @@ CRATES=(
     brainwires-memory             # dep: storage (tiered hot/warm/cold + dream consolidation)
 
     # Layer 2: Protocols (dep: core only)
-    brainwires-mcp
-    brainwires-mcp-server
+    brainwires-mcp-client
+    brainwires-mcp-server         # depends on mcp-client for shared types
     brainwires-a2a
 
     # Layer 3: Intelligence (storage-backed)

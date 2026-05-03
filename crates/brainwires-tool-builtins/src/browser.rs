@@ -19,7 +19,7 @@ use std::sync::OnceLock;
 
 use anyhow::Result;
 use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
-use brainwires_mcp::{McpClient, McpServerConfig};
+use brainwires_mcp_client::{McpClient, McpServerConfig};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
@@ -134,7 +134,7 @@ async fn call_thalora_tool(
 ///
 /// Serialises each `Content` item and extracts the `"text"` field — works for all
 /// `RawContent::Text` variants without requiring rmcp as a direct dependency.
-fn extract_text_content(content: Vec<brainwires_mcp::Content>) -> String {
+fn extract_text_content(content: Vec<brainwires_mcp_client::Content>) -> String {
     content
         .into_iter()
         .filter_map(|c| {

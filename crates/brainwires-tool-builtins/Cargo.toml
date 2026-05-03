@@ -68,7 +68,7 @@ chrono = { workspace = true, optional = true }
 
 # Cross-crate optional deps ─────────────────────────────────────────────
 brainwires-rag = { workspace = true, optional = true }
-brainwires-mcp = { workspace = true, optional = true }
+brainwires-mcp-client = { workspace = true, optional = true }
 
 # System primitives (absorbed from brainwires-system) ───────────────────
 notify = { version = "7", optional = true }
@@ -144,7 +144,7 @@ email = [
     "dep:urlencoding",
 ]
 calendar = ["dep:icalendar", "dep:reqwest", "dep:urlencoding"]
-browser = ["dep:brainwires-mcp", "native"]
+browser = ["dep:brainwires-mcp-client", "native"]
 
 # Passthrough features to brainwires-tool-runtime so `BuiltinToolExecutor`'s
 # dispatch can `#[cfg(feature = "orchestrator")]` the orchestrator branch on

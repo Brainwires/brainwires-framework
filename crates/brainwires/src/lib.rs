@@ -65,7 +65,7 @@ pub mod memory {
 /// MCP client — connect to external MCP servers and use their tools.
 #[cfg(feature = "mcp")]
 pub mod mcp {
-    pub use brainwires_mcp::*;
+    pub use brainwires_mcp_client::*;
 }
 
 /// MDAP — Multi-Dimensional Adaptive Planning with MAKER voting.
@@ -371,7 +371,7 @@ pub mod prelude {
 
     // MCP — available with "mcp" feature
     #[cfg(feature = "mcp")]
-    pub use brainwires_mcp::{McpClient, McpConfigManager, McpServerConfig};
+    pub use brainwires_mcp_client::{McpClient, McpConfigManager, McpServerConfig};
 
     // MDAP — available with "mdap" feature
     #[cfg(feature = "mdap")]

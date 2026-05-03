@@ -7,7 +7,7 @@ use brainwires_network::middleware::{Middleware, MiddlewareChain, MiddlewareResu
 use brainwires_network::{
     AuthMiddleware, LoggingMiddleware, RateLimitMiddleware, ToolFilterMiddleware,
 };
-use brainwires_mcp::{JsonRpcRequest, JsonRpcResponse};
+use brainwires_mcp_client::{JsonRpcRequest, JsonRpcResponse};
 use serde_json::json;
 
 /// Helper: build a tools/call request for a given tool name.

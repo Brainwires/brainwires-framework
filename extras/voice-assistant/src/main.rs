@@ -15,7 +15,7 @@ use brainwires_hardware::audio::{
     types::{TtsOptions, Voice},
 };
 use brainwires_provider::{OpenAiChatProvider, OpenAiClient};
-use brainwires_resilience::{BudgetConfig, BudgetGuard};
+use brainwires_call_policy::{BudgetConfig, BudgetGuard};
 use brainwires_session::{ArcSessionStore, InMemorySessionStore, SessionId, SqliteSessionStore};
 use clap::Parser;
 use tracing::info;

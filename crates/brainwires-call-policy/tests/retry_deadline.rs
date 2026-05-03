@@ -13,7 +13,7 @@ use brainwires_core::message::{ChatResponse, Message, StreamChunk};
 use brainwires_core::provider::{ChatOptions, Provider};
 use brainwires_core::tool::Tool;
 
-use brainwires_resilience::{ResilienceError, RetryPolicy, RetryProvider};
+use brainwires_call_policy::{ResilienceError, RetryPolicy, RetryProvider};
 
 struct AlwaysTransientProvider {
     calls: AtomicU32,

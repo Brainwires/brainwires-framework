@@ -22,7 +22,7 @@ brainwires-core = { workspace = true }
 brainwires-agents = { workspace = true }
 brainwires-tool-runtime = { workspace = true }
 brainwires-tool-builtins = { workspace = true }
-brainwires-resilience = { workspace = true }
+brainwires-call-policy = { workspace = true }
 brainwires-session = { workspace = true, features = ["sqlite"] }
 
 tokio = { workspace = true, features = ["full"] }

@@ -23,7 +23,7 @@ brainwires-tool-runtime = { workspace = true, optional = true }
 brainwires-tool-builtins = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-memory = { workspace = true, optional = true }
-brainwires-mcp = { workspace = true, optional = true }
+brainwires-mcp-client = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
 brainwires-prompting = { workspace = true, optional = true }
@@ -103,7 +103,7 @@ tools = ["dep:brainwires-tool-runtime", "dep:brainwires-tool-builtins"]
 agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 memory = ["dep:brainwires-memory", "storage"]
-mcp = ["dep:brainwires-mcp"]
+mcp = ["dep:brainwires-mcp-client"]
 mdap = ["agents", "brainwires-agents/mdap"]
 knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 prompting = ["dep:brainwires-prompting", "brainwires-prompting/knowledge", "knowledge"]

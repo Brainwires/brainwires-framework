@@ -16,7 +16,7 @@ categories = ["development-tools"]
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
-brainwires-resilience.workspace = true
+brainwires-call-policy.workspace = true
 brainwires-tool-runtime = { workspace = true }
 brainwires-tool-builtins = { workspace = true }
 
@@ -90,8 +90,8 @@ brainwires-permission = { workspace = true }
 
 [features]
 default = ["native"]
-native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-resilience/native"]
-wasm = ["brainwires-core/wasm", "brainwires-resilience/wasm"]
+native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-call-policy/native"]
+wasm = ["brainwires-core/wasm", "brainwires-call-policy/wasm"]
 # Evaluation framework (merged from brainwires-eval)
 eval = ["dep:thiserror"]
 # OpenTelemetry span export for agent execution traces

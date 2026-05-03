@@ -2,7 +2,7 @@
 //! middleware layers interact correctly when chained together.
 
 use async_trait::async_trait;
-use brainwires_mcp::{JsonRpcRequest, JsonRpcResponse};
+use brainwires_mcp_client::{JsonRpcRequest, JsonRpcResponse};
 use brainwires_mcp_server::connection::RequestContext;
 use brainwires_mcp_server::middleware::{Middleware, MiddlewareChain, MiddlewareResult};
 use brainwires_mcp_server::{

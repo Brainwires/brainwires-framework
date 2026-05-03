@@ -8,7 +8,7 @@
 //!
 //! Run: cargo run -p brainwires-mcp --example mcp_client --features native
 
-use brainwires_mcp::{McpClient, McpServerConfig};
+use brainwires_mcp_client::{McpClient, McpServerConfig};
 
 #[tokio::main]
 async fn main() {

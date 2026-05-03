@@ -16,7 +16,7 @@ use brainwires_core::message::{ChatResponse, Message, StreamChunk, Usage};
 use brainwires_core::provider::{ChatOptions, Provider};
 use brainwires_core::tool::Tool;
 
-use brainwires_resilience::{
+use brainwires_call_policy::{
     BudgetConfig, BudgetGuard, BudgetProvider, CircuitBreakerConfig, CircuitBreakerProvider,
     ResilienceError, RetryPolicy, RetryProvider,
 };

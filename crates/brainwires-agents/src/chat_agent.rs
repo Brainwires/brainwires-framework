@@ -12,7 +12,7 @@ use brainwires_core::{
     ChatOptions, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk, Tool,
     ToolContext, ToolUse, Usage,
 };
-use brainwires_resilience::BudgetGuard;
+use brainwires_call_policy::BudgetGuard;
 use brainwires_tool_runtime::{PreHookDecision, ToolExecutor, ToolPreHook};
 
 use crate::summarization::Summarizer;
@@ -130,7 +130,7 @@ impl ChatAgent {
     ///
     /// When set, each tool round checks the guard before invoking the provider;
     /// a tripped cap ends the loop and surfaces a
-    /// `brainwires_resilience::ResilienceError::BudgetExceeded` error (wrapped
+    /// `brainwires_call_policy::ResilienceError::BudgetExceeded` error (wrapped
     /// in `anyhow::Error`).
     ///
     /// The same guard can be shared across multiple agents to enforce a

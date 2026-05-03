@@ -1,4 +1,4 @@
-use brainwires_mcp::{JsonRpcRequest, JsonRpcResponse};
+use brainwires_mcp_client::{JsonRpcRequest, JsonRpcResponse};
 use serde_json::{Value, json};
 
 use super::error::AgentNetworkClientError;

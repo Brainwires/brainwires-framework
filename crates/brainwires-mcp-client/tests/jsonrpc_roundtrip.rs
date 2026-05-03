@@ -15,7 +15,7 @@
 //!    present and non-null, notification otherwise) is exercised against
 //!    randomized inputs.
 
-use brainwires_mcp::types::{
+use brainwires_mcp_client::types::{
     JsonRpcError, JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
     McpNotification, ProgressParams,
 };

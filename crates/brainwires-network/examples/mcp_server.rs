@@ -19,7 +19,7 @@ use brainwires_network::{
     AuthMiddleware, LoggingMiddleware, McpServer, McpToolDef, McpToolRegistry, MiddlewareChain,
     RateLimitMiddleware, RequestContext, ToolFilterMiddleware, ToolHandler,
 };
-use brainwires_mcp::{CallToolResult, ServerCapabilities, ServerInfo};
+use brainwires_mcp_client::{CallToolResult, ServerCapabilities, ServerInfo};
 use serde_json::{Value, json};
 
 // ---------------------------------------------------------------------------

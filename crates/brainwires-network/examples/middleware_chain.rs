@@ -7,7 +7,7 @@
 use brainwires_network::{
     LoggingMiddleware, MiddlewareChain, RateLimitMiddleware, RequestContext, ToolFilterMiddleware,
 };
-use brainwires_mcp::JsonRpcRequest;
+use brainwires_mcp_client::JsonRpcRequest;
 use serde_json::json;
 
 #[tokio::main]

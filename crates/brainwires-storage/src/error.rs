@@ -7,7 +7,7 @@
 //! recovers the typed variant with `err.downcast_ref::<StorageError>()`.
 //!
 //! This mirrors the `ResilienceError` pattern already used by
-//! `brainwires-resilience`.
+//! `brainwires-call-policy`.
 //!
 //! ```rust,ignore
 //! use brainwires_storage::StorageError;
