@@ -22,7 +22,7 @@
 //! to `bks_pks` inside `brainwires-knowledge` and a move would have pulled
 //! an entire knowledge-store dependency into this crate. The deviation is
 //! intentional; tests and consumers of prompting should continue to target
-//! `brainwires_knowledge::prompting`.
+//! `brainwires_prompting`.
 //!
 //! ## Configuration
 //!

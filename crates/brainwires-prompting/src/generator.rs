@@ -8,9 +8,8 @@ use super::library::TechniqueLibrary;
 use super::techniques::{
     ComplexityLevel, PromptingTechnique, TechniqueCategory, TechniqueMetadata,
 };
-#[cfg(feature = "knowledge")]
-use crate::knowledge::bks_pks::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
-use crate::prompting::seal::SealProcessingResult;
+use brainwires_knowledge::knowledge::bks_pks::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
+use crate::seal::SealProcessingResult;
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -494,7 +493,7 @@ pub struct GeneratedPrompt {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prompting::clustering::TaskCluster;
+    use crate::clustering::TaskCluster;
 
     #[test]
     fn test_infer_role_and_domain() {

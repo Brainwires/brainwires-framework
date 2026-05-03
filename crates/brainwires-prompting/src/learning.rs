@@ -4,8 +4,7 @@
 //! promoting successful patterns to BKS for collective learning.
 
 use super::techniques::PromptingTechnique;
-#[cfg(feature = "knowledge")]
-use crate::knowledge::bks_pks::{
+use brainwires_knowledge::knowledge::bks_pks::{
     BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource,
 };
 use anyhow::Result;

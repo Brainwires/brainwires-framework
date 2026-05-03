@@ -25,6 +25,7 @@ brainwires-memory = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
+brainwires-prompting = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 brainwires-reasoning = { workspace = true, optional = true }
 
@@ -102,7 +103,7 @@ memory = ["dep:brainwires-memory", "storage"]
 mcp = ["dep:brainwires-mcp"]
 mdap = ["agents", "brainwires-agents/mdap"]
 knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
-prompting = ["dep:brainwires-knowledge", "brainwires-knowledge/prompting"]
+prompting = ["dep:brainwires-prompting", "brainwires-prompting/knowledge", "knowledge"]
 permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-tools/orchestrator"]
 openapi = ["tools", "brainwires-tools/openapi"]

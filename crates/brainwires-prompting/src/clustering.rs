@@ -4,7 +4,7 @@
 //! enhanced with SEAL's query core extraction for better classification.
 
 use super::techniques::{ComplexityLevel, PromptingTechnique};
-use crate::prompting::seal::SealProcessingResult;
+use crate::seal::SealProcessingResult;
 use anyhow::{Context as _, Result, anyhow};
 #[cfg(feature = "prompting")]
 use linfa::prelude::*;

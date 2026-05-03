@@ -45,10 +45,8 @@ pub use brainwires_core;
 #[cfg(feature = "knowledge")]
 pub mod knowledge;
 
-// ── Prompting (from brainwires-prompting) ──────────────────────────────────
-
-/// Adaptive prompting techniques, clustering, temperature optimization.
-pub mod prompting;
+// Prompting moved to the standalone `brainwires-prompting` crate in
+// Phase 6. Consumers should depend on `brainwires-prompting` directly.
 
 // ── RAG, spectral, code_analysis ──────────────────────────────────────────
 // All three moved into the standalone `brainwires-rag` crate in Phase 6.
@@ -81,29 +79,9 @@ pub use knowledge::types::{
     SearchMemoryRequest, SearchMemoryResponse,
 };
 
-// ── Re-exports (prompting) ─────────────────────────────────────────────────
-
-#[cfg(feature = "prompting")]
-pub use prompting::clustering::{TaskCluster, TaskClusterManager, cosine_similarity};
-#[cfg(all(feature = "knowledge", feature = "prompting"))]
-pub use prompting::generator::{GeneratedPrompt, PromptGenerator};
-#[cfg(feature = "knowledge")]
-pub use prompting::learning::{ClusterSummary, PromptingLearningCoordinator, TechniqueStats};
-#[cfg(feature = "knowledge")]
-pub use prompting::library::TechniqueLibrary;
-pub use prompting::seal::SealProcessingResult;
-#[cfg(feature = "prompting-storage")]
-pub use prompting::storage::{ClusterStorage, StorageStats};
-pub use prompting::techniques::{
-    ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
-};
-#[cfg(all(feature = "knowledge", feature = "prompting"))]
-pub use prompting::temperature::{TemperatureOptimizer, TemperaturePerformance};
-
-// RAG / spectral / code-analysis re-exports were dropped from this crate
-// when those modules moved to `brainwires-rag`. Consumers that previously
-// did `brainwires_rag::rag::*` / `::spectral::*` / `::code_analysis::*`
-// should now use `brainwires_rag::*`.
+// Prompting / RAG / spectral / code-analysis re-exports were dropped from
+// this crate when those modules moved out in Phase 6. Use `brainwires-rag`
+// or `brainwires-prompting` directly.
 
 /// Prelude for convenient imports.
 pub mod prelude {
@@ -113,8 +91,4 @@ pub mod prelude {
     pub use super::knowledge::entity::{Entity, EntityStore, EntityType};
     #[cfg(feature = "knowledge")]
     pub use super::knowledge::thought::{Thought, ThoughtCategory};
-
-    #[cfg(all(feature = "knowledge", feature = "prompting"))]
-    pub use super::prompting::generator::PromptGenerator;
-    pub use super::prompting::techniques::{PromptingTechnique, TechniqueCategory};
 }

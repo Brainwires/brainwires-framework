@@ -8,8 +8,7 @@
 //! Temperature performance is tracked per cluster and can be shared via BKS/PKS.
 
 use super::clustering::TaskCluster;
-#[cfg(feature = "knowledge")]
-use crate::knowledge::bks_pks::{
+use brainwires_knowledge::knowledge::bks_pks::{
     BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource,
 };
 use anyhow::Result;
@@ -324,7 +323,7 @@ impl Default for TemperatureOptimizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prompting::techniques::PromptingTechnique;
+    use crate::techniques::PromptingTechnique;
 
     #[test]
     fn test_temperature_performance_update() {

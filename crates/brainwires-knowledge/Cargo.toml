@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-knowledge"
-description = "Knowledge layer — knowledge graphs, BKS/PKS, brain client, and adaptive prompting for the Brainwires Agent Framework. RAG (and its internal spectral / code-analysis subdomains) moved to `brainwires-rag` in Phase 6."
+description = "Knowledge layer — knowledge graphs, BKS/PKS, brain client, entity extraction for the Brainwires Agent Framework. RAG / spectral / code-analysis moved to `brainwires-rag`, prompting moved to `brainwires-prompting` in Phase 6."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,7 @@ homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
 documentation = "https://docs.rs/brainwires-knowledge"
-keywords = ["knowledge-graph", "bks", "prompting", "ai-agents", "framework"]
+keywords = ["knowledge-graph", "bks", "pks", "ai-agents", "framework"]
 categories = ["development-tools"]
 
 [lib]
@@ -51,14 +51,11 @@ rusqlite = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 urlencoding = { workspace = true, optional = true }
 
-# ── Prompting deps ──────────────────────────────────────────────────────
-linfa = { workspace = true, optional = true }
-linfa-clustering = { workspace = true, optional = true }
-ndarray = { workspace = true, optional = true }
-bincode = { workspace = true, optional = true }
+# Prompting moved to brainwires-prompting in Phase 6 (with linfa /
+# linfa-clustering / ndarray / bincode). Removed from this crate's deps.
 
 [features]
-default = ["knowledge", "prompting"]
+default = ["knowledge"]
 
 # Dream (offline memory consolidation) lives in the standalone
 # `brainwires-dream` crate as of Phase 6 of the layout refactor.
@@ -75,13 +72,7 @@ knowledge = [
     "brainwires-core/native",
 ]
 
-# Adaptive prompting, clustering, temperature (from brainwires-prompting)
-prompting = [
-    "dep:linfa", "dep:linfa-clustering", "dep:ndarray", "dep:bincode",
-]
-
-# Prompting SQLite persistence
-prompting-storage = ["prompting", "dep:rusqlite"]
+# Adaptive prompting features moved to `brainwires-prompting` in Phase 6.
 
 # RAG (with internal spectral + code-analysis subdomains), tree-sitter
 # language parsers, PDF/document processing, and the lancedb-backend /
@@ -95,7 +86,7 @@ alt-folder-name = []
 # Native = everything left in this crate after the rag/spectral/code-analysis
 # extraction in Phase 6.
 native = [
-    "knowledge", "prompting", "prompting-storage", "telemetry",
+    "knowledge", "telemetry",
 ]
 
 # WASM = lightweight
@@ -108,9 +99,7 @@ tracing-subscriber = { workspace = true }
 criterion = { version = "0.5", features = ["async_tokio"] }
 filetime = "0.2"
 
-[[example]]
-name = "prompting_techniques"
-required-features = ["prompting"]
+# `prompting_techniques` example moved to brainwires-prompting in Phase 6.
 
 [[example]]
 name = "knowledge_graph"

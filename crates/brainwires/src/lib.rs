@@ -66,7 +66,7 @@ pub mod mdap {
 /// Adaptive prompting — technique library, clustering, temperature optimization.
 #[cfg(feature = "prompting")]
 pub mod prompting {
-    pub use brainwires_knowledge::prompting::*;
+    pub use brainwires_prompting::*;
 }
 
 /// Permissions — capability profiles, policy engine, audit logging.
@@ -382,7 +382,7 @@ pub mod prelude {
 
     // Prompting — available with "prompting" feature
     #[cfg(feature = "prompting")]
-    pub use brainwires_knowledge::prompting::{
+    pub use brainwires_prompting::{
         GeneratedPrompt, PromptGenerator, PromptingTechnique, TaskClusterManager, TechniqueLibrary,
         TemperatureOptimizer,
     };

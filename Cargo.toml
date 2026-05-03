@@ -25,6 +25,7 @@ members = [
     "extras/brainwires-chat-pwa/wasm",
     "extras/brainwires-wasm",
     "crates/brainwires-knowledge",
+    "crates/brainwires-prompting",
     "crates/brainwires-rag",
     "crates/brainwires-reasoning",
 
@@ -102,6 +103,7 @@ brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.10.0" 
 brainwires-training = { path = "crates/brainwires-training", version = "0.10.0" }
 brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.10.0", default-features = false }
 brainwires-rag = { path = "crates/brainwires-rag", version = "0.10.0", default-features = false }
+brainwires-prompting = { path = "crates/brainwires-prompting", version = "0.10.0", default-features = false }
 brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.10.0" }
 brainwires-telemetry  = { path = "crates/brainwires-telemetry",  version = "0.10.0", default-features = false }
 # `brainwires-autonomy` and `brainwires-proxy` live in `extras/`. They are
