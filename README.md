@@ -14,7 +14,7 @@ A modular Rust framework for building AI agents with multi-provider support, too
 
 ## Overview
 
-The Brainwires Framework is a workspace of 27 framework crates plus 18 extras (including the 7-crate `brainclaw` set) that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
+The Brainwires Framework is a workspace of 32 framework crates plus 18 extras (including the 7-crate `brainclaw` set) that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
 
 **[Full feature list](FEATURES.md)** | **Key capabilities:**
 
@@ -66,7 +66,12 @@ The Brainwires Framework is a workspace of 27 framework crates plus 18 extras (i
 | [**brainwires-provider-speech**](crates/brainwires-provider-speech/README.md) | Speech (TTS / STT) providers (Azure, Cartesia, Deepgram, ElevenLabs, Fish, Google, Murf, browser web-speech) |
 | [**brainwires-tool-runtime**](crates/brainwires-tool-runtime/README.md) | Tool framework — `ToolExecutor`, `ToolRegistry`, validation, smart router, sandbox/orchestrator/sessions/oauth/openapi |
 | [**brainwires-tool-builtins**](crates/brainwires-tool-builtins/README.md) | Built-in tool implementations: bash, file_ops, git, web, search, code_exec, browser, email, calendar, system, semantic_search |
-| [**brainwires-agent**](crates/brainwires-agent/README.md) | Multi-agent orchestration, task decomposition, file lock coordination, skills, MDAP, SEAL |
+| [**brainwires-agent**](crates/brainwires-agent/README.md) | Agent coordination primitives + multi-agent patterns — communication, locks, queues, git coordination, contract net, saga, optimistic concurrency, market allocation, workflow graph |
+| [**brainwires-inference**](crates/brainwires-inference/README.md) | LLM-driven workhorses — `ChatAgent`, `TaskAgent`, planner / judge / validator helpers, cycle orchestrator, validation loop, summarization, system-prompt registry |
+| [**brainwires-mdap**](crates/brainwires-mdap/README.md) | Multi-Dimensional Adaptive Planning (MAKER voting framework) |
+| [**brainwires-seal**](crates/brainwires-seal/README.md) | Self-Evolving Agentic Learning — coreference, query-core extraction, learned-pattern store, reflection |
+| [**brainwires-skills**](crates/brainwires-skills/README.md) | SKILL.md skills system — manifest parsing, registry, smart routing, sandboxed execution |
+| [**brainwires-eval**](crates/brainwires-eval/README.md) | Evaluation harness — fixtures, regression suites, stability tests, adversarial cases, NDCG / MRR / precision@k |
 | [**brainwires-knowledge**](crates/brainwires-knowledge/README.md) | Knowledge layer — BKS / PKS, BrainClient, entity graph |
 | [**brainwires-rag**](crates/brainwires-rag/README.md) | Codebase indexing + hybrid retrieval (vector + BM25), AST-aware chunking via tree-sitter, Git history search |
 | [**brainwires-prompting**](crates/brainwires-prompting/README.md) | Adaptive prompting — technique library, K-means task clustering, BKS/PKS-aware generator, SEAL feedback hook |

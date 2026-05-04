@@ -59,11 +59,9 @@ pub mod roles;
 // ── Core components ──────────────────────────────────────────────────────────
 
 pub mod communication;
-// `confidence` moved to `brainwires-core` in Phase 11a. Existing imports of
-// `brainwires_agent::ResponseConfidence` continue to work via the re-export
-// below; new code should reach for `brainwires_core::confidence::*` directly.
-// The shim is removed in Phase 11g.
-pub use brainwires_core::confidence;
+// `confidence` moved to `brainwires-core` in Phase 11a; the agent-side
+// shim was dropped in Phase 11g. Use `brainwires_core::confidence::*`
+// directly.
 pub mod file_locks;
 pub mod operation_tracker;
 pub mod resource_locks;
@@ -141,10 +139,8 @@ pub mod worktree;
 pub use communication::{
     AgentMessage, CommunicationHub, ConflictInfo, ConflictType, GitOperationType,
 };
-// Re-export the confidence types from core under their pre-Phase-11 paths.
-pub use brainwires_core::confidence::{
-    ConfidenceFactors, ResponseConfidence, extract_confidence, quick_confidence_check,
-};
+// confidence types moved to brainwires-core in Phase 11a; re-export shim
+// dropped in Phase 11g. Import from `brainwires_core::confidence::*` directly.
 pub use file_locks::{FileLockManager, LockType};
 pub use operation_tracker::OperationTracker;
 pub use resource_checker::{ConflictCheck, ResourceChecker};

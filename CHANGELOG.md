@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored (BREAKING)
 
+#### Phase 11g — final cleanup of agent decomposition
+
+Cleanup pass after Phases 11a–11f:
+
+- `pub use brainwires_core::confidence::*` shim in
+  `brainwires-agent/src/lib.rs` removed. Use
+  `brainwires_core::confidence::*` directly. (The shim was added in
+  Phase 11a as a one-phase compat layer; all in-tree consumers were
+  migrated by 11f.)
+- `brainwires-agent`'s package description updated to reflect its
+  new shape (coordination primitives + multi-agent patterns; no
+  longer the home of mdap / seal / skills / eval / inference).
+- New READMEs: `crates/brainwires-skills/`, `crates/brainwires-eval/`,
+  `crates/brainwires-inference/` (mdap + seal already had them).
+- New ADR: `docs/adr/ADR-0006-agent-decomposition.md` recording the
+  framing change ("framework stays minimal" → "every crate has one
+  cohesive responsibility") and explicitly overturning the previous
+  plan's "Things deliberately not in this plan" stance on extracting
+  mdap / seal / skills.
+- Workspace + per-crate counts refreshed via `cargo xtask
+  package-count` (32 crates, 18 direct extras subdirs).
+- `README.md`: framework crate table gains 5 rows (inference, mdap,
+  seal, skills, eval); agent row description rewritten.
+
+cargo check + lint-deps + scripts/publish.sh --preflight-only all
+clean. Phase 11 closes.
+
 #### `brainwires-inference` extracted from agent (the big one)
 
 The biggest piece of the Phase 11 agent decomposition. Every

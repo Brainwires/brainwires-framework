@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-agent"
-description = "Agent orchestration, coordination, and lifecycle management for the Brainwires Agent Framework"
+description = "Agent coordination primitives + multi-agent patterns for the Brainwires Agent Framework — communication hub, file/resource locks, task manager/queue, git coordination, contract net, saga, optimistic concurrency, market allocation, workflow graph, three-state model. LLM-driven workhorses live in `brainwires-inference`."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
