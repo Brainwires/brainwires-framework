@@ -95,6 +95,10 @@ CRATES=(
     # framework deps beyond core; safe to publish before agent.
     brainwires-mdap
 
+    # Layer 4e: Skills — extracted from brainwires-agent in 0.11. Depends on
+    # core + tool-runtime only.
+    brainwires-skills
+
     # Layer 5: Agency
     brainwires-agent
     brainwires-network

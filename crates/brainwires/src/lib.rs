@@ -146,7 +146,7 @@ pub mod mcp_server_framework {
 /// Skills — SKILL.md parsing, skill registry, and execution.
 #[cfg(feature = "skills")]
 pub mod skills {
-    pub use brainwires_agent::skills::*;
+    pub use brainwires_skills::*;
 }
 
 /// Evaluation framework — Monte Carlo runner, Wilson CI, adversarial tests.

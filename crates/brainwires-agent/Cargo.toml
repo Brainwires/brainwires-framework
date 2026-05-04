@@ -79,12 +79,10 @@ brainwires-telemetry = { workspace = true, optional = true }
 # Logging
 tracing.workspace = true
 
-# ── Skills deps (absorbed from brainwires-skills) ─────────────────────────
+# Skills deps removed in Phase 11c (extracted to brainwires-skills).
+# reqwest / semver / ed25519-dalek / rand_core moved to brainwires-skills.
+# serde_yml is still used by eval/fixtures until 11e (eval extraction).
 serde_yml = { workspace = true }
-semver = { workspace = true }
-reqwest = { workspace = true, optional = true }
-ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
-rand_core = { version = "0.6", features = ["getrandom"], optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
@@ -113,9 +111,8 @@ seal = ["dep:brainwires-storage", "dep:arrow-array", "dep:arrow-schema", "dep:la
 seal-mdap = ["seal", "dep:brainwires-mdap"]
 seal-feedback = ["seal", "dep:brainwires-permission"]
 seal-knowledge = ["seal", "dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
-# Skills (absorbed from brainwires-skills)
-skills-registry = ["dep:reqwest"]
-skills-signing = ["dep:ed25519-dalek", "dep:rand_core"]
+# Skills — extracted to its own brainwires-skills crate in Phase 11c.
+# (kept as a tracking comment so consumers know where the features went.)
 
 [[example]]
 name = "agent_pool"

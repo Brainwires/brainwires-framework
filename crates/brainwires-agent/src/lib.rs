@@ -140,8 +140,7 @@ pub mod eval;
 #[cfg(feature = "seal")]
 pub mod seal;
 
-// ── Skills (absorbed from brainwires-skills) ─────────────────────────────
-pub mod skills;
+// Skills — extracted to its own brainwires-skills crate in Phase 11c.
 
 // ── Analysis & validation ────────────────────────────────────────────────────
 

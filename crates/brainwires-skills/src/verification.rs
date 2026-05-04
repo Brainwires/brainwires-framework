@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use sha2::{Digest, Sha256};
 
-use crate::skills::package::SkillPackage;
+use crate::package::SkillPackage;
 
 /// Ed25519-based skill package signer and verifier.
 pub struct SkillVerifier;
@@ -73,7 +73,7 @@ impl SkillVerifier {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::skills::manifest::SkillManifest;
+    use crate::manifest::SkillManifest;
     use chrono::Utc;
 
     fn sample_package() -> SkillPackage {

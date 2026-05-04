@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored (BREAKING)
 
+#### `brainwires-skills` resurrected from agent submodule
+
+The SKILL.md skills system moves out of `brainwires-agent::skills`
+into its own crate **`brainwires-skills`** (~5k LOC). Step 2 of the
+Phase 11 agent decomposition.
+
+- `crates/brainwires-agent/src/skills/` → `crates/brainwires-skills/src/`
+  (mod.rs becomes lib.rs).
+- New crate v0.11.0: deps `brainwires-core` + `brainwires-tool-runtime`
+  (for `Tool` / `ToolContext` / `ToolExecutor`), plus serde_yml,
+  semver, regex, sha2, async-trait, tokio. Optional features:
+  `signing` (ed25519 manifest verification), `registry` (HTTP client).
+- agent's `skills-registry` and `skills-signing` features removed;
+  the deps that backed them (reqwest, ed25519-dalek, rand_core, semver)
+  moved with the crate.
+- The umbrella `brainwires` facade gains `brainwires-skills` dep; the
+  `skills` feature now maps to `brainwires-skills/registry` (was:
+  `brainwires-agent/skills-registry`).
+- `extras/brainwires-cli` adds `brainwires-skills = { features = ["registry"] }`
+  as a direct dep; drops the `skills-registry` feature from
+  `brainwires-agent`.
+
+API breakage:
+- `Cargo.toml`: drop `brainwires-agent/skills-registry`; add
+  `brainwires-skills = { features = ["registry"] }` (or
+  `["signing"]`).
+- `use brainwires_agent::skills::*` → `use brainwires_skills::*`.
+- `use brainwires::skills::*` continues to work (facade re-export).
+
+The 0.8.x deprecation tombstone in `deprecated/brainwires-skills/`
+was removed; the name is reclaimed.
+
 #### `brainwires-mdap` resurrected from agent submodule
 
 The Multi-Dimensional Adaptive Planning (MAKER voting) framework

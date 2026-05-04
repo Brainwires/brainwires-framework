@@ -220,7 +220,7 @@ pub struct ScriptPrepared {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::skills::metadata::SkillMetadata;
+    use crate::metadata::SkillMetadata;
 
     fn create_available_tools() -> Vec<String> {
         vec![

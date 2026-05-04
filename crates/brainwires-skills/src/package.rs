@@ -72,7 +72,7 @@ fn compute_checksum(content: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::skills::manifest::SkillManifest;
+    use crate::manifest::SkillManifest;
     use chrono::Utc;
     use tempfile::TempDir;
 

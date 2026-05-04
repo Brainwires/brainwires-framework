@@ -145,7 +145,7 @@ impl ToolExecutor for SkillToolExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::skills::metadata::SkillSource;
+    use crate::metadata::SkillSource;
     use brainwires_tool_builtins::BuiltinToolExecutor;
     use brainwires_tool_runtime::ToolRegistry;
 

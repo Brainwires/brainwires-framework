@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use brainwires_agent::skills::{SkillRegistry, SkillRouter, SkillSource};
+use brainwires_skills::{SkillRegistry, SkillRouter, SkillSource};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

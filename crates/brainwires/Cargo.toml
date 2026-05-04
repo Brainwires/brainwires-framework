@@ -20,6 +20,7 @@ brainwires-core.workspace = true
 # Feature-gated framework crates
 brainwires-agent = { workspace = true, optional = true }
 brainwires-mdap = { workspace = true, optional = true }
+brainwires-skills = { workspace = true, optional = true }
 brainwires-tool-runtime = { workspace = true, optional = true }
 brainwires-tool-builtins = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
@@ -46,7 +47,7 @@ brainwires-mcp-server = { workspace = true, optional = true }
 brainwires-a2a = { workspace = true, optional = true }
 
 # Skills system
-# skills now part of brainwires-agent (see skills module)
+# skills extracted to brainwires-skills in 0.11 (Phase 11c)
 
 
 # Hardware I/O (audio, GPIO, Bluetooth, network)
@@ -132,7 +133,7 @@ reasoning = ["dep:brainwires-reasoning"]
 seal = ["agents", "brainwires-agent/seal"]
 agent-network = ["dep:brainwires-network"]
 mcp-server-framework = ["dep:brainwires-mcp-server"]
-skills = ["agents", "brainwires-agent/skills-registry"]
+skills = ["dep:brainwires-skills", "brainwires-skills/registry"]
 eval = ["agents", "brainwires-agent/eval"]
 otel = ["agents", "brainwires-agent/otel"]
 # proxy feature removed — brainwires-proxy is an extras app, not a framework crate
