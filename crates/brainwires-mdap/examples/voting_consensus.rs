@@ -6,10 +6,10 @@
 //!
 //! Run with: `cargo run -p brainwires-agent --features mdap --example voting_consensus`
 
-use brainwires_agent::mdap::red_flags::{
+use brainwires_mdap::red_flags::{
     OutputFormat, RedFlagConfig, RedFlagValidator, StandardRedFlagValidator,
 };
-use brainwires_agent::mdap::voting::{
+use brainwires_mdap::voting::{
     ResponseMetadata, SampledResponse, VoteResult, VotingMethod,
 };
 use std::collections::HashMap;
@@ -126,7 +126,7 @@ fn main() {
             format!(
                 "FLAGGED: {}",
                 match &result {
-                    brainwires_agent::mdap::red_flags::RedFlagResult::Flagged {
+                    brainwires_mdap::red_flags::RedFlagResult::Flagged {
                         reason,
                         severity,
                     } => {

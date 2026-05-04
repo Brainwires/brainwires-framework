@@ -5,10 +5,10 @@
 //!
 //! Run with: `cargo run -p brainwires-agent --features mdap --example task_decomposition`
 
-use brainwires_agent::mdap::decomposition::{
+use brainwires_mdap::decomposition::{
     DecomposeContext, SequentialDecomposer, TaskDecomposer,
 };
-use brainwires_agent::mdap::scaling::{ModelCosts, estimate_mdap};
+use brainwires_mdap::scaling::{ModelCosts, estimate_mdap};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -67,6 +67,8 @@ brainwires-storage = { workspace = true, default-features = false, features = ["
 arrow-array = { workspace = true, optional = true }
 arrow-schema = { workspace = true, optional = true }
 lancedb = { workspace = true, optional = true }
+# brainwires-mdap (extracted in 0.11) — only pulled when seal-mdap is on
+brainwires-mdap = { workspace = true, optional = true }
 
 # OpenTelemetry (optional, for otel feature)
 opentelemetry = { version = "0.28", optional = true }
@@ -103,12 +105,12 @@ eval = ["dep:thiserror"]
 otel = ["dep:opentelemetry"]
 # Analytics events + billing hooks
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native"]
-# MDAP: Multi-Dimensional Adaptive Planning (merged from brainwires-mdap)
-mdap = ["dep:thiserror"]
+# MDAP — extracted to its own brainwires-mdap crate in Phase 11b.
+# (kept as a tracking comment so consumers know where the feature went.)
 # SEAL (Self-Evolving Agentic Learning) — pulls LanceDB stack for the
 # pattern store (PatternStore + LanceDatabaseExt under seal::pattern_store).
 seal = ["dep:brainwires-storage", "dep:arrow-array", "dep:arrow-schema", "dep:lancedb"]
-seal-mdap = ["seal", "mdap"]
+seal-mdap = ["seal", "dep:brainwires-mdap"]
 seal-feedback = ["seal", "dep:brainwires-permission"]
 seal-knowledge = ["seal", "dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 # Skills (absorbed from brainwires-skills)
@@ -136,13 +138,7 @@ name = "saga_compensation"
 [[example]]
 name = "task_queue_scheduling"
 
-[[example]]
-name = "voting_consensus"
-required-features = ["mdap"]
-
-[[example]]
-name = "task_decomposition"
-required-features = ["mdap"]
+# mdap examples moved to crates/brainwires-mdap/examples/ in Phase 11b.
 
 [package.metadata.docs.rs]
 all-features = true

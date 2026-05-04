@@ -19,7 +19,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # WASM-safe framework crates (direct deps: need default-features = false, can't inherit from workspace)
 brainwires-core = { path = "../../crates/brainwires-core", version = "0.11.0", default-features = false, features = ["wasm"] }
-brainwires-agent = { path = "../../crates/brainwires-agent", version = "0.11.0", default-features = false, features = ["wasm", "mdap"] }
+brainwires-agent = { path = "../../crates/brainwires-agent", version = "0.11.0", default-features = false, features = ["wasm"] }
+brainwires-mdap = { path = "../../crates/brainwires-mdap", version = "0.11.0" }
 brainwires-tool-runtime  = { path = "../../crates/brainwires-tool-runtime",  version = "0.11.0", default-features = false, features = ["wasm", "orchestrator-wasm"], optional = true }
 brainwires-tool-builtins = { path = "../../crates/brainwires-tool-builtins", version = "0.11.0", default-features = false, features = ["wasm", "interpreters-wasm"], optional = true }
 

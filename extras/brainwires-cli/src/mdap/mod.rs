@@ -6,15 +6,15 @@
 //! CLI-specific modules: tool_executor (local), plus MdapConfig/MdapExecutor (inline).
 
 // Re-export all framework modules
-pub use brainwires::mdap::composer;
-pub use brainwires::mdap::decomposition;
-pub use brainwires::mdap::error;
-pub use brainwires::mdap::metrics;
-pub use brainwires::mdap::microagent;
-pub use brainwires::mdap::red_flags;
-pub use brainwires::mdap::scaling;
-pub use brainwires::mdap::tool_intent;
-pub use brainwires::mdap::voting;
+pub use brainwires_mdap::composer;
+pub use brainwires_mdap::decomposition;
+pub use brainwires_mdap::error;
+pub use brainwires_mdap::metrics;
+pub use brainwires_mdap::microagent;
+pub use brainwires_mdap::red_flags;
+pub use brainwires_mdap::scaling;
+pub use brainwires_mdap::tool_intent;
+pub use brainwires_mdap::voting;
 
 // CLI-specific module (kept local)
 pub mod tool_executor;

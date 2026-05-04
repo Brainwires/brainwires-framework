@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored (BREAKING)
 
+#### `brainwires-mdap` resurrected from agent submodule
+
+The Multi-Dimensional Adaptive Planning (MAKER voting) framework
+moves out of `brainwires-agent::mdap` into its own crate
+**`brainwires-mdap`**. The submodule had zero internal dependencies on
+other agent code — cleanest possible split. Step 1 of the Phase 11
+agent decomposition.
+
+- `crates/brainwires-agent/src/mdap/` → `crates/brainwires-mdap/src/`
+  (mod.rs becomes lib.rs).
+- The `voting_consensus` and `task_decomposition` examples move to
+  `crates/brainwires-mdap/examples/`.
+- `brainwires-agent`'s `mdap` feature is gone. The `seal-mdap` feature
+  now pulls `brainwires-mdap` as an optional dep instead of gating an
+  internal submodule.
+- The umbrella `brainwires` facade gains a `brainwires-mdap` dep; the
+  `mdap` feature now maps directly to it (was: `agents` + `brainwires-agent/mdap`).
+- `extras/brainwires-wasm` swaps `brainwires-agent/mdap` for a direct
+  `brainwires-mdap` dep + re-export.
+- `extras/brainwires-autonomy`'s `parallel` feature swaps the same way.
+- `extras/brainwires-cli` adds `brainwires-mdap` as a direct dep.
+
+API breakage:
+
+- `Cargo.toml`: `brainwires-agent = { features = ["mdap"] }` → drop
+  the feature; add `brainwires-mdap` as a separate dep.
+- `use brainwires_agent::mdap::*` → `use brainwires_mdap::*`.
+- `use brainwires::mdap::*` continues to work (facade re-export).
+
+The 0.4.x deprecation tombstone in `deprecated/brainwires-mdap/` was
+removed — the name is reclaimed for the new active crate.
+
 #### `ResponseConfidence` moved to `brainwires-core`
 
 Prep step for the Phase 11 agent decomposition. `ResponseConfidence`

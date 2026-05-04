@@ -19,6 +19,7 @@ brainwires-core.workspace = true
 
 # Feature-gated framework crates
 brainwires-agent = { workspace = true, optional = true }
+brainwires-mdap = { workspace = true, optional = true }
 brainwires-tool-runtime = { workspace = true, optional = true }
 brainwires-tool-builtins = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
@@ -114,7 +115,7 @@ memory = ["dep:brainwires-stores", "brainwires-stores/memory", "storage"]
 # `tiered` enables the orchestration crate (TieredMemory + multi-factor search).
 tiered = ["memory", "dep:brainwires-memory"]
 mcp = ["dep:brainwires-mcp-client"]
-mdap = ["agents", "brainwires-agent/mdap"]
+mdap = ["dep:brainwires-mdap"]
 knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 prompting = ["dep:brainwires-prompting", "brainwires-prompting/knowledge", "knowledge"]
 permissions = ["dep:brainwires-permission"]

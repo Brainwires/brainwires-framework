@@ -152,6 +152,7 @@ brainwires = { path = "../../crates/brainwires", features = ["full"] }
 
 # ── Brainwires Framework crates (custom feature flags) ──
 brainwires-agent = { workspace = true, features = ["skills-registry"] }
+brainwires-mdap = { workspace = true }
 brainwires-tool-runtime = { workspace = true, features = ["native", "orchestrator", "rag"] }
 brainwires-tool-builtins = { workspace = true, features = ["native", "interpreters", "rag"] }
 brainwires-knowledge = { workspace = true, features = ["alt-folder-name"] }

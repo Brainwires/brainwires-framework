@@ -16,6 +16,7 @@ categories = ["development-tools"]
 [dependencies]
 brainwires-core.workspace = true
 brainwires-agent = { workspace = true, optional = true }
+brainwires-mdap = { workspace = true, optional = true }
 brainwires-finetune = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
@@ -80,7 +81,7 @@ eval-driven = [
 # Agent operations
 supervisor = ["dep:brainwires-agent"]
 attention = ["dep:brainwires-rag"]
-parallel = ["dep:brainwires-agent", "brainwires-agent/mdap"]
+parallel = ["dep:brainwires-agent", "dep:brainwires-mdap"]
 training = ["dep:brainwires-finetune"]
 
 # Git workflow

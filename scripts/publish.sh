@@ -91,6 +91,10 @@ CRATES=(
     # tools. Depends on tool-runtime + optional rag.
     brainwires-tool-builtins
 
+    # Layer 4d: MDAP — extracted from brainwires-agent in 0.11. Zero internal
+    # framework deps beyond core; safe to publish before agent.
+    brainwires-mdap
+
     # Layer 5: Agency
     brainwires-agent
     brainwires-network
