@@ -935,6 +935,13 @@ struct LoadOptions {
     /// reader is producing corrupt bytes.
     #[serde(default)]
     disable_ple_streaming: bool,
+    /// Enable the candle-side diagnostic scaffold (per-layer abs_max +
+    /// head[..4] readbacks). Adds ~120 GPU→CPU readbacks per generation
+    /// step → 1–2 s/token of overhead. Off by default; turn on for one
+    /// debug run by passing `{ diag: true }` from the JS loader to
+    /// capture the per-layer trace under `[gemma4/diag]` lines.
+    #[serde(default)]
+    diag: bool,
 }
 
 fn default_true() -> bool {
@@ -1097,6 +1104,13 @@ pub async fn init_local_multimodal_chunked(
         serde_wasm_bindgen::from_value(options_js)
             .map_err(|e| JsValue::from_str(&format!("invalid options: {e}")))?
     };
+
+    if options.diag {
+        brainwires_provider::local_llm::vision::gemma4_mm::set_diag_enabled(true);
+        web_sys::console::log_1(
+            &"[wasm/mm] diag scaffold enabled — per-layer abs_max readback active".into(),
+        );
+    }
 
     let file_size = file_size as u64;
     web_sys::console::log_1(

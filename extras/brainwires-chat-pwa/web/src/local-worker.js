@@ -491,10 +491,14 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
         const disableLaurel = !!globalThis.__bw_disable_laurel;
         const disablePerLayerInputGate = !!globalThis.__bw_disable_per_layer_input_gate;
         const disablePleStreaming = !!globalThis.__bw_disable_ple_streaming;
-        if (disableAltup || disableLaurel || disablePerLayerInputGate || disablePleStreaming) {
+        // Per-layer diag (`globalThis.__bw_diag = true` before page load)
+        // turns on the candle-side abs_max/head readback scaffold. Adds
+        // ~1–2 s/token of overhead; only flip it on for one debug session.
+        const diag = !!globalThis.__bw_diag;
+        if (disableAltup || disableLaurel || disablePerLayerInputGate || disablePleStreaming || diag) {
             console.warn(
                 '[local-worker] Gemma 3n kill-switches active:',
-                { disableAltup, disableLaurel, disablePerLayerInputGate, disablePleStreaming },
+                { disableAltup, disableLaurel, disablePerLayerInputGate, disablePleStreaming, diag },
             );
         }
         handle = await mod.init_local_multimodal_chunked(
@@ -509,6 +513,7 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
                 disable_laurel: disableLaurel,
                 disable_per_layer_input_gate: disablePerLayerInputGate,
                 disable_ple_streaming: disablePleStreaming,
+                diag,
             },
         );
         loadedModelId = modelId;
