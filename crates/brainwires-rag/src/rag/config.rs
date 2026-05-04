@@ -126,7 +126,7 @@ fn default_db_backend() -> String {
 }
 
 fn default_lancedb_path() -> PathBuf {
-    brainwires_storage::paths::PlatformPaths::default_lancedb_path()
+    brainwires_core::paths::PlatformPaths::default_lancedb_path()
 }
 
 fn default_qdrant_url() -> String {
@@ -189,11 +189,11 @@ fn default_hybrid_search() -> bool {
 }
 
 fn default_hash_cache_path() -> PathBuf {
-    brainwires_storage::paths::PlatformPaths::default_hash_cache_path()
+    brainwires_core::paths::PlatformPaths::default_hash_cache_path()
 }
 
 fn default_git_cache_path() -> PathBuf {
-    brainwires_storage::paths::PlatformPaths::default_git_cache_path()
+    brainwires_core::paths::PlatformPaths::default_git_cache_path()
 }
 
 impl Default for VectorDbConfig {
@@ -267,7 +267,7 @@ impl Config {
 
     /// Load configuration from default location or create default
     pub fn load_or_default() -> Result<Self, RagError> {
-        let config_path = brainwires_storage::paths::PlatformPaths::default_config_path();
+        let config_path = brainwires_core::paths::PlatformPaths::default_config_path();
 
         if config_path.exists() {
             tracing::info!("Loading config from: {}", config_path.display());
@@ -299,7 +299,7 @@ impl Config {
 
     /// Save to default location
     pub fn save_default(&self) -> Result<(), RagError> {
-        let config_path = brainwires_storage::paths::PlatformPaths::default_config_path();
+        let config_path = brainwires_core::paths::PlatformPaths::default_config_path();
         self.save(&config_path)
     }
 

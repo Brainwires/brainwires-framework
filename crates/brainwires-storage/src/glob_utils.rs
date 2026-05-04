@@ -7,7 +7,7 @@ use globset::{Glob, GlobMatcher};
 /// # Examples
 ///
 /// ```
-/// use brainwires_storage::glob_utils::matches_any_pattern;
+/// use crate::glob_utils::matches_any_pattern;
 ///
 /// let patterns = vec!["lib/**".to_string(), "src/**/*.ts".to_string()];
 /// assert!(matches_any_pattern("/project/lib/utils.ts", &patterns));

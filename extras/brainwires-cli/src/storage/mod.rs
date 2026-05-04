@@ -14,6 +14,9 @@
 pub use brainwires::storage::databases::VectorDatabase;
 pub use brainwires::storage::*;
 
+// FileContextManager + FileContent + FileChunk moved to brainwires-core in Phase 9.
+pub use brainwires_core::file_context::{FileChunk, FileContent, FileContextManager};
+
 // The opinionated store set (sessions, tasks, plans, conversations, locks,
 // images, templates) + the tier schema stores (Message/Summary/Fact/MentalModel/
 // TierMetadata + tier_types).

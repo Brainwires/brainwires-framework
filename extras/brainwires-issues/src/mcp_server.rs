@@ -1,7 +1,8 @@
 //! MCP server implementation for the issue tracker.
 
 use anyhow::{Context, Result};
-use brainwires_storage::{LanceDatabase, bm25_search::BM25Search, paths::PlatformPaths};
+use brainwires_core::paths::PlatformPaths;
+use brainwires_storage::{LanceDatabase, bm25_search::BM25Search};
 use rmcp::{
     RoleServer, ServerHandler, ServiceExt,
     handler::server::{router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters},

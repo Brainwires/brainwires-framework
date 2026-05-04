@@ -82,7 +82,7 @@ impl FastEmbedManager {
             _ => (EMBEDDING_DIM_MINILM, "all-MiniLM-L6-v2"),
         };
 
-        let cache_dir = crate::paths::PlatformPaths::default_fastembed_cache_path();
+        let cache_dir = brainwires_core::paths::PlatformPaths::default_fastembed_cache_path();
         let _ = std::fs::create_dir_all(&cache_dir);
 
         Ok(Self {

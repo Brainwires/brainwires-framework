@@ -92,27 +92,23 @@ pub mod image_types;
 /// implementing [`StorageBackend`] and/or [`VectorDatabase`](databases::VectorDatabase).
 pub mod databases;
 
-/// BM25 keyword search using Tantivy.
+/// BM25 keyword search using Tantivy. Used by Lance backend for hybrid
+/// vector + keyword search; consumed by `brainwires-rag` and other
+/// indexers.
 #[cfg(feature = "lance-backend")]
 pub mod bm25_search;
-/// Glob pattern matching utilities.
+/// Glob pattern matching utilities. Used by every database backend's
+/// path/include filtering.
 #[cfg(feature = "lance-backend")]
 pub mod glob_utils;
-/// Platform-specific path utilities.
-#[cfg(feature = "lance-backend")]
-pub mod paths;
 
-/// File chunking + context primitives (native only).
-#[cfg(feature = "native")]
-pub mod file_context;
+// Phase 9 moves:
+//   paths + file_context → brainwires-core (cross-cutting utilities, no storage internals)
+//   hnsw_wasm            → deleted (zero consumers anywhere in the workspace)
 
 /// Embedding provider for vector operations.
 #[cfg(feature = "native")]
 pub mod embeddings;
-
-/// In-browser HNSW vector index (wasm32 only, `hnsw-wasm` feature).
-#[cfg(all(target_arch = "wasm32", feature = "hnsw-wasm"))]
-pub mod hnsw_wasm;
 
 // ── Re-exports (always available) ────────────────────────────────────────
 
@@ -132,8 +128,7 @@ pub use image_types::{
 
 #[cfg(feature = "native")]
 pub use embeddings::{CachedEmbeddingProvider, EmbeddingProvider, FastEmbedManager};
-#[cfg(feature = "native")]
-pub use file_context::{FileChunk, FileContent, FileContextManager};
+// FileChunk / FileContent / FileContextManager moved to brainwires-core in Phase 9.
 
 /// Prelude module for convenient imports of the primitive surface.
 pub mod prelude {
@@ -144,8 +139,7 @@ pub mod prelude {
 
     #[cfg(feature = "native")]
     pub use super::embeddings::{CachedEmbeddingProvider, EmbeddingProvider, FastEmbedManager};
-    #[cfg(feature = "native")]
-    pub use super::file_context::{FileContent, FileContextManager};
+    // file_context moved to brainwires-core in Phase 9.
     pub use super::image_types::{
         ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
     };

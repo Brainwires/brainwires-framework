@@ -34,6 +34,8 @@ schemars = { workspace = true, optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { workspace = true, features = ["fs", "sync"] }
 dirs = { workspace = true }
+# `file_context` (Phase 9 move from brainwires-storage) hashes content with sha256.
+sha2 = { workspace = true }
 
 # wasm32 needs the JS-backed `getrandom` so `uuid::Uuid::new_v4()` and any
 # downstream RNG work in the browser. Native targets keep their default RNG.

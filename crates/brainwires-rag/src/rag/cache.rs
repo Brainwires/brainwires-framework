@@ -200,7 +200,7 @@ impl HashCache {
 
     /// Get default cache path (in user's cache directory)
     pub fn default_path() -> PathBuf {
-        brainwires_storage::paths::PlatformPaths::default_hash_cache_path()
+        brainwires_core::paths::PlatformPaths::default_hash_cache_path()
     }
 }
 

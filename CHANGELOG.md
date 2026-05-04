@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored (BREAKING)
 
+#### Phase 9 — `brainwires-storage` further refinement
+
+Cleanup pass that the original plan flagged as optional. Now done.
+
+- **`hnsw_wasm.rs` deleted** — the in-browser HNSW index module had
+  zero consumers anywhere in the workspace (the doc comment claimed
+  PWA usage but no actual import existed). The `hnsw-wasm` Cargo
+  feature is gone, along with the `instant-distance` and `bincode`
+  optional deps that backed it.
+- **`paths.rs` moved to `brainwires-core::paths`** — pure
+  platform-path helpers (no internal storage deps). Used by
+  `extras/brainwires-rag-server`, `extras/brainwires-issues`, and
+  internally by storage's Lance backend + embeddings cache.
+- **`file_context.rs` moved to `brainwires-core::file_context`** —
+  `FileContextManager`, `FileContent`, `FileChunk`. CLI utility,
+  cross-cutting; native-only (uses tokio::fs). brainwires-core picks
+  up `sha2` as a non-wasm dep.
+- **`bm25_search.rs` and `glob_utils.rs` stay in `brainwires-storage`**
+  — the original plan offered "fold into brainwires-rag" but the
+  audit during execution showed storage's Lance / Postgres / SurrealDB
+  / Qdrant / NornicDB / Weaviate / Milvus backends all use them
+  internally. Moving would create a `storage → rag` cycle. Both
+  remain feature-gated under `lance-backend`.
+
+API breakage:
+- `brainwires_storage::PlatformPaths` → `brainwires_core::paths::PlatformPaths`
+- `brainwires_storage::FileContextManager` (and `FileContent`, `FileChunk`)
+  → `brainwires_core::file_context::*`
+- `brainwires_storage::hnsw_wasm` — gone (was never a real consumer)
+- `brainwires-storage`'s `hnsw-wasm` feature — gone
+
+`brainwires-storage` final shape: substrate (StorageBackend trait,
+9 backends, embeddings, BM25, glob), no cross-cutting filesystem
+utilities. Coherent.
+
 #### Phase 11g — final cleanup of agent decomposition
 
 Cleanup pass after Phases 11a–11f:

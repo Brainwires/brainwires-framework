@@ -23,6 +23,7 @@ doc = false
 chrono = "0.4"
 
 [dependencies]
+brainwires-core = { workspace = true }
 brainwires-rag = { workspace = true }
 brainwires-storage = { workspace = true, features = ["native"] }
 rmcp = { workspace = true, features = ["server", "transport-io", "macros"] }

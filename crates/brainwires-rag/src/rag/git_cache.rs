@@ -14,7 +14,7 @@ pub struct GitCache {
 impl GitCache {
     /// Get the default cache file path
     pub fn default_path() -> PathBuf {
-        brainwires_storage::paths::PlatformPaths::default_git_cache_path()
+        brainwires_core::paths::PlatformPaths::default_git_cache_path()
     }
 
     /// Load cache from disk

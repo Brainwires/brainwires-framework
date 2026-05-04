@@ -17,6 +17,14 @@
 pub mod confidence;
 /// Content source types for tracking where content originates.
 pub mod content_source;
+/// File chunking + content extraction primitives — `FileContextManager`,
+/// `FileContent`, `FileChunk`. Moved from `brainwires-storage` in Phase 9.
+/// Native-only (uses `tokio::fs`).
+#[cfg(not(target_arch = "wasm32"))]
+pub mod file_context;
+/// Platform-specific path helpers — `PlatformPaths`. Moved from
+/// `brainwires-storage` in Phase 9.
+pub mod paths;
 /// Embedding provider trait for vector operations.
 pub mod embedding;
 /// Framework error types and result aliases.
