@@ -14,7 +14,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use brainwires_agent::eval::{ndcg_at_k, mrr, precision_at_k};
+//! use brainwires_eval::{ndcg_at_k, mrr, precision_at_k};
 //!
 //! // scores[i] = system score for item i (higher = more relevant to system)
 //! // relevance[i] = ground-truth relevance label for item i (0 = irrelevant)

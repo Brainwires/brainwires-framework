@@ -16,7 +16,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use brainwires_agent::eval::{EvaluationCase, TrialResult, ndcg_at_k};
+use brainwires_eval::{EvaluationCase, TrialResult, ndcg_at_k};
 use brainwires_memory::{MemoryAuthority, MemoryTier, MultiFactorScore, TierMetadata};
 use chrono::Utc;
 
@@ -269,7 +269,7 @@ impl EvaluationCase for TierDemotionCase {
 // ── Suite constructor ─────────────────────────────────────────────────────────
 
 /// Return all memory eval cases ready for use with
-/// [`brainwires_agent::eval::EvaluationSuite`] or
+/// [`brainwires_eval::EvaluationSuite`] or
 /// [`brainwires_autonomy::self_improve::AutonomousFeedbackLoop`].
 pub fn multi_factor_suite() -> Vec<Arc<dyn EvaluationCase>> {
     vec![Arc::new(MultiFactorRankingCase), Arc::new(TierDemotionCase)]

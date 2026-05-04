@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored (BREAKING)
 
+#### `brainwires-eval` resurrected from agent submodule
+
+The evaluation harness moves out of `brainwires-agent::eval` into its
+own crate **`brainwires-eval`** (~3.5k LOC). Step 4 of the Phase 11
+agent decomposition. Eval is the simplest split — completely
+self-contained, zero `brainwires-*` deps; previously was a separate
+crate before being merged.
+
+- `crates/brainwires-agent/src/eval/` → `crates/brainwires-eval/src/`
+  (mod.rs becomes lib.rs).
+- Eval-specific test fixtures move with the crate:
+  `tests/fixtures/` + `tests/fixtures_suite.rs` → `crates/brainwires-eval/tests/`.
+- New crate v0.11.0: deps async-trait, tokio (sync/rt/macros), serde,
+  serde_yml (fixture parsing), anyhow, thiserror, chrono, uuid, regex,
+  tracing. No internal brainwires-* deps.
+- agent Cargo.toml: drop the `eval` feature + `dep:thiserror` + the
+  always-on `serde_yml` dep (was eval-only after Phase 11c took skills'
+  copy with it).
+- agent src/lib.rs: drop `pub mod eval;`.
+- The umbrella `brainwires` facade gains `brainwires-eval` dep; the
+  `eval` feature now maps to `dep:brainwires-eval`.
+- `extras/brainwires-cli` adds `brainwires-eval` as a direct dep.
+- `extras/brainwires-autonomy`'s `eval-driven` feature swaps
+  `brainwires-agent/eval` for `dep:brainwires-eval`.
+
+API breakage:
+- `Cargo.toml`: drop `brainwires-agent/eval`; add `brainwires-eval`.
+- `use brainwires_agent::eval::*` → `use brainwires_eval::*`.
+- `use brainwires::eval::*` continues to work (facade re-export).
+
+No tombstone — `brainwires-eval` was never published as a separate
+crate (was internal-only before the merge).
+
 #### `brainwires-seal` resurrected from agent submodule
 
 The Self-Evolving Agentic Learning system moves out of

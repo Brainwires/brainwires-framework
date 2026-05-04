@@ -56,8 +56,7 @@ regex = { workspace = true }
 # Async streams (needed by ChatAgent for StreamExt)
 futures.workspace = true
 
-# Eval framework (optional)
-thiserror = { workspace = true, optional = true }
+# thiserror removed — was eval-only; eval extracted to brainwires-eval in Phase 11e.
 
 # SEAL deps moved with the crate in Phase 11d (extracted to brainwires-seal).
 # brainwires-knowledge / brainwires-permission / brainwires-storage / arrow /
@@ -73,9 +72,7 @@ brainwires-telemetry = { workspace = true, optional = true }
 tracing.workspace = true
 
 # Skills deps removed in Phase 11c (extracted to brainwires-skills).
-# reqwest / semver / ed25519-dalek / rand_core moved to brainwires-skills.
-# serde_yml is still used by eval/fixtures until 11e (eval extraction).
-serde_yml = { workspace = true }
+# Eval deps (serde_yml + thiserror gated by `eval`) removed in Phase 11e.
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
@@ -90,8 +87,8 @@ brainwires-permission = { workspace = true }
 default = ["native"]
 native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-call-policy/native"]
 wasm = ["brainwires-core/wasm", "brainwires-call-policy/wasm"]
-# Evaluation framework (merged from brainwires-eval)
-eval = ["dep:thiserror"]
+# Eval — extracted to its own brainwires-eval crate in Phase 11e.
+# (kept as a tracking comment so consumers know where the feature went.)
 # OpenTelemetry span export for agent execution traces
 otel = ["dep:opentelemetry"]
 # Analytics events + billing hooks

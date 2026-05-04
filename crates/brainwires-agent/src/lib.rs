@@ -130,9 +130,7 @@ pub mod workflow;
 #[cfg(feature = "otel")]
 pub mod otel;
 
-// ── Evaluation framework (merged from brainwires-eval) ──────────────────────
-#[cfg(feature = "eval")]
-pub mod eval;
+// Eval — extracted to its own brainwires-eval crate in Phase 11e.
 
 // MDAP — extracted to its own brainwires-mdap crate in Phase 11b.
 

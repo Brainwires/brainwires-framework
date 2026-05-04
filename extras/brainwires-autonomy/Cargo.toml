@@ -17,6 +17,7 @@ categories = ["development-tools"]
 brainwires-core.workspace = true
 brainwires-agent = { workspace = true, optional = true }
 brainwires-mdap = { workspace = true, optional = true }
+brainwires-eval = { workspace = true, optional = true }
 brainwires-finetune = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
@@ -71,7 +72,8 @@ wasm = ["brainwires-core/wasm"]
 self-improve = ["dep:brainwires-agent", "dep:regex", "dep:walkdir"]
 eval-driven = [
     "self-improve",
-    "dep:brainwires-agent", "brainwires-agent/eval",
+    "dep:brainwires-agent",
+    "dep:brainwires-eval",
     "dep:brainwires-reasoning",
     "dep:brainwires-knowledge", "brainwires-knowledge/knowledge",
     "dep:brainwires-memory",

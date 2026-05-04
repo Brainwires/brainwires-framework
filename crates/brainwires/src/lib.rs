@@ -152,7 +152,7 @@ pub mod skills {
 /// Evaluation framework — Monte Carlo runner, Wilson CI, adversarial tests.
 #[cfg(feature = "eval")]
 pub mod eval {
-    pub use brainwires_agent::eval::*;
+    pub use brainwires_eval::*;
 }
 
 // proxy module removed — brainwires-proxy is an extras app, use it directly

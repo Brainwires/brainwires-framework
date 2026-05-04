@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use brainwires_agent::eval::fixtures::load_fixtures_from_dir;
+use brainwires_eval::fixtures::load_fixtures_from_dir;
 
 #[test]
 fn shipped_yaml_fixtures_parse() {

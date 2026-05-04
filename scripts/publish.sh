@@ -56,6 +56,7 @@ CRATES=(
     # Layer 1a: Infrastructure — zero internal deps (except core)
     brainwires-telemetry
     brainwires-storage
+    brainwires-eval               # evaluation harness — no brainwires-* deps at all
 
     # Layer 1b: Infrastructure — deps on 1a
     brainwires-provider           # optional dep: telemetry (LLM clients only)

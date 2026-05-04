@@ -22,6 +22,7 @@ brainwires-agent = { workspace = true, optional = true }
 brainwires-mdap = { workspace = true, optional = true }
 brainwires-skills = { workspace = true, optional = true }
 brainwires-seal = { workspace = true, optional = true }
+brainwires-eval = { workspace = true, optional = true }
 brainwires-tool-runtime = { workspace = true, optional = true }
 brainwires-tool-builtins = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
@@ -135,7 +136,7 @@ seal = ["dep:brainwires-seal"]
 agent-network = ["dep:brainwires-network"]
 mcp-server-framework = ["dep:brainwires-mcp-server"]
 skills = ["dep:brainwires-skills", "brainwires-skills/registry"]
-eval = ["agents", "brainwires-agent/eval"]
+eval = ["dep:brainwires-eval"]
 otel = ["agents", "brainwires-agent/otel"]
 # proxy feature removed — brainwires-proxy is an extras app, not a framework crate
 a2a = ["dep:brainwires-a2a", "brainwires-a2a/native"]

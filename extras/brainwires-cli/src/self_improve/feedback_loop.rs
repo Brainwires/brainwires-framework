@@ -17,8 +17,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
-use brainwires::eval::fault_report::analyze_suite_for_faults;
-use brainwires::eval::{
+use brainwires_eval::fault_report::analyze_suite_for_faults;
+use brainwires_eval::{
     EvaluationCase, EvaluationSuite, RegressionSuite, SuiteConfig, SuiteResult,
 };
 
@@ -379,7 +379,7 @@ impl AutonomousFeedbackLoop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires::eval::{AlwaysFailCase, AlwaysPassCase};
+    use brainwires_eval::{AlwaysFailCase, AlwaysPassCase};
 
     fn make_config_dry_run() -> FeedbackLoopConfig {
         FeedbackLoopConfig {
