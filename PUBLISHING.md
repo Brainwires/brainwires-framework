@@ -130,8 +130,8 @@ Only leaf crates fully verify in dry-run mode (later layers can't resolve deps n
 ```
 
 The script handles:
-- **Dependency ordering** — 8 layers, 16 crates, leaves first, facade last
-- **Rate limiting** — burst 30 at once, then 1/min (16 crates fits in burst)
+- **Dependency ordering** — 8 layers, 27 crates, leaves first, facade last
+- **Rate limiting** — burst 30 at once, then 1/min (27 crates fits in burst)
 - **Idempotency** — already-published versions are skipped automatically
 - **Tagging** — creates and pushes `vX.Y.Z` git tag on success
 

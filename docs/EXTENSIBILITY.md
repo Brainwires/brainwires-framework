@@ -281,23 +281,33 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 ```
 brainwires (facade)
   ├── brainwires-core (always)       ← core traits, types, errors
-  ├── brainwires-tools         ← ToolExecutor, built-in tools
-  ├── brainwires-agent              ← AgentRuntime, CommunicationHub, SEAL
-  ├── brainwires-providers           ← Anthropic, OpenAI, Google, Ollama
-  ├── brainwires-knowledge           ← RAG, Knowledge/Brain, Prompting, Spectral
-  ├── brainwires-network       ← MCP server, IPC, remote, mesh
+  ├── brainwires-tool-runtime        ← ToolExecutor, ToolRegistry, validation, smart router
+  ├── brainwires-tool-builtins       ← Built-in tool implementations
+  ├── brainwires-agent               ← AgentRuntime, CommunicationHub, MDAP, SEAL
+  ├── brainwires-provider            ← Anthropic, OpenAI, Google, Ollama, Bedrock, Vertex AI
+  ├── brainwires-provider-speech     ← TTS / STT providers
+  ├── brainwires-knowledge           ← BKS / PKS, BrainClient, entity graph
+  ├── brainwires-rag                 ← Codebase indexing + hybrid retrieval
+  ├── brainwires-prompting           ← Adaptive prompting
+  ├── brainwires-network             ← IPC, remote, mesh, LAN discovery
+  ├── brainwires-mcp-client          ← MCP client
+  ├── brainwires-mcp-server          ← MCP server framework
   ├── brainwires-storage             ← StorageBackend trait, embeddings, BM25, LanceDB
-  ├── brainwires-memory              ← TieredMemory + hot/warm/cold tier stores
-  ├── brainwires-training            ← Fine-tuning backends
-  └── brainwires-training            ← Dataset containers, format converters
+  ├── brainwires-stores              ← Schema + CRUD: sessions, tasks, plans, conversations, …
+  ├── brainwires-memory              ← TieredMemory orchestration + dream consolidation
+  ├── brainwires-finetune            ← Cloud fine-tune APIs + dataset pipelines
+  └── brainwires-finetune-local      ← Local PEFT (LoRA/QLoRA/DoRA), Burn-backed
 ```
 
 ### Where to define new traits
 
 - **Pure types/traits with no heavy deps** → `brainwires-core`
-- **Tool implementations** → `brainwires-tools`
+- **Tool framework** → `brainwires-tool-runtime` (the `ToolExecutor` trait + dispatch)
+- **Concrete tool implementations** → `brainwires-tool-builtins`
 - **Agent coordination** → `brainwires-agent`
-- **RAG pipeline components** → `brainwires-knowledge`
+- **RAG pipeline components** → `brainwires-rag`
+- **A new persisted store** → `brainwires-stores` (schema + CRUD)
+- **Memory orchestration** → `brainwires-memory` (engines over the schema stores)
 
 ### Error handling
 

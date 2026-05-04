@@ -61,7 +61,11 @@ CRATES=(
     brainwires-provider           # optional dep: telemetry (LLM clients only)
     brainwires-provider-speech    # speech TTS / STT clients
     brainwires-hardware           # optional dep: providers + provider-speech
-    brainwires-memory             # dep: storage (tiered hot/warm/cold + dream consolidation)
+    brainwires-stores             # dep: storage — schema + CRUD for the opinionated minimum store set
+    brainwires-memory             # dep: stores — TieredMemory orchestration + dream consolidation
+    brainwires-sandbox            # container-backed sandbox executor
+    brainwires-sandbox-proxy      # dep: sandbox — out-of-process proxy
+    brainwires-call-policy        # retry / circuit / budget / cache / classify policies on outbound calls
 
     # Layer 2: Protocols (dep: core only)
     brainwires-mcp-client
@@ -132,7 +136,16 @@ for crate in "${CRATES[@]}"; do
     [ -f "$toml" ] || continue
 
     # 1. Missing README file
-    readme_field=$(grep -m1 '^readme\s*=' "$toml" | sed 's/.*"\(.*\)"/\1/')
+    # Handle three cases: literal `readme = "X"`, `readme.workspace = true`
+    # (inherits workspace.package.readme — usually "README.md"), or absent.
+    readme_line=$(grep -m1 '^readme\b' "$toml" || true)
+    readme_field=""
+    if [[ "$readme_line" == *".workspace"* ]]; then
+        # Workspace-inherited; default is README.md in the crate dir.
+        readme_field="README.md"
+    elif [ -n "$readme_line" ]; then
+        readme_field=$(echo "$readme_line" | sed 's/.*"\(.*\)"/\1/')
+    fi
     if [ -n "$readme_field" ] && [ ! -f "$WORKSPACE_ROOT_PF/crates/$crate/$readme_field" ]; then
         echo "  ERROR [$crate] readme = \"$readme_field\" does not exist"
         PREFLIGHT_ERRORS=$((PREFLIGHT_ERRORS + 1))

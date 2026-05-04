@@ -1,6 +1,6 @@
 # Brainwires Framework — Complete Feature List
 
-A comprehensive catalog of every feature provided by the framework's 16 crates and 25 extras.
+A comprehensive catalog of every feature provided by the framework's 27 crates and 18 extras.
 
 ---
 
@@ -373,42 +373,54 @@ Multi-Dimensional Adaptive Planning implementing the MAKER paper.
 
 ## Storage & Memory
 
-**Crate:** `brainwires-storage`
+Three-layer storage architecture (see ADR-0005):
 
-LanceDB-backed persistent storage with semantic search.
+- **`brainwires-storage`** — substrate: `StorageBackend` trait,
+  9 backends (LanceDB / nornicdb / sqlite / sled / etc.), embeddings,
+  BM25 keyword search, file-context primitives.
+- **`brainwires-stores`** — schema + CRUD for the framework's
+  opinionated minimum data-store set.
+- **`brainwires-memory`** — orchestration over the tier schema stores
+  (`TieredMemory` adaptive search) + offline `dream` consolidation.
 
-### Vector Database
+### Substrate  *(crate: `brainwires-storage`)*
 
-- **LanceClient** — LanceDB connection and table management
+- **LanceDatabase** — LanceDB connection and table management
 - **FastEmbedManager** — Text embeddings via FastEmbed ONNX model (all-MiniLM-L6-v2)
 - **CachedEmbeddingProvider** — LRU-cached embedding provider
 
-### Data Stores
+### Data Stores  *(crate: `brainwires-stores`)*
 
-- **MessageStore** — Conversation messages with vector search
-- **ConversationStore** — Conversation metadata
-- **TaskStore** — Task persistence with agent state tracking (`AgentStateStore`)
+- **SessionStore** — Pluggable transcript persistence (in-memory + sqlite impls)
+- **ConversationStore** — Conversation catalog metadata (id, title, model, message count)
+- **TaskStore** + **AgentStateStore** — Task / agent-state persistence
 - **PlanStore** — Execution plan storage with markdown export
 - **TemplateStore** — Reusable plan template storage
 - **LockStore** — Cross-process lock coordination with statistics
-- **ImageStore** — Image analysis storage with semantic search
-
-### Tiered Memory  *(crate: `brainwires-memory`)*
-
-- **TieredMemory** — Three-tier memory hierarchy:
-  - **Hot** — Recent messages, full fidelity (`MessageStore`)
-  - **Warm** — `SummaryStore` with compressed message summaries
-  - **Cold** — `FactStore` with extracted key facts
+- **ImageStore** — Image analysis storage with metadata + sha256 hashing
+- **MessageStore** — Conversation messages with vector search (tier schema)
+- **SummaryStore** — Warm-tier compressed summaries (tier schema)
+- **FactStore** — Cold-tier extracted key facts (tier schema)
 - **MentalModelStore** — Synthesised behavioural / structural / causal /
-  procedural beliefs the agent built up
+  procedural beliefs the agent built up (tier schema)
 - **TierMetadataStore** — Tier tracking metadata, access counts,
-  importance scoring
-- **MemoryAuthority** — Canonical write tokens (`CanonicalWriteToken`)
-- **MultiFactorScore** — Multi-factor relevance scoring for search
+  importance scoring (tier schema)
 
-> Originally part of `brainwires-storage`; moved into the dedicated
-> `brainwires-memory` crate in v0.10.x so the storage crate stays focused
-> on generic primitives.
+Default features: `session`, `task`, `plan`, `conversation`. Opt-in:
+`memory` (tier schemas), `lock`, `image`, `sqlite`.
+
+### Tiered Memory Orchestration  *(crate: `brainwires-memory`)*
+
+- **TieredMemory** — Multi-factor adaptive search across the four tiers
+  (similarity × recency × importance), promotion / demotion based on
+  access patterns. Uses the schema stores from `brainwires-stores`.
+- **CanonicalWriteToken** — Capability gate for the `Canonical`
+  authority tier
+- **MultiFactorScore** — Combined retrieval score that blends
+  similarity, recency, and stored importance
+- **dream** *(feature)* — Offline consolidation engine: summarises
+  hot-tier messages into warm-tier summaries, extracts cold-tier facts,
+  demotes by retention score
 
 ### File Context
 

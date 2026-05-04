@@ -6,7 +6,7 @@
 
 ## Context
 
-The `deprecated/` directory at the workspace root holds 17 crates that
+The `deprecated/` directory at the workspace root holds 27 crates that
 were previously split out of the framework and have since been re-merged
 into a small number of "god-crates":
 

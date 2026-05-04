@@ -582,7 +582,7 @@ cargo run -- chat
 
 ## Architecture
 
-Brainwires CLI is built on the **Brainwires Framework**, a submodule of 22 crates exposed through a feature-gated facade.
+Brainwires CLI is built on the **Brainwires Framework**, a submodule of 27 crates exposed through a feature-gated facade.
 
 ### Brainwires Framework (`crates/brainwires-framework/`)
 

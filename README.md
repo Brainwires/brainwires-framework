@@ -14,7 +14,7 @@ A modular Rust framework for building AI agents with multi-provider support, too
 
 ## Overview
 
-The Brainwires Framework is a workspace of 16 framework crates plus 25 extras (including the 7-crate `brainclaw` set) that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
+The Brainwires Framework is a workspace of 27 framework crates plus 18 extras (including the 7-crate `brainclaw` set) that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
 
 **[Full feature list](FEATURES.md)** | **Key capabilities:**
 
@@ -30,50 +30,63 @@ The Brainwires Framework is a workspace of 16 framework crates plus 25 extras (i
 ## Crate Map
 
 ```text
-  ┌────────────────────────────────────────────────────────────┐
-  │                        brainwires                          │
-  │                      (facade crate)                        │
-  │                                                            │
-  │  ┌───────────┐ ┌────────────┐ ┌───────────┐ ┌───────────┐  │
-  │  │  agents   │ │  providers │ │  storage  │ │    mcp    │  │
-  │  │  mdap     │ │   tools    │ │ knowledge │ │  network  │  │
-  │  └─────┬─────┘ └──────┬─────┘ └─────┬─────┘ └─────┬─────┘  │
-  │        │              │             │             │        │
-  │        └──────────────┴─────────────┴─────────────┘        │
-  │                            │                               │
-  │                     ┌──────▼──────┐                        │
-  │                     │    core     │                        │
-  │                     │ permissions │                        │
-  │                     └─────────────┘                        │
-  │                                                            │
-  │  ┌──────────┐ ┌────────────┐ ┌───────────┐ ┌───────────┐   │
-  │  │reasoning │ │  training  │ │ telemetry │ │   audio   │   │
-  │  │ hardware │ │    a2a     │ │mcp-server │ │           │   │
-  │  └──────────┘ └────────────┘ └───────────┘ └───────────┘   │
-  └────────────────────────────────────────────────────────────┘
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                          brainwires                             │
+  │                        (facade crate)                           │
+  │                                                                 │
+  │  ┌────────────┐ ┌─────────────┐ ┌────────────┐ ┌─────────────┐  │
+  │  │   agent    │ │  provider   │ │  storage   │ │ mcp-client  │  │
+  │  │ tool-runtime│ │   speech   │ │   stores   │ │ mcp-server  │  │
+  │  │tool-builtins│ │             │ │   memory   │ │  network    │  │
+  │  └─────┬──────┘ └──────┬──────┘ └──────┬─────┘ └──────┬──────┘  │
+  │        │               │               │              │         │
+  │        └───────────────┴───────────────┴──────────────┘         │
+  │                              │                                  │
+  │                       ┌──────▼──────┐                           │
+  │                       │    core     │                           │
+  │                       │ permission  │                           │
+  │                       │ call-policy │                           │
+  │                       └─────────────┘                           │
+  │                                                                 │
+  │  ┌────────────┐ ┌─────────────┐ ┌──────────┐ ┌──────────────┐   │
+  │  │ knowledge  │ │  reasoning  │ │telemetry │ │   hardware   │   │
+  │  │    rag     │ │   sandbox   │ │   a2a    │ │    finetune  │   │
+  │  │ prompting  │ │             │ │          │ │finetune-local│   │
+  │  └────────────┘ └─────────────┘ └──────────┘ └──────────────┘   │
+  └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Framework Crates
 
 | Crate | Description |
 |-------|-------------|
-| [**brainwires**](crates/brainwires/README.md) | Facade crate — re-exports all other crates behind feature flags |
+| [**brainwires**](crates/brainwires/README.md) | Facade crate — re-exports every other framework crate behind feature flags |
 | [**brainwires-core**](crates/brainwires-core/README.md) | Core types, traits, and error handling shared by all crates |
-| [**brainwires-providers**](crates/brainwires-providers/README.md) | Multi-provider AI interface (Anthropic, OpenAI, Google, Ollama, local LLMs) |
-| [**brainwires-tools**](crates/brainwires-tools/README.md) | Tool definitions, execution, interpreters, and system primitives for AI model interactions |
-| [**brainwires-agent**](crates/brainwires-agent/README.md) | Multi-agent orchestration, task decomposition, file lock coordination, skills and slash commands |
-| [**brainwires-knowledge**](crates/brainwires-knowledge/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
-| [**brainwires-storage**](crates/brainwires-storage/README.md) | Unified database layer (9 backends), embeddings, BM25 keyword search, file-context primitives |
-| [**brainwires-memory**](crates/brainwires-memory/README.md) | Tiered hot/warm/cold agent memory — `MessageStore`, `SummaryStore`, `FactStore`, `MentalModelStore`, `TieredMemory` orchestration |
-| [**brainwires-permissions**](crates/brainwires-permissions/README.md) | Permission policies (auto, ask, reject) for tool execution |
-| [**brainwires-mcp**](crates/brainwires-mcp/README.md) | MCP client — connect to external MCP servers and use their tools |
-| [**brainwires-network**](crates/brainwires-network/README.md) | Agent networking — MCP server, IPC, remote bridge, channels, WebRTC, 5-layer protocol stack |
-| [**brainwires-reasoning**](crates/brainwires-reasoning/README.md) | Reasoning strategies — re-exports from core |
+| [**brainwires-provider**](crates/brainwires-provider/README.md) | Multi-provider LLM interface (Anthropic, OpenAI, Google, Ollama, Bedrock, Vertex AI, local llama.cpp / Candle) |
+| [**brainwires-provider-speech**](crates/brainwires-provider-speech/README.md) | Speech (TTS / STT) providers (Azure, Cartesia, Deepgram, ElevenLabs, Fish, Google, Murf, browser web-speech) |
+| [**brainwires-tool-runtime**](crates/brainwires-tool-runtime/README.md) | Tool framework — `ToolExecutor`, `ToolRegistry`, validation, smart router, sandbox/orchestrator/sessions/oauth/openapi |
+| [**brainwires-tool-builtins**](crates/brainwires-tool-builtins/README.md) | Built-in tool implementations: bash, file_ops, git, web, search, code_exec, browser, email, calendar, system, semantic_search |
+| [**brainwires-agent**](crates/brainwires-agent/README.md) | Multi-agent orchestration, task decomposition, file lock coordination, skills, MDAP, SEAL |
+| [**brainwires-knowledge**](crates/brainwires-knowledge/README.md) | Knowledge layer — BKS / PKS, BrainClient, entity graph |
+| [**brainwires-rag**](crates/brainwires-rag/README.md) | Codebase indexing + hybrid retrieval (vector + BM25), AST-aware chunking via tree-sitter, Git history search |
+| [**brainwires-prompting**](crates/brainwires-prompting/README.md) | Adaptive prompting — technique library, K-means task clustering, BKS/PKS-aware generator, SEAL feedback hook |
+| [**brainwires-storage**](crates/brainwires-storage/README.md) | Substrate — `StorageBackend` trait, 9 backends, embeddings, BM25 keyword search, file-context primitives |
+| [**brainwires-stores**](crates/brainwires-stores/README.md) | Schema + CRUD for the opinionated minimum store set: sessions, conversations, tasks, plans, locks, images, templates + tier schema stores |
+| [**brainwires-memory**](crates/brainwires-memory/README.md) | Tiered memory **orchestration** — `TieredMemory` multi-factor adaptive search + offline `dream` consolidation engine. Built on `brainwires-stores`. |
+| [**brainwires-permission**](crates/brainwires-permission/README.md) | Permission policies (auto, ask, reject) for tool execution |
+| [**brainwires-mcp-client**](crates/brainwires-mcp-client/README.md) | MCP client — connect to external MCP servers and use their tools |
+| [**brainwires-mcp-server**](crates/brainwires-mcp-server/README.md) | MCP server framework with composable middleware; `http` feature adds stateless HTTP+SSE transport, Server Cards (SEP-1649), RFC9728, and Tasks (SEP-1686); `oauth` feature adds JWT validation middleware |
+| [**brainwires-network**](crates/brainwires-network/README.md) | Agent networking — IPC, remote bridge, mesh, WebRTC, LAN discovery |
+| [**brainwires-reasoning**](crates/brainwires-reasoning/README.md) | Reasoning scorers — complexity, entity enhancer, relevance, retrieval classifier, router, strategy selector, summarizer, validator |
+| [**brainwires-call-policy**](crates/brainwires-call-policy/README.md) | Policies on outbound provider calls — retry with backoff, circuit breaker, budget caps, response cache, error classification |
 | [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, Matter (experimental PASE), home automation, camera/webcam, raw USB |
-| [**brainwires-training**](crates/brainwires-training/README.md) | Training data pipelines, cloud fine-tuning (6 providers), and local LoRA/QLoRA/DoRA via Burn |
-| [**brainwires-telemetry**](crates/brainwires-telemetry/README.md) | OutcomeMetrics, Prometheus export, billing hooks |
+| [**brainwires-finetune**](crates/brainwires-finetune/README.md) | Cloud fine-tune APIs (OpenAI, Anthropic, Together, Fireworks, Anyscale, Bedrock, Vertex AI) + dataset pipelines |
+| [**brainwires-finetune-local**](crates/brainwires-finetune-local/README.md) | Local PEFT fine-tuning (LoRA / QLoRA / DoRA) on a pre-trained model, Burn-backed |
+| [**brainwires-training**](crates/brainwires-training/README.md) | Placeholder reserved for future training-from-scratch primitives — see crate README for the rename history |
+| [**brainwires-telemetry**](crates/brainwires-telemetry/README.md) | OutcomeMetrics, Prometheus export, anomaly detection, billing-hook trait |
 | [**brainwires-a2a**](crates/brainwires-a2a/README.md) | Agent-to-Agent protocol — JSON-RPC 2.0, HTTP/REST, and gRPC bindings |
-| [**brainwires-mcp-server**](crates/brainwires-mcp-server/README.md) | MCP server framework — build MCP tool servers with composable middleware; `http` feature adds stateless HTTP+SSE transport, Server Cards (SEP-1649), RFC9728, and Tasks (SEP-1686); `oauth` feature adds JWT validation middleware |
+| [**brainwires-sandbox**](crates/brainwires-sandbox/README.md) | Container-backed sandbox executor for untrusted tool code |
+| [**brainwires-sandbox-proxy**](crates/brainwires-sandbox-proxy/README.md) | Out-of-process sandbox-executor proxy for isolating untrusted code |
 
 ### Extras
 
@@ -231,33 +244,59 @@ cargo test -p brainwires-core
   brainwires (facade)
   ├── brainwires-agent
   │   ├── brainwires-core
-  │   ├── brainwires-tools
-  │   └── brainwires-knowledge (seal-knowledge feature)
+  │   ├── brainwires-call-policy
+  │   ├── brainwires-tool-runtime
+  │   ├── brainwires-tool-builtins
+  │   ├── brainwires-storage (seal feature — for PatternStore)
+  │   ├── brainwires-knowledge (seal-knowledge feature)
+  │   └── brainwires-permission (seal-feedback feature)
   ├── brainwires-knowledge
   │   ├── brainwires-core
-  │   └── brainwires-storage (knowledge feature)
-  ├── brainwires-storage
-  │   └── brainwires-core
-  ├── brainwires-memory
+  │   └── brainwires-storage
+  ├── brainwires-rag
   │   ├── brainwires-core
   │   └── brainwires-storage
-  ├── brainwires-mcp
+  ├── brainwires-prompting
+  │   ├── brainwires-core
+  │   └── brainwires-knowledge (knowledge feature)
+  ├── brainwires-storage
   │   └── brainwires-core
+  ├── brainwires-stores
+  │   ├── brainwires-core
+  │   └── brainwires-storage
+  ├── brainwires-memory
+  │   ├── brainwires-core
+  │   ├── brainwires-storage
+  │   └── brainwires-stores (memory feature)
+  ├── brainwires-tool-runtime
+  │   ├── brainwires-core
+  │   ├── brainwires-stores (sessions feature — SessionBroker)
+  │   ├── brainwires-rag (rag feature)
+  │   └── brainwires-sandbox (sandbox feature)
+  ├── brainwires-tool-builtins
+  │   ├── brainwires-tool-runtime
+  │   └── brainwires-rag (rag feature)
+  ├── brainwires-mcp-client
+  │   └── brainwires-core
+  ├── brainwires-mcp-server
+  │   ├── brainwires-core
+  │   └── brainwires-mcp-client
   ├── brainwires-network
   │   ├── brainwires-core
-  │   ├── brainwires-mcp
-  │   ├── brainwires-mcp-server
+  │   ├── brainwires-mcp-client
   │   └── brainwires-a2a (a2a-transport feature)
-  ├── brainwires-mcp-server
-  │   └── brainwires-mcp
-  ├── brainwires-training
+  ├── brainwires-finetune
   │   ├── brainwires-core
-  │   └── brainwires-providers (cloud feature)
+  │   └── brainwires-provider (cloud feature)
+  ├── brainwires-finetune-local
+  │   ├── brainwires-core
+  │   └── brainwires-finetune
+  ├── brainwires-training        (placeholder — no code yet)
   ├── brainwires-telemetry
   │   └── brainwires-core
   └── brainwires-hardware
-      ├── brainwires-providers (audio feature, optional)
-      └── (standalone for gpio, bluetooth, matter, home automation)
+      ├── brainwires-provider (audio feature)
+      └── brainwires-provider-speech (audio feature)
 ```
 
 ## License
