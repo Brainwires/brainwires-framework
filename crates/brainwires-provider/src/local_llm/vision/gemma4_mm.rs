@@ -31,6 +31,24 @@ fn diag_log(msg: &str) {
     eprintln!("{msg}");
 }
 
+/// Cross-platform millisecond timestamp for perf diags. Uses
+/// `Date::now()` on wasm32 (millisecond precision, monotonic-enough
+/// for the tens-of-ms deltas we measure) and `Instant`-since-static
+/// on native.
+fn perf_now_ms() -> f64 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        js_sys::Date::now()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::sync::OnceLock;
+        use std::time::Instant;
+        static START: OnceLock<Instant> = OnceLock::new();
+        START.get_or_init(Instant::now).elapsed().as_secs_f64() * 1000.0
+    }
+}
+
 /// Per-token diagnostic emitted for the first 5 generation steps and at
 /// step 0. Logs `next_id`, decoded text for that single token, and the
 /// top-5 logit values so we can tell whether the model is producing
@@ -237,6 +255,25 @@ impl Gemma4MultiModal {
         gpu_device: Device,
         cfg: Gemma4Config,
     ) -> Self {
+        // Register the Gemma chat-template special tokens with the
+        // tokenizer's added_vocabulary so subsequent `encode()` calls
+        // recognize them as single token IDs instead of chunking them
+        // into character subwords like ["<", "start", "_", "of", "_",
+        // "turn", ">"].
+        //
+        // The strings are already in `model.vocab` for any Gemma 4
+        // checkpoint (training data uses them); we just need to mark
+        // them special so the AddedVocabulary regex matches them
+        // before the BPE path runs. `add_special_tokens` reuses the
+        // existing IDs when the strings are already in vocab — only
+        // assigns new IDs when truly absent — so this is safe.
+        let mut tokenizer = tokenizer;
+        let chat_specials = [
+            tokenizers::AddedToken::from("<start_of_turn>", true).normalized(false),
+            tokenizers::AddedToken::from("<end_of_turn>", true).normalized(false),
+        ];
+        tokenizer.add_special_tokens(&chat_specials);
+
         Self {
             model: Mutex::new(model),
             tokenizer,
@@ -561,18 +598,27 @@ impl Gemma4MultiModal {
         }
 
         // 4. Autoregressive loop — one token at a time.
+        // Per-token timing breakdown is logged for the first 5 steps so
+        // we can profile what's slow without spamming logs forever.
         for step in 0..max_new_tokens.saturating_sub(1) {
+            let t_start = perf_now_ms();
+
             let token_tensor = Tensor::from_vec(vec![next_id], (1, 1), &Device::Cpu)?;
             let single_embed = model.language_model.embed_tokens(&token_tensor)?;
+            let t_embed = perf_now_ms();
+
             // Single-token PLE table: same shape rules but with T=1.
             let per_layer_step_cpu = model
                 .language_model
                 .compute_per_layer_inputs(&token_tensor, &single_embed)?;
+            let t_ple = perf_now_ms();
+
             let single_embed = single_embed.to_device(&self.gpu_device)?;
             let per_layer_step_gpu = match per_layer_step_cpu {
                 Some(t) => Some(t.to_device(&self.gpu_device)?),
                 None => None,
             };
+            let t_xfer = perf_now_ms();
 
             let logits_gpu = model.language_model.forward_embeds_with_per_layer(
                 &single_embed,
@@ -581,9 +627,30 @@ impl Gemma4MultiModal {
                 1,
                 1,
             )?;
+            let t_forward_dispatch = perf_now_ms();
+
             let logits = logits_gpu.to_device_async(&Device::Cpu).await?;
+            let t_readback = perf_now_ms();
+
             next_id = argmax_last(&logits)?;
+            let t_argmax = perf_now_ms();
+
             log_step_diag(step + 1, &logits, next_id, &self.tokenizer);
+
+            if step < 5 {
+                diag_log(&format!(
+                    "[gemma4/perf] step {step}: total={:.1}ms \
+                     [embed_cpu={:.1} ple_cpu={:.1} xfer_to_gpu={:.1} \
+                     forward_dispatch={:.1} readback={:.1} argmax={:.1}]",
+                    t_argmax - t_start,
+                    t_embed - t_start,
+                    t_ple - t_embed,
+                    t_xfer - t_ple,
+                    t_forward_dispatch - t_xfer,
+                    t_readback - t_forward_dispatch,
+                    t_argmax - t_readback,
+                ));
+            }
 
             if Some(next_id) == eos_token_id {
                 break;

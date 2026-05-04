@@ -94,6 +94,8 @@ hf-hub = { version = "0.4", default-features = false, features = ["tokio", "rust
 getrandom = { version = "0.2", features = ["js"] }
 getrandom_v3 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
 web-sys = { version = "0.3", features = ["console"] }
+# `js-sys` for `Date::now()` used by per-token perf diag timestamps.
+js-sys = "0.3"
 
 [features]
 # No default features. Native callers must opt into `native` (the workspace
