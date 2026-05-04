@@ -361,6 +361,26 @@ impl Gemma4MultiModal {
         let input_ids: Vec<u32> = enc.get_ids().to_vec();
         let prompt_len = input_ids.len();
 
+        // Diagnostic: log the prompt encoding so we can verify the
+        // Gemma chat-template special tokens (`<bos>`,
+        // `<start_of_turn>`, `<end_of_turn>`) are recognized as single
+        // token IDs rather than chunked into character subwords. If
+        // we see ~10 tokens for "<bos><start_of_turn>user\nhello..."
+        // the special tokens are recognized; ~28+ tokens means they
+        // were tokenized as plain text and the model never sees the
+        // chat template structure.
+        let preview_n = prompt_len.min(40);
+        diag_log(&format!(
+            "[gemma4/diag] prompt encoded: len={prompt_len} \
+             ids[..{preview_n}]={:?} \
+             tokens[..{preview_n}]={:?}",
+            &input_ids[..preview_n],
+            enc.get_tokens()
+                .iter()
+                .take(preview_n)
+                .collect::<Vec<_>>(),
+        ));
+
         let image_token_id = self.cfg.image_token_id as u32;
 
         // Find positions where image tokens appear (on CPU, no GPU eq needed).

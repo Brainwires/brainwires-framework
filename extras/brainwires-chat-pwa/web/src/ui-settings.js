@@ -66,11 +66,27 @@ export async function render(root) {
     main.appendChild(await sectionVoice());
     main.appendChild(await sectionAbout());
 
-    // Partial update: refresh just the affected card when a download completes.
+    // Partial update: refresh just the affected card when its download
+    // state changes (start, complete, error, cancel). This is what makes
+    // the Cancel button appear/disappear and the Download button toggle
+    // its disabled state in real time.
+    //
+    // The `download` phase fires once per chunk — gate by tracking the
+    // last-seen phase per model so we only re-render on actual transitions.
+    const _lastPhasePerModel = new Map();
     stateEvents.addEventListener('model_progress', (e) => {
         const d = e.detail;
-        if (d && d.phase === 'ready' && d.modelId) {
+        if (!d || !d.modelId) return;
+        const last = _lastPhasePerModel.get(d.modelId);
+        if (d.phase && d.phase !== last) {
+            _lastPhasePerModel.set(d.modelId, d.phase);
             refreshCard(d.modelId);
+        }
+    });
+    stateEvents.addEventListener('model_deleted', (e) => {
+        if (e.detail && e.detail.modelId) {
+            _lastPhasePerModel.delete(e.detail.modelId);
+            refreshCard(e.detail.modelId);
         }
     });
 }
@@ -510,17 +526,29 @@ async function buildLlmCard(modelId) {
 
     const actions = el('div', { class: 'settings-actions' });
     if (!downloaded) {
+        const downloadingThis = banner.isDownloadActive() && banner.activeModelId() === modelId;
+        const anyDownloadActive = banner.isDownloadActive();
+        const downloadAttrs = { type: 'button' };
+        if (anyDownloadActive) downloadAttrs.disabled = '';
         actions.appendChild(el('button', {
             class: 'bw-btn bw-btn-primary bw-btn-sm',
-            attrs: { type: 'button' },
-            onClick: () => banner.startDownload(modelId),
+            attrs: downloadAttrs,
+            onClick: async () => {
+                banner.startDownload(modelId);
+                await refreshCard(modelId);
+            },
         }, t('settings.localModel.download')));
-        actions.appendChild(el('button', {
-            class: 'bw-btn bw-btn-secondary bw-btn-sm',
-            attrs: { type: 'button' },
-            onClick: () => cancelDownload(modelId),
-        }, t('settings.localModel.cancel')));
-        if (partial && partial.hasData) {
+        if (downloadingThis) {
+            actions.appendChild(el('button', {
+                class: 'bw-btn bw-btn-secondary bw-btn-sm',
+                attrs: { type: 'button' },
+                onClick: async () => {
+                    cancelDownload(modelId);
+                    await refreshCard(modelId);
+                },
+            }, t('settings.localModel.cancel')));
+        }
+        if (partial && partial.hasData && !downloadingThis) {
             actions.appendChild(el('button', {
                 class: 'bw-btn bw-btn-danger bw-btn-sm',
                 attrs: { type: 'button' },
@@ -578,15 +606,30 @@ async function buildEmbeddingCard(m) {
 
     const actions = el('div', { class: 'settings-actions' });
     if (!downloaded) {
+        const downloadingThis = banner.isDownloadActive() && banner.activeModelId() === m.id;
+        const anyDownloadActive = banner.isDownloadActive();
+        const downloadAttrs = { type: 'button' };
+        if (anyDownloadActive) downloadAttrs.disabled = '';
         actions.appendChild(el('button', {
             class: 'bw-btn bw-btn-primary bw-btn-sm',
-            attrs: { type: 'button' },
-            onClick: () => {
+            attrs: downloadAttrs,
+            onClick: async () => {
                 banner.startDownload(m.id);
                 toast(`Downloading ${m.displayName}…`);
+                await refreshCard(m.id);
             },
         }, 'Download'));
-        if (partial && partial.hasData) {
+        if (downloadingThis) {
+            actions.appendChild(el('button', {
+                class: 'bw-btn bw-btn-secondary bw-btn-sm',
+                attrs: { type: 'button' },
+                onClick: async () => {
+                    cancelDownload(m.id);
+                    await refreshCard(m.id);
+                },
+            }, 'Cancel'));
+        }
+        if (partial && partial.hasData && !downloadingThis) {
             actions.appendChild(el('button', {
                 class: 'bw-btn bw-btn-danger bw-btn-sm',
                 attrs: { type: 'button' },
