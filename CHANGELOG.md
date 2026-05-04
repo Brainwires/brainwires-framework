@@ -9,6 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored (BREAKING)
 
+#### `brainwires-seal` resurrected from agent submodule
+
+The Self-Evolving Agentic Learning system moves out of
+`brainwires-agent::seal` into its own crate **`brainwires-seal`**
+(~6k LOC). Step 3 of the Phase 11 agent decomposition.
+
+- `crates/brainwires-agent/src/seal/` → `crates/brainwires-seal/src/`
+  (mod.rs becomes lib.rs; README pulled up).
+- New crate v0.11.0: deps `brainwires-core` (for `ResponseConfidence`
+  + graph traits — `ResponseConfidence` was moved to core in 11a),
+  `brainwires-tool-runtime` (learning loop's outcome categorization),
+  plus the LanceDB stack (`brainwires-storage` + `arrow-array` +
+  `arrow-schema` + `lancedb`) always-on for the pattern store, plus
+  futures, regex, async-trait, tokio.
+- Optional features (renamed from agent's `seal-*` to bare names):
+  - `knowledge` (was `seal-knowledge`) — pulls `brainwires-knowledge`
+  - `feedback` (was `seal-feedback`) — pulls `brainwires-permission`
+  - `mdap` (was `seal-mdap`) — pulls `brainwires-mdap`
+- agent Cargo.toml: drops `seal`, `seal-mdap`, `seal-feedback`,
+  `seal-knowledge` features; drops the deps that backed them
+  (`brainwires-knowledge`, `brainwires-permission`,
+  `brainwires-storage`, `arrow-array`, `arrow-schema`, `lancedb`,
+  `brainwires-mdap`).
+- The umbrella `brainwires` facade gains a `brainwires-seal` dep;
+  `seal` feature now maps to `dep:brainwires-seal`. The `learning`
+  preset rewrites to `brainwires-seal/knowledge` +
+  `brainwires-seal/feedback`. The `full` preset's
+  `brainwires-agent/seal-*` entries become `brainwires-seal/*`.
+- `extras/brainwires-cli` adds `brainwires-seal` as a direct dep
+  (was using `brainwires-agent::seal::pattern_store::*`); the CLI's
+  `crate::storage::mod.rs` re-export points at `brainwires_seal`.
+
+API breakage:
+- `Cargo.toml`: drop `brainwires-agent/seal*` features; add
+  `brainwires-seal` (with optional `knowledge` / `feedback` /
+  `mdap` features).
+- `use brainwires_agent::seal::*` → `use brainwires_seal::*`.
+- `use brainwires::seal::*` continues to work (facade re-export).
+- `brainwires-agent`'s `seal-feedback` / `seal-knowledge` /
+  `seal-mdap` features → `brainwires-seal/feedback` /
+  `brainwires-seal/knowledge` / `brainwires-seal/mdap`.
+
+The 0.4.x deprecation tombstone in `deprecated/brainwires-seal/` was
+removed; the name is reclaimed.
+
+Drive-by: cleaned up `brainwires-finetune`'s dead `local` feature.
+The local-PEFT code was extracted to `brainwires-finetune-local` in
+Phase 7b but the feature gate, stub `crate::local::*` imports in
+`manager.rs`, and orphaned burn / safetensors deps were left behind.
+Removed the feature, the dead imports, and the unused deps.
+`brainwires-finetune` is now cloud-only as advertised; consumers
+already wire `brainwires-finetune-local` directly for local training.
+
 #### `brainwires-skills` resurrected from agent submodule
 
 The SKILL.md skills system moves out of `brainwires-agent::skills`

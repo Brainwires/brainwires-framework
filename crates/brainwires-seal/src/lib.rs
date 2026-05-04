@@ -52,7 +52,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use brainwires_agent::seal::{SealProcessor, SealConfig};
+//! use brainwires_seal::{SealProcessor, SealConfig};
 //!
 //! let config = SealConfig::default();
 //! let mut processor = SealProcessor::new(config);
@@ -70,9 +70,9 @@
 //! ```
 
 pub mod coreference;
-#[cfg(feature = "seal-feedback")]
+#[cfg(feature = "feedback")]
 pub mod feedback_bridge;
-#[cfg(feature = "seal-knowledge")]
+#[cfg(feature = "knowledge")]
 pub mod knowledge_integration;
 pub mod learning;
 /// LanceDB-backed pattern store for SEAL self-evolving learning.
@@ -89,9 +89,9 @@ pub use coreference::{
     CoreferenceResolver, DialogState, ReferenceType, ResolvedReference, SalienceScore,
     UnresolvedReference,
 };
-#[cfg(feature = "seal-feedback")]
+#[cfg(feature = "feedback")]
 pub use feedback_bridge::{FeedbackBridge, FeedbackProcessingStats};
-#[cfg(feature = "seal-knowledge")]
+#[cfg(feature = "knowledge")]
 pub use knowledge_integration::{
     EntityResolutionStrategy, IntegrationConfig, SealKnowledgeCoordinator,
 };
@@ -362,7 +362,7 @@ impl SealProcessor {
     ///
     /// This method records MDAP execution patterns to help improve
     /// future task decomposition and voting strategies.
-    #[cfg(feature = "seal-mdap")]
+    #[cfg(feature = "mdap")]
     pub fn record_mdap_metrics(&mut self, metrics: &brainwires_mdap::MdapMetrics) {
         if !self.config.enable_learning {
             return;

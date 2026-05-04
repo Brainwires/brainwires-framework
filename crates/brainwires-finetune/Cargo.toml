@@ -35,15 +35,10 @@ reqwest = { version = "0.12", features = ["json", "stream", "multipart"], option
 tokio = { workspace = true, optional = true }
 brainwires-provider = { workspace = true, optional = true }
 
-# Local feature — individual burn crates to avoid cubecl-cpu links conflict
-burn-core = { workspace = true, optional = true }
-burn-nn = { workspace = true, optional = true }
-burn-optim = { workspace = true, optional = true }
-burn-autodiff = { workspace = true, optional = true }
-burn-wgpu = { workspace = true, optional = true }
-burn-ndarray = { workspace = true, optional = true }
+# Local-fine-tune deps (burn / safetensors) are gone — moved with the
+# code to `brainwires-finetune-local`. `tokenizers` survives because the
+# `datasets-hf-tokenizer` feature still uses it.
 tokenizers = { workspace = true, optional = true }
-safetensors = { workspace = true, optional = true }
 
 # Bedrock feature
 aws-sigv4 = { workspace = true, optional = true }
@@ -57,15 +52,11 @@ gcp_auth = { workspace = true, optional = true }
 [features]
 default = ["cloud"]
 cloud = ["dep:reqwest", "dep:tokio", "dep:brainwires-provider"]
-local = [
-    "dep:tokio",
-    "dep:burn-core", "dep:burn-nn", "dep:burn-optim",
-    "dep:burn-autodiff", "dep:burn-wgpu", "dep:burn-ndarray",
-    "dep:tokenizers", "dep:safetensors",
-]
+# Local PEFT (LoRA / QLoRA / DoRA) lives in `brainwires-finetune-local` since
+# the 0.11 split. Depend on that crate directly for local training.
 bedrock = ["cloud", "dep:aws-sigv4", "dep:aws-credential-types", "dep:aws-smithy-runtime-api", "dep:http"]
 vertex = ["cloud", "dep:gcp_auth"]
-full = ["cloud", "local", "bedrock", "vertex", "datasets-full"]
+full = ["cloud", "bedrock", "vertex", "datasets-full"]
 # Datasets sub-features
 datasets-hf-tokenizer = ["dep:tokenizers"]
 datasets-tiktoken = ["dep:tiktoken-rs"]

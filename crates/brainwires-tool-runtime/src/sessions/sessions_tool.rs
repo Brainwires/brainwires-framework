@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 
-use brainwires_stores::broker::{SessionBroker, SpawnRequest};
+use brainwires_stores::session::broker::{SessionBroker, SpawnRequest};
 use brainwires_stores::SessionId;
 
 /// Tool name for the list-sessions tool.
@@ -429,7 +429,7 @@ impl SessionsTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_stores::broker::{SessionMessage, SessionSummary, SpawnedSession};
+    use brainwires_stores::session::broker::{SessionMessage, SessionSummary, SpawnedSession};
     use async_trait::async_trait;
     use chrono::{TimeZone, Utc};
     use std::sync::Mutex;

@@ -5,7 +5,7 @@
 
 use brainwires::knowledge::EntityType;
 use brainwires::knowledge::bks_pks::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
-use brainwires::seal::{
+use brainwires_seal::{
     EntityResolutionStrategy, IntegrationConfig, ReferenceType, ResolvedReference, SalienceScore,
     SealKnowledgeCoordinator, SealProcessingResult, UnresolvedReference,
 };

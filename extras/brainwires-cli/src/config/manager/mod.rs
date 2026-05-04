@@ -13,7 +13,7 @@ use crate::types::provider::ProviderType;
 use brainwires::agent_network::auth::keyring::KeyringKeyStore;
 use brainwires::agent_network::traits::KeyStore;
 use brainwires::knowledge::bks_pks::KnowledgeSettings as KnowledgeSettingsCore;
-use brainwires::seal::SealConfig;
+use brainwires_seal::SealConfig;
 
 /// Application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -398,8 +398,8 @@ impl Default for SealKnowledgeSettings {
 
 impl SealKnowledgeSettings {
     /// Convert to IntegrationConfig for use with SealKnowledgeCoordinator
-    pub fn to_integration_config(&self) -> brainwires::seal::IntegrationConfig {
-        use brainwires::seal::EntityResolutionStrategy;
+    pub fn to_integration_config(&self) -> brainwires_seal::IntegrationConfig {
+        use brainwires_seal::EntityResolutionStrategy;
 
         let strategy = match self.entity_resolution_strategy.as_str() {
             "seal_first" => EntityResolutionStrategy::SealFirst,
@@ -410,7 +410,7 @@ impl SealKnowledgeSettings {
             },
         };
 
-        brainwires::seal::IntegrationConfig {
+        brainwires_seal::IntegrationConfig {
             enabled: self.enabled,
             seal_to_knowledge: self.seal_to_knowledge,
             knowledge_to_seal: self.knowledge_to_seal,

@@ -543,7 +543,7 @@ mod tests {
     use super::*;
     use crate::storage::VectorDatabase;
     use crate::utils::entity_extraction::EntityType;
-    use brainwires::seal::QuestionType;
+    use brainwires_seal::QuestionType;
     use tempfile::TempDir;
 
     async fn create_test_store() -> (PatternStore, TempDir) {

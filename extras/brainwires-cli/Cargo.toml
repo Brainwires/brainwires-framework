@@ -154,6 +154,7 @@ brainwires = { path = "../../crates/brainwires", features = ["full"] }
 brainwires-agent = { workspace = true }
 brainwires-mdap = { workspace = true }
 brainwires-skills = { workspace = true, features = ["registry"] }
+brainwires-seal = { workspace = true }
 brainwires-tool-runtime = { workspace = true, features = ["native", "orchestrator", "rag"] }
 brainwires-tool-builtins = { workspace = true, features = ["native", "interpreters", "rag"] }
 brainwires-knowledge = { workspace = true, features = ["alt-folder-name"] }

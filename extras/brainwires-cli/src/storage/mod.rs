@@ -43,4 +43,4 @@ pub use crate::persistent_task_manager::PersistentTaskManager;
 pub use crate::plan_mode_store::PlanModeStore;
 
 // SEAL pattern store moved to brainwires-agent::seal where its types live.
-pub use brainwires_agent::seal::pattern_store::{LanceDatabaseExt, PatternMetadata, PatternStore};
+pub use brainwires_seal::pattern_store::{LanceDatabaseExt, PatternMetadata, PatternStore};

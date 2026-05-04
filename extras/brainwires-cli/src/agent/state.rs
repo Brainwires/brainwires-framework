@@ -112,10 +112,10 @@ pub struct AgentState {
     pub has_pending_request: bool,
 
     /// SEAL processor for query enhancement
-    pub seal_processor: Option<brainwires::seal::SealProcessor>,
+    pub seal_processor: Option<brainwires_seal::SealProcessor>,
 
     /// Dialog state for SEAL
-    pub seal_dialog_state: brainwires::seal::DialogState,
+    pub seal_dialog_state: brainwires_seal::DialogState,
 
     /// Entity store for SEAL
     pub seal_entity_store: crate::utils::entity_extraction::EntityStore,
@@ -349,11 +349,11 @@ impl AgentState {
             exit_when_done: false,
             has_pending_request,
             seal_processor: if seal_settings.enabled {
-                Some(brainwires::seal::SealProcessor::with_defaults())
+                Some(brainwires_seal::SealProcessor::with_defaults())
             } else {
                 None
             },
-            seal_dialog_state: brainwires::seal::DialogState::new(),
+            seal_dialog_state: brainwires_seal::DialogState::new(),
             seal_entity_store: crate::utils::entity_extraction::EntityStore::new(),
             seal_entity_extractor: crate::utils::entity_extraction::EntityExtractor::new(),
             seal_enabled: seal_settings.enabled,

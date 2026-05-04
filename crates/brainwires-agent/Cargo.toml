@@ -59,16 +59,9 @@ futures.workspace = true
 # Eval framework (optional)
 thiserror = { workspace = true, optional = true }
 
-# ── SEAL deps ──────────────────────────────────────────────────────────
-brainwires-knowledge = { workspace = true, optional = true }
-brainwires-permission = { workspace = true, optional = true }
-# SEAL pattern store — LanceDB-backed; optional since SEAL itself is optional.
-brainwires-storage = { workspace = true, default-features = false, features = ["native"], optional = true }
-arrow-array = { workspace = true, optional = true }
-arrow-schema = { workspace = true, optional = true }
-lancedb = { workspace = true, optional = true }
-# brainwires-mdap (extracted in 0.11) — only pulled when seal-mdap is on
-brainwires-mdap = { workspace = true, optional = true }
+# SEAL deps moved with the crate in Phase 11d (extracted to brainwires-seal).
+# brainwires-knowledge / brainwires-permission / brainwires-storage / arrow /
+# lancedb / brainwires-mdap are no longer agent-side concerns.
 
 # OpenTelemetry (optional, for otel feature)
 opentelemetry = { version = "0.28", optional = true }
@@ -105,12 +98,8 @@ otel = ["dep:opentelemetry"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native"]
 # MDAP — extracted to its own brainwires-mdap crate in Phase 11b.
 # (kept as a tracking comment so consumers know where the feature went.)
-# SEAL (Self-Evolving Agentic Learning) — pulls LanceDB stack for the
-# pattern store (PatternStore + LanceDatabaseExt under seal::pattern_store).
-seal = ["dep:brainwires-storage", "dep:arrow-array", "dep:arrow-schema", "dep:lancedb"]
-seal-mdap = ["seal", "dep:brainwires-mdap"]
-seal-feedback = ["seal", "dep:brainwires-permission"]
-seal-knowledge = ["seal", "dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
+# SEAL — extracted to its own brainwires-seal crate in Phase 11d.
+# (kept as a tracking comment so consumers know where the features went.)
 # Skills — extracted to its own brainwires-skills crate in Phase 11c.
 # (kept as a tracking comment so consumers know where the features went.)
 

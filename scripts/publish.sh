@@ -99,6 +99,11 @@ CRATES=(
     # core + tool-runtime only.
     brainwires-skills
 
+    # Layer 4f: SEAL — extracted from brainwires-agent in 0.11. Depends on
+    # core + tool-runtime + storage (LanceDB pattern store). Optional deps
+    # on knowledge / permission / mdap behind features.
+    brainwires-seal
+
     # Layer 5: Agency
     brainwires-agent
     brainwires-network

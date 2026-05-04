@@ -7,18 +7,18 @@ use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary};
 #[cfg(feature = "cloud")]
 use crate::cloud::{CloudFineTuneConfig, FineTuneProvider, JobPoller};
 
-#[cfg(feature = "local")]
-use crate::local::{LocalTrainingConfig, TrainedModelArtifact, TrainingBackend};
+// Local training backend lives in `brainwires-finetune-local` since the
+// 0.11 split. Consumers wire that crate's `TrainingBackend` impl into
+// their own orchestrator (this manager covers cloud only).
 
 /// High-level training orchestrator.
 ///
-/// Provides a unified API across cloud and local training backends.
+/// Provides a unified API for cloud fine-tuning across providers. Local
+/// training backends (LoRA / QLoRA / DoRA) live in `brainwires-finetune-local`
+/// — drive them from your own loop.
 pub struct TrainingManager {
     #[cfg(feature = "cloud")]
     cloud_providers: HashMap<String, Box<dyn FineTuneProvider>>,
-
-    #[cfg(feature = "local")]
-    local_backend: Option<Box<dyn TrainingBackend>>,
 }
 
 impl TrainingManager {
@@ -27,8 +27,6 @@ impl TrainingManager {
         Self {
             #[cfg(feature = "cloud")]
             cloud_providers: HashMap::new(),
-            #[cfg(feature = "local")]
-            local_backend: None,
         }
     }
 
@@ -38,13 +36,6 @@ impl TrainingManager {
         let name = provider.name().to_string();
         info!("Registered cloud fine-tune provider: {}", name);
         self.cloud_providers.insert(name, provider);
-    }
-
-    /// Set the local training backend.
-    #[cfg(feature = "local")]
-    pub fn set_local_backend(&mut self, backend: Box<dyn TrainingBackend>) {
-        info!("Set local training backend: {}", backend.name());
-        self.local_backend = Some(backend);
     }
 
     /// List registered cloud providers.
@@ -140,20 +131,9 @@ impl TrainingManager {
         Ok(all_jobs)
     }
 
-    /// Run local training.
-    #[cfg(feature = "local")]
-    pub fn train_local(
-        &self,
-        config: LocalTrainingConfig,
-        callback: Box<dyn Fn(crate::types::TrainingProgress) + Send>,
-    ) -> Result<TrainedModelArtifact, TrainingError> {
-        let backend = self.local_backend.as_ref().ok_or_else(|| {
-            TrainingError::Backend("No local training backend configured".to_string())
-        })?;
-
-        info!("Starting local training with {} backend", backend.name());
-        backend.train(config, callback)
-    }
+    // train_local removed — local fine-tuning lives in
+    // `brainwires-finetune-local` since the 0.11 split. Drive it directly
+    // from that crate's `TrainingBackend` impl.
 }
 
 impl Default for TrainingManager {

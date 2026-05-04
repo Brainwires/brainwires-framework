@@ -136,9 +136,7 @@ pub mod eval;
 
 // MDAP — extracted to its own brainwires-mdap crate in Phase 11b.
 
-// ── SEAL: Self-Evolving Agentic Learning ─────────────────────────────────
-#[cfg(feature = "seal")]
-pub mod seal;
+// SEAL — extracted to its own brainwires-seal crate in Phase 11d.
 
 // Skills — extracted to its own brainwires-skills crate in Phase 11c.
 
@@ -224,12 +222,7 @@ pub use system_prompts::{
     planner_agent_prompt, reasoning_agent_prompt, simple_agent_prompt,
 };
 
-// SEAL re-exports
-#[cfg(feature = "seal")]
-pub use seal::{
-    CoreferenceResolver, DialogState, LearningCoordinator as SealLearningCoordinator, QueryCore,
-    QueryCoreExtractor, ReflectionModule, SealConfig, SealProcessingResult, SealProcessor,
-};
+// SEAL re-exports — extracted to brainwires-seal in Phase 11d.
 
 // Cycle orchestration
 pub use cycle_orchestrator::{

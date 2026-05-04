@@ -369,9 +369,9 @@ pub struct App {
     /// Flag to signal main loop to resume AI response (after reattach with pending user message)
     pub pending_resume_ai: bool,
     /// SEAL processor for query enhancement
-    pub(super) seal_processor: Option<brainwires::seal::SealProcessor>,
+    pub(super) seal_processor: Option<brainwires_seal::SealProcessor>,
     /// Dialog state for SEAL coreference resolution
-    pub(super) seal_dialog_state: brainwires::seal::DialogState,
+    pub(super) seal_dialog_state: brainwires_seal::DialogState,
     /// Entity store for SEAL
     pub(super) seal_entity_store: crate::utils::entity_extraction::EntityStore,
     /// Entity extractor for SEAL
@@ -823,7 +823,7 @@ impl App {
             pending_resume_ai: false,
             // SEAL - Session handles preprocessing
             seal_processor: None,
-            seal_dialog_state: brainwires::seal::DialogState::new(),
+            seal_dialog_state: brainwires_seal::DialogState::new(),
             seal_entity_store: crate::utils::entity_extraction::EntityStore::new(),
             seal_entity_extractor: crate::utils::entity_extraction::EntityExtractor::new(),
             // Multi-Agent System
@@ -1145,11 +1145,11 @@ impl App {
             pending_resume_ai: false,
             // SEAL components for query enhancement
             seal_processor: if seal_settings.enabled {
-                Some(brainwires::seal::SealProcessor::with_defaults())
+                Some(brainwires_seal::SealProcessor::with_defaults())
             } else {
                 None
             },
-            seal_dialog_state: brainwires::seal::DialogState::new(),
+            seal_dialog_state: brainwires_seal::DialogState::new(),
             seal_entity_store: crate::utils::entity_extraction::EntityStore::new(),
             seal_entity_extractor: crate::utils::entity_extraction::EntityExtractor::new(),
             // Multi-Agent System
@@ -1221,7 +1221,7 @@ impl App {
     /// Update SEAL status from processing result
     ///
     /// Call this after SEAL preprocessing to update the UI status display.
-    pub fn update_seal_status(&mut self, result: &brainwires::seal::SealProcessingResult) {
+    pub fn update_seal_status(&mut self, result: &brainwires_seal::SealProcessingResult) {
         if !self.seal_status.show_status {
             return;
         }

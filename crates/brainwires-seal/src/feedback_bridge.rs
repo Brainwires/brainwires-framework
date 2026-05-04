@@ -25,7 +25,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use brainwires_agent::seal::FeedbackBridge;
+//! use brainwires_seal::FeedbackBridge;
 //!
 //! let bridge = FeedbackBridge::new(&audit_logger, &mut learning_coordinator);
 //! let stats = bridge.process_feedback_for_run("run-123")?;
