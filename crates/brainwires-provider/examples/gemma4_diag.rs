@@ -110,21 +110,34 @@ struct Args {
     /// Override the config.json path.
     #[arg(long)]
     config_file: Option<PathBuf>,
+
+    /// Load the full `embed_tokens_per_layer.weight` (~4.7 GB BF16 on
+    /// E2B) so the PLE pipeline runs with both token-identity and
+    /// projection components, matching HF's reference forward pass.
+    /// Default off because the chat-pwa skips this table to fit
+    /// WebGPU's 1 GB max_storage_buffer_binding_size; on `--device cpu`
+    /// with enough RAM this gives output that exercises the
+    /// `Gemma4TextScaledWordEmbedding(embed_scale=√hidden_per_layer)`
+    /// scale path verified against HF transformers issue #45206.
+    #[arg(long, default_value_t = false)]
+    load_ple_table: bool,
 }
 
 /// Tensors the chat-pwa filters out of the safetensors load. Replicated
 /// here so the native rig sees the same model as the chat-pwa.
 ///
 /// Source: `extras/brainwires-chat-pwa/wasm/src/vision.rs::gemma4_skip_reason`.
-fn gemma4_skip_reason(name: &str) -> Option<&'static str> {
+///
+/// `load_ple_table = true` keeps `embed_tokens_per_layer.weight` (~4.7 GB
+/// BF16) so the full PLE pipeline runs. Use this on `--device cpu` with
+/// enough RAM, or on a real GPU whose `max_storage_buffer_binding_size`
+/// can hold the table — the chat-pwa's default skip exists because
+/// WebGPU's 1 GB binding cap can't hold it as a single bind-group entry.
+fn gemma4_skip_reason(name: &str, load_ple_table: bool) -> Option<&'static str> {
     if name.contains(".audio_tower.") || name.contains(".embed_audio.") {
         return Some("audio");
     }
-    // `embed_tokens_per_layer.weight` is ~4.7 GB BF16 on E2B and is
-    // optional via candle-fork's projection-only PLE fallback. Skipping
-    // it avoids GPU memory pressure on the rig (matches chat-pwa's
-    // `ple-table-oversize` filter).
-    if name.ends_with(".embed_tokens_per_layer.weight") {
+    if !load_ple_table && name.ends_with(".embed_tokens_per_layer.weight") {
         return Some("ple-table-oversize");
     }
     if name.ends_with(".input_min")
@@ -190,6 +203,7 @@ fn is_cpu_pinned(candle_name: &str) -> bool {
 /// of `vb.device()` so the chat-pwa's mixed-device pipeline works.
 struct FilteredBackend {
     inner: Box<dyn SimpleBackend + 'static>,
+    load_ple_table: bool,
 }
 
 impl SimpleBackend for FilteredBackend {
@@ -202,7 +216,7 @@ impl SimpleBackend for FilteredBackend {
         dev: &Device,
     ) -> candle_core::Result<Tensor> {
         let hf_name = remap_candle_to_hf(name);
-        if let Some(reason) = gemma4_skip_reason(&hf_name) {
+        if let Some(reason) = gemma4_skip_reason(&hf_name, self.load_ple_table) {
             return Err(candle_core::Error::Msg(format!(
                 "tensor `{name}` filtered ({reason}) — caller should check \
                  contains_tensor first"
@@ -219,7 +233,7 @@ impl SimpleBackend for FilteredBackend {
         dev: &Device,
     ) -> candle_core::Result<Tensor> {
         let hf_name = remap_candle_to_hf(name);
-        if let Some(reason) = gemma4_skip_reason(&hf_name) {
+        if let Some(reason) = gemma4_skip_reason(&hf_name, self.load_ple_table) {
             return Err(candle_core::Error::Msg(format!(
                 "tensor `{name}` filtered ({reason})"
             )));
@@ -230,7 +244,7 @@ impl SimpleBackend for FilteredBackend {
 
     fn contains_tensor(&self, name: &str) -> bool {
         let hf_name = remap_candle_to_hf(name);
-        if gemma4_skip_reason(&hf_name).is_some() {
+        if gemma4_skip_reason(&hf_name, self.load_ple_table).is_some() {
             return false;
         }
         self.inner.contains_tensor(&hf_name)
@@ -403,8 +417,8 @@ async fn main() -> ExitCode {
     }
 
     eprintln!(
-        "[gemma4_diag] device={:?} model={} revision={} prompt={:?} target_layer={}",
-        args.device, args.model_id, args.revision, args.prompt, args.target_layer
+        "[gemma4_diag] device={:?} model={} revision={} prompt={:?} target_layer={} load_ple_table={}",
+        args.device, args.model_id, args.revision, args.prompt, args.target_layer, args.load_ple_table
     );
 
     let result = run(args).await;
@@ -463,6 +477,7 @@ async fn run(args: Args) -> Result<()> {
     };
     let backend: Box<dyn SimpleBackend + 'static> = Box::new(FilteredBackend {
         inner: Box::new(inner),
+        load_ple_table: args.load_ple_table,
     });
     let vb: VarBuilder = VarBuilderArgs::from_backend(backend, dtype, device.clone());
 
