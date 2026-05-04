@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Refactored (BREAKING)
+
+#### `ResponseConfidence` moved to `brainwires-core`
+
+Prep step for the Phase 11 agent decomposition. `ResponseConfidence`
++ `ConfidenceFactors` + `extract_confidence` + `quick_confidence_check`
+moved from `brainwires-agent` into `brainwires-core::confidence`. The
+type is the only cross-domain piece shared between agent runtime and
+the (about-to-be-extracted) `brainwires-seal` learning loop; promoting
+it to core lets seal extract cleanly without depending on agent.
+
+A `pub use brainwires_core::confidence::*;` shim in
+`brainwires-agent/src/lib.rs` keeps existing `brainwires_agent::ResponseConfidence`
+imports working through Phase 11. The shim is removed in Phase 11g
+(final cleanup).
+
+Migration:
+- New code: `use brainwires_core::confidence::ResponseConfidence;`
+- Existing code: continues to work via the shim until Phase 11g.
+
 ## [0.11.0] — 2026-05-02
 
 The "rename and split" release. Closes the deprecated/ god-crate

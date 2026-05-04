@@ -41,7 +41,7 @@
 //! 7. If failed: record failure for pattern avoidance
 
 use super::query_core::{QueryCore, QuestionType};
-use crate::confidence::ResponseConfidence;
+use brainwires_core::confidence::ResponseConfidence;
 use brainwires_core::graph::EntityType;
 use brainwires_tool_runtime::{ToolErrorCategory, ToolOutcome};
 use chrono::Utc;

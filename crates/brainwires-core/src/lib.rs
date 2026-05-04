@@ -12,6 +12,9 @@
 //! - Chat options and provider configuration
 //! - Permission modes
 
+/// Response confidence extraction (CISC heuristics) — used by SEAL learning
+/// and validation policies to score model output quality.
+pub mod confidence;
 /// Content source types for tracking where content originates.
 pub mod content_source;
 /// Embedding provider trait for vector operations.

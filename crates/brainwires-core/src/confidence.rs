@@ -3,7 +3,7 @@
 //! Based on CISC paper (arxiv:2502.06233v1) - extracts confidence scores from
 //! LLM responses based on multiple heuristics for use in decision-making and SEAL learning.
 
-use brainwires_core::ChatResponse;
+use crate::ChatResponse;
 
 /// Response confidence metrics
 #[derive(Debug, Clone, Default)]
@@ -157,12 +157,12 @@ pub fn extract_confidence(response: &ChatResponse) -> ResponseConfidence {
 
 /// Extract text from response (handles both simple text and blocks)
 fn get_response_text(response: &ChatResponse) -> String {
-    use brainwires_core::MessageContent;
+    use crate::MessageContent;
 
     match &response.message.content {
         MessageContent::Text(text) => text.clone(),
         MessageContent::Blocks(blocks) => {
-            use brainwires_core::ContentBlock;
+            use crate::ContentBlock;
             blocks
                 .iter()
                 .filter_map(|block| {
@@ -258,12 +258,12 @@ fn calculate_length_confidence(text: &str) -> f64 {
 /// Tool use indicates structured thinking and specific actions,
 /// which often correlates with higher confidence and accuracy.
 fn calculate_structure_confidence(response: &ChatResponse) -> f64 {
-    use brainwires_core::MessageContent;
+    use crate::MessageContent;
 
     match &response.message.content {
         MessageContent::Text(_) => 0.70, // Pure text
         MessageContent::Blocks(blocks) => {
-            use brainwires_core::ContentBlock;
+            use crate::ContentBlock;
 
             // Check for tool use blocks
             let has_tool_use = blocks
@@ -309,12 +309,12 @@ pub fn quick_confidence_check(response: &ChatResponse) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_core::{Message, MessageContent, Usage};
+    use crate::{Message, MessageContent, Usage};
 
     fn make_response(text: &str, finish_reason: Option<&str>) -> ChatResponse {
         ChatResponse {
             message: Message {
-                role: brainwires_core::Role::Assistant,
+                role: crate::Role::Assistant,
                 content: MessageContent::Text(text.to_string()),
                 name: None,
                 metadata: None,
