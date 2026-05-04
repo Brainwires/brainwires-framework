@@ -255,25 +255,15 @@ impl Gemma4MultiModal {
         gpu_device: Device,
         cfg: Gemma4Config,
     ) -> Self {
-        // Register the Gemma chat-template special tokens with the
-        // tokenizer's added_vocabulary so subsequent `encode()` calls
-        // recognize them as single token IDs instead of chunking them
-        // into character subwords like ["<", "start", "_", "of", "_",
-        // "turn", ">"].
-        //
-        // The strings are already in `model.vocab` for any Gemma 4
-        // checkpoint (training data uses them); we just need to mark
-        // them special so the AddedVocabulary regex matches them
-        // before the BPE path runs. `add_special_tokens` reuses the
-        // existing IDs when the strings are already in vocab — only
-        // assigns new IDs when truly absent — so this is safe.
-        let mut tokenizer = tokenizer;
-        let chat_specials = [
-            tokenizers::AddedToken::from("<start_of_turn>", true).normalized(false),
-            tokenizers::AddedToken::from("<end_of_turn>", true).normalized(false),
-        ];
-        tokenizer.add_special_tokens(&chat_specials);
-
+        // Note: Gemma 4's chat tokens `<|turn>` (id 105) and `<turn|>`
+        // (id 106) are already registered as special tokens in the
+        // tokenizer.json's `added_tokens` array, so `encode()`
+        // recognizes them as units without any runtime registration.
+        // (An earlier version of this code mistakenly tried to add
+        // `<start_of_turn>` / `<end_of_turn>` — those are Gemma 3's
+        // chat token names; Gemma 4 uses different strings, and
+        // adding them as new tokens assigned out-of-vocab IDs
+        // 262144 / 262145 which broke the embedding lookup.)
         Self {
             model: Mutex::new(model),
             tokenizer,

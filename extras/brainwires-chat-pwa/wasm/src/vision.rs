@@ -1714,51 +1714,47 @@ async fn build_and_generate_gemma4(
         .await
 }
 
-/// Build the Gemma chat-template prompt for a full message list.
+/// Build the Gemma 4 chat-template prompt for a full message list.
 ///
-/// Format (matches the official Gemma tokenizer's `chat_template`):
+/// Gemma 4 uses **different chat tokens than Gemma 3**:
+///   - `<|turn>` (id 105) — begin-of-turn (previously `<start_of_turn>`)
+///   - `<turn|>` (id 106) — end-of-turn   (previously `<end_of_turn>`)
+///
+/// Note pipe placement: `<|turn>` and `<turn|>`, not `<|turn|>` or
+/// `<start_of_turn>`. These strings are in the tokenizer's
+/// `added_tokens` array with `special: true`, so `encode()` matches
+/// them as single units verbatim (no runtime registration needed).
+///
+/// Role string for the assistant is **`"assistant"`** (not `"model"`).
+///
+/// Format:
 ///
 /// ```text
-/// <bos><start_of_turn>user
-/// hello<end_of_turn>
-/// <start_of_turn>model
-/// hi<end_of_turn>
-/// <start_of_turn>user
-/// how are you<end_of_turn>
-/// <start_of_turn>model
+/// <bos><|turn>user
+/// hello<turn|>
+/// <|turn>assistant
+/// hi<turn|>
+/// <|turn>user
+/// how are you<turn|>
+/// <|turn>assistant
 /// ```
 ///
-/// The trailing `<start_of_turn>model\n` is the generation prompt that
-/// cues the model to begin its response. `<bos>`, `<start_of_turn>`,
-/// and `<end_of_turn>` are special-token strings the Gemma 4 tokenizer
-/// recognizes verbatim — `tokenizer.encode(text, false)` produces the
-/// correct integer IDs without `add_special_tokens=true`.
+/// The trailing `<|turn>assistant\n` is the generation prompt that
+/// cues the model to begin its response.
 ///
-/// Role mapping: `"assistant" → "model"` per the official template.
-/// Other roles pass through unchanged.
-///
-/// `Image` parts are emitted as `<start_of_image>` literal markers. The
-/// downstream `Gemma4MultiModal::generate_greedy` finds those positions
-/// in the encoded prompt by `cfg.image_token_id` and splices in the
-/// vision-embedder output. Image bytes are returned alongside in
-/// `image_bytes` in the order they appeared.
-///
-/// Replaces the older `"role: text\n"` plain-join prefix that was
-/// fine for text-only Gemma 3 turn-token-aware paths but produced
-/// degenerate output on Gemma 4 base / instruction-tuned checkpoints
-/// (the model has never seen `"user: hello\nassistant: "` during
-/// training, only the chat-template form).
+/// `Image` parts are emitted as the `<|image|>` literal marker
+/// (id 258880). The downstream `Gemma4MultiModal::generate_greedy`
+/// finds those positions in the encoded prompt by `cfg.image_token_id`
+/// and splices in the vision-embedder output.
 fn build_gemma_chat_prompt(
     messages: &[JsMessage],
     image_bytes: &mut Vec<Vec<u8>>,
 ) -> Result<String, String> {
     let mut buf = String::from("<bos>");
     for m in messages {
-        let role: &str = if m.role == "assistant" {
-            "model"
-        } else {
-            m.role.as_str()
-        };
+        // Gemma 4 uses "user" / "assistant" / "system" verbatim — no
+        // assistant→model rename like Gemma 3.
+        let role: &str = m.role.as_str();
         let text = match &m.content {
             JsContent::Text(t) => t.clone(),
             JsContent::Parts(parts) => {
@@ -1771,21 +1767,23 @@ fn build_gemma_chat_prompt(
                                 .decode(data.as_bytes())
                                 .map_err(|e| format!("base64: {e}"))?;
                             image_bytes.push(bytes);
-                            out.push_str("<start_of_image>");
+                            // `<|image|>` (id 258880) is the canonical
+                            // image marker per the tokenizer config.
+                            out.push_str("<|image|>");
                         }
                     }
                 }
                 out
             }
         };
-        buf.push_str("<start_of_turn>");
+        buf.push_str("<|turn>");
         buf.push_str(role);
         buf.push('\n');
         buf.push_str(text.trim());
-        buf.push_str("<end_of_turn>\n");
+        buf.push_str("<turn|>\n");
     }
     // Generation cue.
-    buf.push_str("<start_of_turn>model\n");
+    buf.push_str("<|turn>assistant\n");
     Ok(buf)
 }
 
