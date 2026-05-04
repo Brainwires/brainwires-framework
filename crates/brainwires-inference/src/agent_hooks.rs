@@ -12,7 +12,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use brainwires_agent::agent_hooks::*;
+//! use crate::agent_hooks::*;
 //! use brainwires_agent::AgentContext;
 //!
 //! struct MyHooks;

@@ -23,6 +23,7 @@ brainwires-mdap = { workspace = true, optional = true }
 brainwires-skills = { workspace = true, optional = true }
 brainwires-seal = { workspace = true, optional = true }
 brainwires-eval = { workspace = true, optional = true }
+brainwires-inference = { workspace = true, optional = true }
 brainwires-tool-runtime = { workspace = true, optional = true }
 brainwires-tool-builtins = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
@@ -102,10 +103,12 @@ name = "storage_with_rag"
 required-features = ["memory", "rag"]
 
 [features]
-default = ["tools", "agents"]
+default = ["tools", "agents", "inference"]
 wasm = ["brainwires-core/wasm"]
 tools = ["dep:brainwires-tool-runtime", "dep:brainwires-tool-builtins"]
 agents = ["dep:brainwires-agent"]
+# LLM-driven workhorses (ChatAgent, TaskAgent, planner/judge/validator).
+inference = ["dep:brainwires-inference", "agents"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 session = ["dep:brainwires-stores", "brainwires-stores/session"]
 session-sqlite = ["session", "brainwires-stores/sqlite"]
@@ -130,7 +133,7 @@ rag = ["dep:brainwires-rag", "dep:brainwires-storage", "brainwires-storage/lance
 rag-full-languages = ["rag"]
 interpreters = ["tools", "brainwires-tool-builtins/interpreters"]
 providers = ["dep:brainwires-provider"]
-chat = ["providers"]
+chat = ["providers", "inference"]
 reasoning = ["dep:brainwires-reasoning"]
 seal = ["dep:brainwires-seal"]
 agent-network = ["dep:brainwires-network"]
@@ -172,7 +175,7 @@ agent-full = ["agents", "permissions", "prompting", "tools"]
 # Convenience: everything a researcher typically needs
 researcher = ["providers", "agents", "storage", "memory", "rag", "training", "datasets"]
 full = [
-    "tools", "agents", "storage", "memory", "mcp", "mdap", "knowledge",
+    "tools", "agents", "inference", "storage", "memory", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag-full-languages", "interpreters",
     "providers", "chat", "reasoning", "seal", "agent-network",
     "brainwires-seal/knowledge", "brainwires-seal/mdap", "brainwires-seal/feedback",

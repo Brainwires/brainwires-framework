@@ -9,6 +9,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored (BREAKING)
 
+#### `brainwires-inference` extracted from agent (the big one)
+
+The biggest piece of the Phase 11 agent decomposition. Every
+LLM-driven workhorse moves out of `brainwires-agent` into a new
+**`brainwires-inference`** crate. The principle: `brainwires-agent`
+is what holds agents together (locks, queues, message bus,
+coordination patterns); `brainwires-inference` is what makes them
+think (LLM loops, prompts, validators, planners, judges).
+
+Moves to `brainwires-inference/src/`:
+
+- `chat_agent.rs`, `task_agent/` — the two main streaming-completion
+  loops
+- `planner_agent.rs`, `judge_agent.rs`, `validator_agent.rs`,
+  `validation_agent.rs` — LLM-driven helper agents
+- `cycle_orchestrator.rs`, `plan_executor.rs` — Plan→Work→Judge driver
+  + plan execution
+- `validation_loop.rs` — quality-check loop
+- `summarization.rs` — history compaction via LLM
+- `system_prompts/` — agent prompt registry
+- `runtime.rs` — `AgentRuntime` + `run_agent_loop` (drives the
+  inference workhorses)
+- `context.rs` — `AgentContext` (owns the `AgentLifecycleHooks` trait
+  object)
+- `agent_hooks.rs` — `AgentLifecycleHooks` trait (references
+  `TaskAgentResult`)
+- `pool.rs` — `AgentPool` (TaskAgent pool, not generic)
+- `task_orchestrator.rs` — `TaskOrchestrator` (TaskAgent orchestration)
+
+`brainwires-agent` keeps coordination + patterns + schema only:
+- `communication`, `task_manager` / `task_queue`
+- locks: `file_locks`, `resource_locks`, `wait_queue`,
+  `access_control`, `operation_tracker`
+- `git_coordination`, `worktree`
+- `agent_manager`, `agent_tools`, `resource_checker`,
+  `execution_graph`, `otel`
+- patterns: `state_model`, `contract_net`, `saga`, `optimistic`,
+  `market_allocation`, `workflow`
+- schema: `roles`, `personas`
+
+New crate: `brainwires-inference` v0.11.0
+- deps: brainwires-core, brainwires-agent, brainwires-call-policy,
+  brainwires-tool-runtime + tokio + futures + serde + sha2 + hex +
+  regex + tracing
+- features: `native` (default), `wasm`, `otel`
+
+Tests + examples moved with the inference code:
+- `tests/`: validation, summarization, parallel_tools
+- `examples/`: agent_pool, validation_loop, cycle_orchestrator,
+  planner_judge_parsing
+
+Facade rewires:
+- New `brainwires::inference` module re-exporting `brainwires_inference::*`.
+- `brainwires::agents` continues to spread both crates so existing
+  `brainwires::agents::ChatAgent` / `TaskAgent` / etc. paths keep working.
+- New `inference` Cargo feature on `brainwires`. Added to `default`
+  features so the umbrella keeps working out-of-the-box.
+- `chat` feature now implies `inference` (chat needs ChatAgent).
+
+API breakage:
+- `Cargo.toml`: add `brainwires-inference` as a direct dep if you
+  reach for `ChatAgent` / `TaskAgent` / planner / judge / validator
+  / cycle / plan-executor / system_prompts / agent runtime. Or pull
+  the umbrella with `["inference"]` (default).
+- `use brainwires_agent::{chat_agent,task_agent,planner_agent,judge_agent,validator_agent,validation_agent,validation_loop,cycle_orchestrator,plan_executor,summarization,system_prompts,runtime,context,agent_hooks,pool,task_orchestrator}::*`
+  → `use brainwires_inference::*` (or per-module `brainwires_inference::<module>::*`).
+- `use brainwires_agent::{ChatAgent, TaskAgent, ...}` (bare types) →
+  `use brainwires_inference::*` (or via the facade
+  `brainwires::agents::*` / `brainwires::inference::*`).
+
 #### `brainwires-eval` resurrected from agent submodule
 
 The evaluation harness moves out of `brainwires-agent::eval` into its

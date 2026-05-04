@@ -17,7 +17,7 @@ pub use agents::{
     simple_agent_prompt,
 };
 
-use crate::roles::AgentRole;
+use brainwires_agent::roles::AgentRole;
 
 /// All agent system prompt contexts defined in the framework.
 ///

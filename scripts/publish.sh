@@ -109,6 +109,10 @@ CRATES=(
     brainwires-agent
     brainwires-network
 
+    # Layer 6: Inference — extracted from brainwires-agent in 0.11. Depends on
+    # agent for coordination types (CommunicationHub, FileLockManager, etc.).
+    brainwires-inference
+
     # Layer 6: Fine-tuning + training placeholder
     brainwires-finetune           # cloud fine-tune APIs + dataset pipelines
     brainwires-finetune-local     # local LoRA/QLoRA/DoRA via Burn (heavy)

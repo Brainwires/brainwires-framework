@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::execution_graph::{ExecutionGraph, RunTelemetry};
+use brainwires_agent::execution_graph::{ExecutionGraph, RunTelemetry};
 use crate::validation_loop::ValidationConfig;
 
 /// Tool names whose results originate from external / untrusted sources and

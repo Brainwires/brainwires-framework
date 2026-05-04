@@ -101,16 +101,10 @@ telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native"]
 # (kept as a tracking comment so consumers know where the features went.)
 
 [[example]]
-name = "agent_pool"
-
-[[example]]
 name = "optimistic_concurrency"
 
 [[example]]
 name = "three_state_model"
-
-[[example]]
-name = "validation_loop"
 
 [[example]]
 name = "contract_net"
@@ -121,6 +115,9 @@ name = "saga_compensation"
 [[example]]
 name = "task_queue_scheduling"
 
+# Inference-related examples moved to crates/brainwires-inference/examples/
+# in Phase 11f: agent_pool, validation_loop, cycle_orchestrator,
+# planner_judge_parsing.
 # mdap examples moved to crates/brainwires-mdap/examples/ in Phase 11b.
 
 [package.metadata.docs.rs]

@@ -3,7 +3,7 @@
 //! Tests ValidationConfig construction, disabled validation, file-existence
 //! checks, and feedback formatting -- all through the public API.
 
-use brainwires_agent::validation_loop::{
+use brainwires_inference::validation_loop::{
     ValidationCheck, ValidationConfig, ValidationIssue, ValidationResult, ValidationSeverity,
     format_validation_feedback, run_validation,
 };

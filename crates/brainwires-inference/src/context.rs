@@ -16,8 +16,8 @@ use brainwires_core::WorkingSet;
 use brainwires_tool_runtime::{ToolExecutor, ToolPreHook};
 
 use crate::agent_hooks::AgentLifecycleHooks;
-use crate::communication::CommunicationHub;
-use crate::file_locks::FileLockManager;
+use brainwires_agent::communication::CommunicationHub;
+use brainwires_agent::file_locks::FileLockManager;
 
 /// Environment context for a task agent.
 ///

@@ -26,7 +26,7 @@ use brainwires_a2a::{
     A2aError, JsonRpcRequest, JsonRpcResponse, Message as A2aMessage, Part as A2aPart, RequestId,
     Role as A2aRole, SendMessageRequest, jsonrpc::METHOD_MESSAGE_SEND,
 };
-use brainwires_agent::ChatAgent;
+use brainwires_inference::ChatAgent;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
@@ -210,7 +210,7 @@ pub(crate) mod test_support {
         ChatOptions, ChatResponse, Message as CoreMessage, Provider, StreamChunk, Tool,
         ToolContext, Usage,
     };
-    use brainwires_agent::ChatAgent;
+    use brainwires_inference::ChatAgent;
     use brainwires_tool_builtins::BuiltinToolExecutor;
     use brainwires_tool_runtime::ToolRegistry;
     use futures::stream;

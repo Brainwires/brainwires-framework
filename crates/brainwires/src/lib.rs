@@ -39,9 +39,23 @@ pub mod tools {
 }
 
 /// Agent runtime, communication hub, task management, and validation.
+///
+/// Spreads `brainwires-agent` (coordination + patterns + schema) and
+/// `brainwires-inference` (LLM-driven workhorses — `ChatAgent`,
+/// `TaskAgent`, planner/judge/validator helpers) under one module path
+/// for back-compat. New code can import either crate directly.
 #[cfg(feature = "agents")]
 pub mod agents {
     pub use brainwires_agent::*;
+    #[cfg(feature = "inference")]
+    pub use brainwires_inference::*;
+}
+
+/// LLM-driven workhorses — chat agent, task agent, planner / judge /
+/// validator helpers, cycle orchestrator, summarization, system prompts.
+#[cfg(feature = "inference")]
+pub mod inference {
+    pub use brainwires_inference::*;
 }
 
 /// Reasoning — planners, validators, routers, strategies, output parsers.
@@ -342,31 +356,27 @@ pub mod prelude {
         ValidationTool, classify_error,
     };
 
-    // Agents — available with "agents" feature
+    // Agents — available with "agents" feature (coordination only)
     #[cfg(feature = "agents")]
     pub use brainwires_agent::{
         // Access control
         AccessControlManager,
-        AgentExecutionResult,
-        // Agent runtime
-        AgentRuntime,
         CommunicationHub,
         ContentionStrategy,
-        ExecutionApprovalMode,
         FileLockManager,
         // Git coordination
         GitCoordinator,
         LockPersistence,
-        PlanExecutionConfig,
-        PlanExecutionStatus,
-        // Plan execution
-        PlanExecutorAgent,
         TaskManager,
         TaskQueue,
-        ValidationCheck,
-        ValidationConfig,
-        ValidationSeverity,
-        run_agent_loop,
+    };
+
+    // Inference workhorses — available with "inference" feature
+    #[cfg(feature = "inference")]
+    pub use brainwires_inference::{
+        AgentExecutionResult, AgentRuntime, ExecutionApprovalMode, PlanExecutionConfig,
+        PlanExecutionStatus, PlanExecutorAgent, ValidationCheck, ValidationConfig,
+        ValidationSeverity, run_agent_loop,
     };
 
     // Storage — available with "storage" feature

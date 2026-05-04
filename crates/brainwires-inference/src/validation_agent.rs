@@ -14,8 +14,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::resource_checker::{ConflictCheck, ResourceChecker};
-use crate::state_model::{StateModelProposedOperation, StateSnapshot, ThreeStateModel};
+use brainwires_agent::resource_checker::{ConflictCheck, ResourceChecker};
+use brainwires_agent::state_model::{StateModelProposedOperation, StateSnapshot, ThreeStateModel};
 use crate::validation_loop::ValidationSeverity;
 
 /// Type alias for proposed operations used in validation (private to this module)
@@ -392,7 +392,7 @@ impl ValidationAgent {
     /// Validate using resource checker (for file/build/git conflicts)
     pub async fn check_resource_conflicts(
         &self,
-        operation: &crate::resource_checker::ProposedOperation,
+        operation: &brainwires_agent::resource_checker::ProposedOperation,
     ) -> ConflictCheck {
         self.resource_checker.check_conflicts(operation).await
     }
@@ -627,7 +627,7 @@ impl ValidationSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::file_locks::FileLockManager;
+    use brainwires_agent::file_locks::FileLockManager;
     use crate::resource_locks::ResourceLockManager;
 
     fn create_test_validation_agent() -> ValidationAgent {

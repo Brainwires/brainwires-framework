@@ -11,7 +11,7 @@ use std::fs;
 
 use anyhow::Result;
 
-use brainwires_agent::validation_loop::{
+use brainwires_inference::validation_loop::{
     ValidationCheck, ValidationConfig, ValidationSeverity, format_validation_feedback,
     run_validation,
 };

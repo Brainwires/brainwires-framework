@@ -20,6 +20,7 @@ brainwires-hardware = { workspace = true, features = ["voice-assistant"] }
 brainwires-provider = { workspace = true }
 brainwires-core = { workspace = true }
 brainwires-agent = { workspace = true }
+brainwires-inference = { workspace = true }
 brainwires-tool-runtime = { workspace = true }
 brainwires-tool-builtins = { workspace = true }
 brainwires-call-policy = { workspace = true }

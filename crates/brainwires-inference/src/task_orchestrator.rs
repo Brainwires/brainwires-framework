@@ -13,11 +13,11 @@ use tokio::sync::RwLock;
 
 use brainwires_core::{Task, TaskPriority, TaskStatus};
 
-use crate::communication::{AgentMessage, CommunicationHub};
+use brainwires_agent::communication::{AgentMessage, CommunicationHub};
 use crate::pool::AgentPool;
 use crate::task_agent::{TaskAgentConfig, TaskAgentResult};
-use crate::task_manager::TaskManager;
-use crate::task_manager::TaskStats;
+use brainwires_agent::task_manager::TaskManager;
+use brainwires_agent::task_manager::TaskStats;
 
 const DEFAULT_POLL_INTERVAL_MS: u64 = 250;
 
@@ -452,8 +452,8 @@ impl TaskOrchestrator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::communication::CommunicationHub;
-    use crate::file_locks::FileLockManager;
+    use brainwires_agent::communication::CommunicationHub;
+    use brainwires_agent::file_locks::FileLockManager;
     use crate::pool::AgentPool;
     use crate::task_agent::TaskAgentConfig;
 

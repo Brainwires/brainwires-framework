@@ -35,38 +35,26 @@ pub use brainwires_core;
 // Re-export the tool runtime for ToolExecutor / ToolRegistry trait surface.
 pub use brainwires_tool_runtime;
 
-// ── Chat agent (ready-to-use completion loop) ────────────────────────────────
-
-pub mod chat_agent;
-
-// ── Summarization (LLM-powered history compaction) ───────────────────────────
-
-pub mod summarization;
+// ── LLM-driven workhorses moved to brainwires-inference in Phase 11f ─────────
+// chat_agent, summarization, planner_agent, judge_agent, validator_agent,
+// validation_agent, validation_loop, cycle_orchestrator, plan_executor,
+// system_prompts, task_agent — see crates/brainwires-inference/
 
 // ── Personas (pluggable system-prompt assembly) ──────────────────────────────
 
 pub mod personas;
 
-// ── Agent loop hooks ─────────────────────────────────────────────────────────
+// agent_hooks moved to brainwires-inference in Phase 11f (TaskAgent-coupled).
 
-pub mod agent_hooks;
+// runtime + context moved to brainwires-inference in Phase 11f (the
+// AgentRuntime drives the inference workhorses; AgentContext owns the
+// AgentLifecycleHooks trait object).
 
-// ── Agent runtime ────────────────────────────────────────────────────────────
+// ── Schema + lifecycle ───────────────────────────────────────────────────────
 
-pub mod runtime;
-
-// ── Concrete agent implementation ────────────────────────────────────────────
-
-pub mod context;
-pub mod cycle_orchestrator;
 pub mod execution_graph;
-pub mod judge_agent;
-pub mod planner_agent;
-pub mod pool;
+// pool moved to brainwires-inference in Phase 11f (TaskAgent pool, not generic).
 pub mod roles;
-pub mod system_prompts;
-pub mod task_agent;
-pub mod validator_agent;
 
 // ── Core components ──────────────────────────────────────────────────────────
 
@@ -81,7 +69,6 @@ pub mod operation_tracker;
 pub mod resource_locks;
 pub mod task_manager;
 pub mod task_queue;
-pub mod validation_loop;
 
 // ── Coordination patterns ────────────────────────────────────────────────────
 
@@ -114,13 +101,10 @@ pub use agent_tools::AgentToolRegistry;
 
 pub mod git_coordination;
 
-// ── Plan execution ─────────────────────────────────────────────────────────
+// plan_executor moved to brainwires-inference in Phase 11f.
 
-pub mod plan_executor;
-
-// ── Task orchestration ────────────────────────────────────────────────────────
-
-pub mod task_orchestrator;
+// task_orchestrator moved to brainwires-inference in Phase 11f
+// (TaskAgent-coupled, not a generic orchestrator).
 
 // ── Workflow graph builder ───────────────────────────────────────────────────
 
@@ -138,26 +122,20 @@ pub mod otel;
 
 // Skills — extracted to its own brainwires-skills crate in Phase 11c.
 
-// ── Analysis & validation ────────────────────────────────────────────────────
+// ── Analysis ────────────────────────────────────────────────────────────────
 
 pub mod resource_checker;
-pub mod validation_agent;
+// validation_agent + validation_loop moved to brainwires-inference in Phase 11f.
 #[cfg(feature = "native")]
 pub mod worktree;
 
 // ── Re-exports ───────────────────────────────────────────────────────────────
 
-// Chat agent
-pub use chat_agent::ChatAgent;
+// agent_hooks re-exports moved to brainwires-inference in Phase 11f
+// (the trait references TaskAgentResult, which is TaskAgent-specific).
 
-// Agent loop hooks
-pub use agent_hooks::{
-    AgentLifecycleHooks, ConversationView, DefaultDelegationHandler, DelegationRequest,
-    DelegationResult, IterationContext, IterationDecision, ToolDecision,
-};
-
-// Agent runtime
-pub use runtime::{AgentExecutionResult, AgentRuntime, run_agent_loop};
+// AgentRuntime + run_agent_loop re-exports moved to brainwires-inference in
+// Phase 11f.
 
 // Core components
 pub use communication::{
@@ -175,7 +153,6 @@ pub use resource_locks::{
 };
 pub use task_manager::{TaskManager, format_duration_secs};
 pub use task_queue::TaskQueue;
-pub use validation_loop::*;
 #[cfg(feature = "native")]
 pub use worktree::WorktreeManager;
 
@@ -188,16 +165,8 @@ pub use git_coordination::{
     get_lock_requirements, git_tools,
 };
 
-// Plan execution
-pub use plan_executor::{
-    ExecutionApprovalMode, ExecutionProgress, PlanExecutionConfig, PlanExecutionStatus,
-    PlanExecutorAgent,
-};
-
-// Task orchestration
-pub use task_orchestrator::{
-    FailurePolicy, OrchestrationResult, TaskOrchestrator, TaskOrchestratorConfig, TaskSpec,
-};
+// Task orchestration re-exports moved to brainwires-inference in Phase 11f
+// (TaskAgent-coupled).
 
 // Workflow graph builder
 pub use workflow::{WorkflowBuilder, WorkflowContext, WorkflowResult};
@@ -210,58 +179,27 @@ pub use saga::SagaExecutor;
 pub use state_model::{StateModelProposedOperation, StateSnapshot, ThreeStateModel};
 pub use wait_queue::WaitQueue;
 
-// Concrete agent types
+// Schema + lifecycle (AgentContext re-export moved to brainwires-inference in 11f)
 pub use brainwires_tool_runtime::{PreHookDecision, ToolPreHook};
-pub use context::AgentContext;
 pub use execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};
-pub use pool::{AgentPool, AgentPoolStats};
-pub use system_prompts::{
-    AgentPromptKind, build_agent_prompt, judge_agent_prompt, mdap_microagent_prompt,
-    planner_agent_prompt, reasoning_agent_prompt, simple_agent_prompt,
-};
+// pool re-exports moved to brainwires-inference in Phase 11f.
 
 // SEAL re-exports — extracted to brainwires-seal in Phase 11d.
+// LLM-driven workhorses (chat_agent, planner_agent, judge_agent, validator_agent,
+// validation_agent, validation_loop, cycle_orchestrator, plan_executor,
+// summarization, system_prompts, task_agent) — extracted to brainwires-inference
+// in Phase 11f. Import from `brainwires_inference::*` directly or via
+// `brainwires::inference::*` (facade).
 
-// Cycle orchestration
-pub use cycle_orchestrator::{
-    CycleOrchestrator, CycleOrchestratorConfig, CycleOrchestratorResult, CycleRecord, MergeStrategy,
-};
-pub use judge_agent::{
-    JudgeAgent, JudgeAgentConfig, JudgeContext, JudgeVerdict, MergeStatus, WorkerResult,
-};
-pub use planner_agent::{
-    DynamicTaskPriority, DynamicTaskSpec, PlannerAgent, PlannerAgentConfig, PlannerOutput,
-    SubPlannerRequest,
-};
-pub use task_agent::{
-    FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus, spawn_task_agent,
-};
-pub use validator_agent::{
-    ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult, ValidatorAgentStatus,
-    spawn_validator_agent,
-};
-
-/// Prelude module for convenient imports
+/// Prelude module for convenient imports — coordination + patterns + schema.
+///
+/// LLM-driven workhorses (`ChatAgent`, `TaskAgent`, planner/judge/validator,
+/// validation_loop, cycle_orchestrator, plan_executor, system_prompts,
+/// summarization) live in `brainwires-inference` since Phase 11f. Import
+/// from there directly or use the umbrella `brainwires::inference` module.
 pub mod prelude {
-    // Chat agent
-    pub use super::chat_agent::ChatAgent;
-
-    // Agent loop hooks
-    pub use super::agent_hooks::{
-        AgentLifecycleHooks, ConversationView, DefaultDelegationHandler, DelegationRequest,
-        DelegationResult, IterationContext, IterationDecision, ToolDecision,
-    };
-
-    // Concrete agent types
-    pub use super::context::AgentContext;
+    // Schema + lifecycle (AgentContext lives in brainwires-inference now)
     pub use super::execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};
-    pub use super::pool::{AgentPool, AgentPoolStats};
-    pub use super::task_agent::{
-        FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus,
-    };
-    pub use super::validator_agent::{
-        ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult, ValidatorAgentStatus,
-    };
     pub use brainwires_tool_runtime::{PreHookDecision, ToolPreHook};
 
     // Core components
@@ -274,9 +212,6 @@ pub mod prelude {
     pub use super::state_model::{StateSnapshot, ThreeStateModel};
     pub use super::task_manager::{TaskManager, format_duration_secs};
     pub use super::task_queue::TaskQueue;
-    pub use super::validation_loop::{
-        ValidationCheck, ValidationConfig, ValidationIssue, ValidationResult,
-    };
     #[cfg(feature = "native")]
     pub use super::worktree::WorktreeManager;
 
@@ -285,12 +220,6 @@ pub mod prelude {
 
     // Git coordination
     pub use super::git_coordination::{GitCoordinator, git_tools};
-
-    // Plan execution
-    pub use super::plan_executor::{ExecutionApprovalMode, PlanExecutionConfig, PlanExecutorAgent};
-
-    // Task orchestration
-    pub use super::task_orchestrator::{FailurePolicy, TaskOrchestrator, TaskOrchestratorConfig};
 
     // Workflow graph builder
     pub use super::workflow::{WorkflowBuilder, WorkflowContext, WorkflowResult};
@@ -301,13 +230,4 @@ pub mod prelude {
     pub use super::optimistic::OptimisticController;
     pub use super::saga::SagaExecutor;
     pub use super::wait_queue::WaitQueue;
-
-    // Cycle orchestration
-    pub use super::cycle_orchestrator::{
-        CycleOrchestrator, CycleOrchestratorConfig, CycleOrchestratorResult, MergeStrategy,
-    };
-    pub use super::judge_agent::{JudgeAgent, JudgeAgentConfig, JudgeVerdict, MergeStatus};
-    pub use super::planner_agent::{
-        DynamicTaskSpec, PlannerAgent, PlannerAgentConfig, PlannerOutput,
-    };
 }

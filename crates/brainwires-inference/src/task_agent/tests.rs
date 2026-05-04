@@ -12,9 +12,9 @@ use futures::stream::BoxStream;
 
 use anyhow::Result;
 
-use crate::communication::CommunicationHub;
+use brainwires_agent::communication::CommunicationHub;
 use crate::context::AgentContext;
-use crate::file_locks::FileLockManager;
+use brainwires_agent::file_locks::FileLockManager;
 
 use super::agent::TaskAgent;
 use super::spawn::spawn_task_agent;

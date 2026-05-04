@@ -21,7 +21,7 @@
 //! ## Example
 //!
 //! ```rust,ignore
-//! use brainwires_agent::runtime::{AgentRuntime, run_agent_loop, AgentExecutionResult};
+//! use crate::runtime::{AgentRuntime, run_agent_loop, AgentExecutionResult};
 //! use brainwires_agent::{CommunicationHub, FileLockManager};
 //!
 //! struct MyAgent { /* ... */ }
@@ -52,8 +52,8 @@ use brainwires_core::{ChatResponse, Message, ToolResult, ToolUse};
 use crate::agent_hooks::{
     AgentLifecycleHooks, ConversationView, IterationContext, IterationDecision, ToolDecision,
 };
-use crate::communication::CommunicationHub;
-use crate::file_locks::{FileLockManager, LockType};
+use brainwires_agent::communication::CommunicationHub;
+use brainwires_agent::file_locks::{FileLockManager, LockType};
 
 /// Result of an agent execution loop.
 #[derive(Debug, Clone)]

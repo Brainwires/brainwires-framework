@@ -156,6 +156,7 @@ brainwires-mdap = { workspace = true }
 brainwires-skills = { workspace = true, features = ["registry"] }
 brainwires-seal = { workspace = true }
 brainwires-eval = { workspace = true }
+brainwires-inference = { workspace = true }
 brainwires-tool-runtime = { workspace = true, features = ["native", "orchestrator", "rag"] }
 brainwires-tool-builtins = { workspace = true, features = ["native", "interpreters", "rag"] }
 brainwires-knowledge = { workspace = true, features = ["alt-folder-name"] }

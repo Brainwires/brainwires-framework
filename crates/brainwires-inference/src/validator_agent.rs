@@ -17,8 +17,8 @@ use std::time::Instant;
 use anyhow::Result;
 use tokio::sync::RwLock;
 
-use crate::communication::{AgentMessage, CommunicationHub};
-use crate::file_locks::{FileLockManager, LockGuard, LockType};
+use brainwires_agent::communication::{AgentMessage, CommunicationHub};
+use brainwires_agent::file_locks::{FileLockManager, LockGuard, LockType};
 use crate::validation_loop::{
     ValidationConfig, ValidationResult, format_validation_feedback, run_validation,
 };

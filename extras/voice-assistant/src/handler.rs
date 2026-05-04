@@ -12,7 +12,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use brainwires_agent::ChatAgent;
+use brainwires_inference::ChatAgent;
 use brainwires_agent::personas::{PersonaContext, PersonaProvider, blocks_to_system_text};
 use brainwires_core::ToolContext;
 use brainwires_core::{CacheStrategy, ChatOptions, Provider};

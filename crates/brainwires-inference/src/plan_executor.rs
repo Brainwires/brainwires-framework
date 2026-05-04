@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 
 use brainwires_core::{PlanMetadata, Task};
 
-use crate::task_manager::TaskManager;
+use brainwires_agent::task_manager::TaskManager;
 
 /// Approval mode for plan execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
