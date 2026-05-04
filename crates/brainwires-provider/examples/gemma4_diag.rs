@@ -190,6 +190,7 @@ fn is_cpu_pinned(candle_name: &str) -> bool {
     matches!(
         candle_name,
         "model.language_model.model.embed_tokens.weight"
+            | "model.language_model.model.embed_tokens_per_layer.weight"
             | "model.language_model.model.per_layer_model_projection.weight"
             | "model.language_model.model.per_layer_projection_norm.weight"
     )
