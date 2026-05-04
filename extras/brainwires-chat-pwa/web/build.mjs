@@ -270,7 +270,7 @@ function generateRsqliteAssets() {
     }
     mkdirSync(distDst, { recursive: true });
     mkdirSync(pkgDst, { recursive: true });
-    for (const f of ['worker.js', 'worker-proxy.js', 'index.js', 'types.js']) {
+    for (const f of ['worker.js', 'worker-proxy.js', 'index.js', 'types.js', 'devtools.js']) {
         const p = join(distSrc, f);
         if (existsSync(p)) copyFileSync(p, join(distDst, f));
     }

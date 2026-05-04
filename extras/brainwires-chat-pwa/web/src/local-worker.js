@@ -120,6 +120,35 @@ async function getWasm() {
         if (typeof mod.init === 'function') {
             try { mod.init(); } catch (_err) { console.debug("[bw] idempotent:", _err); }
         }
+        // One-shot WebGPU adapter probe. Logs vendor/architecture/device so
+        // we can identify software renderers (llvmpipe / SwiftShader) that
+        // explain orders-of-magnitude slowdown vs native. Best-effort: if
+        // navigator.gpu or requestAdapter throws, we just skip the log.
+        try {
+            if (typeof navigator !== 'undefined' && navigator.gpu) {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (adapter) {
+                    const info = adapter.info || {};
+                    const limits = adapter.limits || {};
+                    console.log('[local-worker] webgpu adapter:', {
+                        vendor: info.vendor || '?',
+                        architecture: info.architecture || '?',
+                        device: info.device || '?',
+                        description: info.description || '?',
+                        isFallbackAdapter: adapter.isFallbackAdapter === true,
+                        maxStorageBufferBindingSize: limits.maxStorageBufferBindingSize,
+                        maxBufferSize: limits.maxBufferSize,
+                        maxComputeWorkgroupStorageSize: limits.maxComputeWorkgroupStorageSize,
+                    });
+                } else {
+                    console.warn('[local-worker] navigator.gpu.requestAdapter returned null');
+                }
+            } else {
+                console.warn('[local-worker] navigator.gpu unavailable in this worker context');
+            }
+        } catch (e) {
+            console.warn('[local-worker] adapter probe failed:', e);
+        }
         wasm = mod;
         return mod;
     })();

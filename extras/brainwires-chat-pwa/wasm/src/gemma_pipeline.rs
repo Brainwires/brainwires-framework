@@ -1,17 +1,38 @@
-//! Multimodal (vision-language) wasm exports for the chat PWA.
+//! Gemma-family multimodal pipeline glue for the chat PWA.
+//!
+//! Despite "multimodal" in the name, this module is the entry point for
+//! Gemma 3/4 inference whether or not images are attached — the
+//! `Gemma4MultiModal::generate_greedy(prompt, &[], …)` (empty pixel_values)
+//! path is what the chat-pwa uses for *all* Gemma 4 chat, because that's
+//! where the streaming callback, OPFS PLE row reader, and chunked loader
+//! plumbing live.
+//!
+//! What's actually in here:
+//!
+//! - **Chunked safetensors loader** — splits a 10 GB model file into
+//!   per-tensor materialization so we never allocate the whole thing
+//!   in wasm32 linear memory.
+//! - **`OpfsPerLayerEmbedTable`** — Per-Layer Embedding row reader
+//!   backed by OPFS sync-access reads. The PLE table is a 4.7 GB text-
+//!   path tensor that doesn't fit in a WebGPU buffer, so we stream rows
+//!   on demand. (Not vision; it's part of the Gemma 3n decoder.)
+//! - **`build_gemma_chat_prompt`** — Gemma 4 chat-template formatter.
+//!   Pure text. Lives here because the streaming entry point does too.
+//! - **Vision pipeline (Gemma 3 SigLIP / Gemma 4 native vision tower)** —
+//!   only used when images are attached; gated by `gemma4_skip_reason`
+//!   filters so the vision-tower tensors don't load in text-only mode.
 //!
 //! Companion to the text-only [`crate::LocalModelHandle`] surface in `lib.rs`.
-//! Loads a Gemma-family vision-language model and exposes a JS-callable
-//! `local_chat_stream_with_image(handle, messages_json, params_json)` that
-//! emits the same NDJSON `ReadableStream<Uint8Array>` shape the text path
-//! uses — making the JS-side dispatcher in `local-worker.js` route-agnostic.
+//! Exposes a JS-callable `local_chat_stream_with_image(handle, messages_json,
+//! params_json)` that emits the same NDJSON `ReadableStream<Uint8Array>`
+//! shape the text path uses — making the JS-side dispatcher in
+//! `local-worker.js` route-agnostic.
 //!
-//! Supports two model architectures:
+//! Supports two model architectures, auto-detected from safetensors
+//! tensor names during chunked loading:
 //!
 //! **Gemma-3** (SigLIP-based): SigLIP tower + MM projector + vendored Gemma3 decoder
 //! **Gemma-4** (native vision tower): Gemma4 VisionTower + MultimodalEmbedder + upstream Gemma4 TextModel
-//!
-//! Model type is auto-detected from safetensors tensor names during chunked loading.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -675,9 +696,16 @@ fn is_vision_tensor(name: &str) -> bool {
 // `init_local_multimodal_chunked` and read the matching row on every
 // PLE lookup. Per-token cost is one OPFS sync read of
 // `num_layers * hidden_per_layer * sizeof(dtype)` bytes (≈ 15 KB for E2B),
-// which is well below the per-step budget. Memory cost is exactly zero
-// — rows are decoded into a per-call buffer and then into the merge
-// tensor, with no caching.
+// which is well below the per-step budget.
+//
+// We do keep a bounded in-memory row cache (`row_cache`) so that
+// repeated tokens don't re-hit OPFS. Typical chat sessions touch a few
+// thousand unique tokens out of the 262k vocab — at ~15 KB per row,
+// caching ~16k rows costs ~240 MB. JS↔WASM bridge calls have measurable
+// per-call overhead, so even a cold prefill of N tokens benefits when
+// the same row is reread by attention/diag passes downstream. The
+// cache bound is enforced by capacity check; oldest insertion order
+// is preserved via a FIFO companion deque.
 
 /// Streaming `PerLayerEmbedTable` impl backed by OPFS sync-access reads
 /// against the original safetensors blob.
@@ -686,6 +714,10 @@ fn is_vision_tensor(name: &str) -> bool {
 /// `!Send`/`!Sync` by default. wasm32 is single-threaded — there is no
 /// scenario where the table can be read from another thread, so the
 /// asserts are sound for the only target this type compiles for.
+/// Max number of rows cached in `OpfsPerLayerEmbedTable.row_cache`.
+/// At ~15 KB/row for E2B this caps RAM at roughly 240 MB.
+const PLE_ROW_CACHE_MAX: usize = 16_384;
+
 struct OpfsPerLayerEmbedTable {
     read_fn: Function,
     /// Absolute byte offset of the PLE table inside the safetensors file
@@ -704,6 +736,18 @@ struct OpfsPerLayerEmbedTable {
     /// matches the model's compute dtype (BF16). Cast on lookup if
     /// `src_dtype != target_dtype`.
     target_dtype: DType,
+    /// Cached rows keyed by clamped token id, plus a FIFO of insertion
+    /// order so we can evict the oldest row when we hit
+    /// `PLE_ROW_CACHE_MAX`. Behind a `Mutex` because the trait-object
+    /// `lookup` takes `&self`. Single-threaded wasm: lock is uncontested.
+    row_cache: std::sync::Mutex<RowCache>,
+}
+
+struct RowCache {
+    map: std::collections::HashMap<u64, std::sync::Arc<Vec<u8>>>,
+    fifo: std::collections::VecDeque<u64>,
+    hits: u64,
+    misses: u64,
 }
 
 unsafe impl Send for OpfsPerLayerEmbedTable {}
@@ -751,11 +795,18 @@ impl candle_transformers::models::gemma4::PerLayerEmbedTable
 
         let total_bytes = (b * t) * (self.row_bytes as usize);
         let mut buf: Vec<u8> = Vec::with_capacity(total_bytes);
+        let mut cache = self.row_cache.lock().unwrap();
         for id in &ids_u64 {
             // Clamp into vocab range — out-of-range ids in PLE tables get
             // the sentinel row (matches `candle_nn::Embedding::forward`'s
             // behavior; clamp at the lookup boundary).
             let id_clamped = (*id).min(self.vocab_size as u64 - 1);
+            if let Some(row) = cache.map.get(&id_clamped).cloned() {
+                cache.hits += 1;
+                buf.extend_from_slice(&row);
+                continue;
+            }
+            cache.misses += 1;
             let offset = self.table_offset + id_clamped * self.row_bytes;
             let row = call_read_fn(&self.read_fn, offset, self.row_bytes)
                 .map_err(|e| candle_core::Error::Msg(format!(
@@ -763,7 +814,16 @@ impl candle_transformers::models::gemma4::PerLayerEmbedTable
                     js_err_to_string(&e),
                 )))?;
             buf.extend_from_slice(&row);
+            // Insert into cache, evicting oldest if at capacity.
+            if cache.map.len() >= PLE_ROW_CACHE_MAX {
+                if let Some(oldest) = cache.fifo.pop_front() {
+                    cache.map.remove(&oldest);
+                }
+            }
+            cache.map.insert(id_clamped, std::sync::Arc::new(row));
+            cache.fifo.push_back(id_clamped);
         }
+        drop(cache);
 
         let raw = Tensor::from_raw_buffer(
             &buf,
@@ -831,6 +891,12 @@ fn build_opfs_per_layer_table(
         row_bytes,
         src_dtype,
         target_dtype,
+        row_cache: std::sync::Mutex::new(RowCache {
+            map: std::collections::HashMap::new(),
+            fifo: std::collections::VecDeque::new(),
+            hits: 0,
+            misses: 0,
+        }),
     })))
 }
 
@@ -1725,21 +1791,24 @@ async fn build_and_generate_gemma4(
 /// `added_tokens` array with `special: true`, so `encode()` matches
 /// them as single units verbatim (no runtime registration needed).
 ///
-/// Role string for the assistant is **`"assistant"`** (not `"model"`).
+/// Role string for the assistant turn is **`"model"`** (not `"assistant"`).
+/// Per the official `chat_template.jinja`:
+/// `{%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}`
+/// and the generation prompt is `<|turn>model\n`.
 ///
 /// Format:
 ///
 /// ```text
 /// <bos><|turn>user
 /// hello<turn|>
-/// <|turn>assistant
+/// <|turn>model
 /// hi<turn|>
 /// <|turn>user
 /// how are you<turn|>
-/// <|turn>assistant
+/// <|turn>model
 /// ```
 ///
-/// The trailing `<|turn>assistant\n` is the generation prompt that
+/// The trailing `<|turn>model\n` is the generation prompt that
 /// cues the model to begin its response.
 ///
 /// `Image` parts are emitted as the `<|image|>` literal marker
@@ -1752,9 +1821,8 @@ fn build_gemma_chat_prompt(
 ) -> Result<String, String> {
     let mut buf = String::from("<bos>");
     for m in messages {
-        // Gemma 4 uses "user" / "assistant" / "system" verbatim — no
-        // assistant→model rename like Gemma 3.
-        let role: &str = m.role.as_str();
+        // Gemma 4's chat_template.jinja maps assistant → model.
+        let role: &str = if m.role == "assistant" { "model" } else { m.role.as_str() };
         let text = match &m.content {
             JsContent::Text(t) => t.clone(),
             JsContent::Parts(parts) => {
@@ -1782,8 +1850,8 @@ fn build_gemma_chat_prompt(
         buf.push_str(text.trim());
         buf.push_str("<turn|>\n");
     }
-    // Generation cue.
-    buf.push_str("<|turn>assistant\n");
+    // Generation cue. Per chat_template.jinja: `<|turn>model\n`.
+    buf.push_str("<|turn>model\n");
     Ok(buf)
 }
 

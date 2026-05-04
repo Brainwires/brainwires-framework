@@ -109,10 +109,30 @@ fn log_step_diag(step: usize, logits: &Tensor, next_id: u32, tokenizer: &Tokeniz
 // Reset before each generate call via `nan_scan_reset`. Read after via
 // `nan_scan_count` and `nan_scan_first_label`.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 static NAN_SCAN_COUNT: AtomicUsize = AtomicUsize::new(0);
 static NAN_SCAN_FIRST_LABEL: Mutex<Option<String>> = Mutex::new(None);
+
+/// Global gate for the per-step diagnostic readbacks emitted by
+/// [`nan_scan`]. Each readback is a GPU→CPU transfer (~120 per step on
+/// the chat-pwa pipeline), so the scaffold dominates per-token latency
+/// when enabled. Default OFF so production runs (wasm/chat-pwa) pay
+/// zero cost; the native `gemma4_diag` rig flips it on at startup.
+static DIAG_ENABLED: AtomicBool = AtomicBool::new(false);
+
+/// Enable or disable per-step diagnostic readbacks. Affects all
+/// subsequent [`nan_scan`] calls. The final NaN/Inf tally exposed via
+/// [`nan_scan_count`]/[`nan_scan_first_label`] only reflects values
+/// observed while enabled.
+pub fn set_diag_enabled(enabled: bool) {
+    DIAG_ENABLED.store(enabled, Ordering::Relaxed);
+}
+
+/// Returns the current diag-readback gate state.
+pub fn diag_enabled() -> bool {
+    DIAG_ENABLED.load(Ordering::Relaxed)
+}
 
 fn nan_scan_record(label: &str) {
     NAN_SCAN_COUNT.fetch_add(1, Ordering::Relaxed);
@@ -153,6 +173,13 @@ pub fn nan_scan_reset() {
 /// `to_device(&Device::Cpu)` path returns an error on that target. Going
 /// through `to_device_async` works for both CPU and WGPU tensors.
 async fn nan_scan(label: &str, t: &Tensor) {
+    // Skip the GPU→CPU readback entirely when diag is gated off. Each
+    // call costs a full buffer transfer; with ~120 nan_scan calls per
+    // step in the gemma4 pipeline, this is the dominant per-token cost
+    // when enabled. See `DIAG_ENABLED` / `set_diag_enabled`.
+    if !diag_enabled() {
+        return;
+    }
     let dims = t.dims().to_vec();
     let dtype = t.dtype();
     let cpu = match t.to_device_async(&Device::Cpu).await {

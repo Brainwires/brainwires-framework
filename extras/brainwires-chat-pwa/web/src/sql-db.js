@@ -5,6 +5,7 @@
 // OPFS persistence.
 
 import { WorkerDatabase } from '../vendor/rsqlite/dist/worker-proxy.js';
+import { exposeForDevtools } from '../vendor/rsqlite/dist/devtools.js';
 
 const DB_NAME = 'bw-chat';
 let _dbPromise = null;
@@ -130,6 +131,15 @@ export function openDb() {
             workerUrl: './vendor/rsqlite/dist/worker.js',
         });
         await db.execMany(SCHEMA_DDL);
+        // Opt in to live editing via the Brainwires OPFS DevTools extension.
+        // No-op when the extension isn't installed (the bridge global just
+        // sits there unused). Wraps db.exec/execMany so the DevTools panel
+        // can poll a changeCounter and auto-refresh on our writes.
+        try {
+            exposeForDevtools(db, { name: DB_NAME });
+        } catch (e) {
+            console.warn('[sql-db] exposeForDevtools failed:', e);
+        }
         return db;
     })();
     return _dbPromise;

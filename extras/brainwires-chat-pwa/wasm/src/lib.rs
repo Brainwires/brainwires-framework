@@ -59,8 +59,8 @@ use web_sys::{ReadableStream, ReadableStreamDefaultController};
 mod embedding;
 pub use embedding::{init_embedding_model, EmbeddingHandle};
 
-mod vision;
-pub use vision::{
+mod gemma_pipeline;
+pub use gemma_pipeline::{
     init_local_multimodal, init_local_multimodal_chunked, local_chat_stream_with_image,
     LocalMultiModalHandle,
 };

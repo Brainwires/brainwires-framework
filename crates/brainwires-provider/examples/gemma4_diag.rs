@@ -45,6 +45,7 @@ use clap::{Parser, ValueEnum};
 use hf_hub::api::tokio::Api;
 use tokenizers::Tokenizer;
 
+use brainwires_provider::local_llm::vision::gemma4_mm::set_diag_enabled;
 use brainwires_provider::local_llm::vision::{
     Gemma4MultiModal, gemma4_mm::nan_scan_count, gemma4_mm::nan_scan_first_label,
     gemma4_mm::nan_scan_reset,
@@ -488,6 +489,10 @@ async fn run(args: Args) -> Result<()> {
     let eos: Option<u32> = Some(1);
 
     nan_scan_reset();
+    // The native diag rig is for development; turn the readback scaffold
+    // on so we get the per-step `[gemma4/diag] step0/...` lines. The
+    // chat-pwa wasm path leaves it off by default.
+    set_diag_enabled(true);
     eprintln!("[gemma4_diag] generating {} token(s)...", args.max_new_tokens);
     let t0 = std::time::Instant::now();
     let output = pipeline
