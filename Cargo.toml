@@ -48,6 +48,7 @@ members = [
     "extras/agent-chat",
     "extras/brainwires-cli",
     "extras/audio-demo-ffi",
+    "extras/brainwires-chat-native/bridge",
     "extras/voice-assistant",
     "extras/matter-tool",
     "extras/claude-brain",
