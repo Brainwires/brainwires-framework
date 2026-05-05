@@ -252,7 +252,7 @@ self.addEventListener('message', (ev) => {
 });
 
 async function handleLoad(msg) {
-    const { requestId, modelId } = msg;
+    const { requestId, modelId, diag: msgDiag } = msg;
     try {
         if (handle && loadedModelId === modelId) {
             self.postMessage({ requestId, type: 'load_done', modelId });
@@ -491,10 +491,12 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
         const disableLaurel = !!globalThis.__bw_disable_laurel;
         const disablePerLayerInputGate = !!globalThis.__bw_disable_per_layer_input_gate;
         const disablePleStreaming = !!globalThis.__bw_disable_ple_streaming;
-        // Per-layer diag (`globalThis.__bw_diag = true` before page load)
-        // turns on the candle-side abs_max/head readback scaffold. Adds
-        // ~1–2 s/token of overhead; only flip it on for one debug session.
-        const diag = !!globalThis.__bw_diag;
+        // Per-layer diag: forwarded from the page's `globalThis.__bw_diag`
+        // via the load message (the worker's globalThis is distinct from
+        // the page's window, so direct reads here would always be
+        // false). Falls back to the worker-scope global as a secondary
+        // opt-in for tests that drive the worker directly.
+        const diag = !!(msgDiag || globalThis.__bw_diag);
         if (disableAltup || disableLaurel || disablePerLayerInputGate || disablePleStreaming || diag) {
             console.warn(
                 '[local-worker] Gemma 3n kill-switches active:',

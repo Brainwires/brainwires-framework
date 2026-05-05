@@ -181,7 +181,12 @@ export async function loadLocalModel(modelId = defaultModel) {
         return { modelId };
     }
     try {
-        const out = await rpc({ type: 'load', modelId });
+        // Forward debug toggles set on the page's window into the worker
+        // load message so they can be flipped from the browser console
+        // without rebuilding. Read at message-handle time on the worker
+        // side; see local-worker.js handleLoad().
+        const diag = !!globalThis.__bw_diag;
+        const out = await rpc({ type: 'load', modelId, diag });
         setLocalModelId(out.modelId || modelId);
         return out;
     } catch (err) {
