@@ -281,7 +281,7 @@ async function handleLoad(msg) {
         const multimodal = !!(m && m.multimodal);
 
         if (multimodal && typeof mod.init_local_multimodal_chunked === 'function') {
-            const loaded = await tryChunkedMultimodalLoad(mod, modelId, requestId);
+            const loaded = await tryChunkedMultimodalLoad(mod, modelId, requestId, msgDiag);
             if (loaded) return;
             console.log('[local-worker] chunked multimodal load unavailable, falling back to bulk read');
         } else if (!multimodal && typeof mod.init_local_model_chunked === 'function') {
@@ -417,7 +417,7 @@ async function tryChunkedLoad(mod, modelId, requestId) {
     }
 }
 
-async function tryChunkedMultimodalLoad(mod, modelId, requestId) {
+async function tryChunkedMultimodalLoad(mod, modelId, requestId, msgDiag) {
     const m = KNOWN_MODELS[modelId];
     if (!m) return false;
     if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) {
