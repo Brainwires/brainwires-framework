@@ -252,7 +252,7 @@ self.addEventListener('message', (ev) => {
 });
 
 async function handleLoad(msg) {
-    const { requestId, modelId, diag: msgDiag } = msg;
+    const { requestId, modelId, diag: msgDiag, diagLayer: msgDiagLayer } = msg;
     try {
         if (handle && loadedModelId === modelId) {
             self.postMessage({ requestId, type: 'load_done', modelId });
@@ -281,7 +281,7 @@ async function handleLoad(msg) {
         const multimodal = !!(m && m.multimodal);
 
         if (multimodal && typeof mod.init_local_multimodal_chunked === 'function') {
-            const loaded = await tryChunkedMultimodalLoad(mod, modelId, requestId, msgDiag);
+            const loaded = await tryChunkedMultimodalLoad(mod, modelId, requestId, msgDiag, msgDiagLayer);
             if (loaded) return;
             console.log('[local-worker] chunked multimodal load unavailable, falling back to bulk read');
         } else if (!multimodal && typeof mod.init_local_model_chunked === 'function') {
@@ -417,7 +417,7 @@ async function tryChunkedLoad(mod, modelId, requestId) {
     }
 }
 
-async function tryChunkedMultimodalLoad(mod, modelId, requestId, msgDiag) {
+async function tryChunkedMultimodalLoad(mod, modelId, requestId, msgDiag, msgDiagLayer) {
     const m = KNOWN_MODELS[modelId];
     if (!m) return false;
     if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) {
@@ -502,7 +502,7 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId, msgDiag) {
         // page before model load to focus intra-layer captures away
         // from the default (layer 8). Negative value disables
         // intra-capture entirely.
-        const diagLayerRaw = (msg.diagLayer ?? globalThis.__bw_diag_layer);
+        const diagLayerRaw = (msgDiagLayer ?? globalThis.__bw_diag_layer);
         const diagTargetLayer = (typeof diagLayerRaw === 'number' && Number.isInteger(diagLayerRaw))
             ? diagLayerRaw
             : null;
