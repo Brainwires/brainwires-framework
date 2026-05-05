@@ -309,6 +309,51 @@ Migration:
 - New code: `use brainwires_core::confidence::ResponseConfidence;`
 - Existing code: continues to work via the shim until Phase 11g.
 
+### Added
+
+#### chat-pwa — Ollama-format model download (Phase 4 / part 1)
+
+First slice of the chat-pwa local-inference perf overhaul plan: pull
+pre-quantized Gemma 4 GGUF blobs (~1.6GB Q4_K_M) directly from
+`registry.ollama.ai` instead of fetching the BF16 safetensors variant
+from HuggingFace (~10GB). ~6× smaller download, same model.
+
+What landed:
+- `extras/brainwires-chat-pwa/web/src/ollama-fetch.js` — OCI Distribution
+  Spec client. `fetchManifest(name, tag)`, `fetchBlob(name, digest, opts)`,
+  `manifestToFiles(manifest)`. No auth required for the public registry.
+  Library namespace defaulted (`gemma4` → `library/gemma4`); user-published
+  models with explicit slashes pass through.
+- `extras/brainwires-chat-pwa/web/src/ollama-download.js` — single-path
+  downloader using OPFS `FileSystemSyncAccessHandle`. Resume via Range
+  header, SHA-256 verification per blob (Web Crypto), `.verified` markers
+  for resume short-circuiting, progress events on the same
+  `model_progress` channel as the HF path so the UI banner picks them
+  up unchanged. Kept separate from the existing 3-fallback HF download
+  orchestration so regressions there couldn't break the working chat-pwa
+  for everyone.
+- `extras/brainwires-chat-pwa/web/src/model-store.js` — adds
+  `KNOWN_OLLAMA_MODELS` registry with `gemma4:e2b` entry. `source: 'hf'`
+  / `source: 'ollama'` discriminator. New helpers: `getKnownModelAny`,
+  `listAllChatModels`. Re-exports the Ollama download API so callers
+  (UI, worker) have a single import point.
+
+Phase 4 follow-ups (separate commits):
+- wasm-side GGUF loader: parse via candle's existing
+  `quantized::gguf_file::Content` (already wasm32-compatible),
+  dequantize Q4_K_M → BF16 at load time, feed into the existing
+  `gemma4/text.rs` model. The candle-fork's WGPU backend currently
+  rejects quantized `from_data` (`quantized/mod.rs:128-130` —
+  "wgpu: quantized from_data not yet implemented"), so quantized
+  inference on WGPU has to wait for Phase 5 (Q4_K_M dequant matmul
+  WGSL kernel). Phase 4 alone wins download size, not tok/s.
+- chat-pwa UI: model dropdown lists both `gemma-4-e2b-it` (HF) and
+  `gemma4:e2b` (Ollama).
+- GGUF tokenizer + chat-template extraction (replace today's hardcoded
+  per-model template).
+- Native-only `~/.ollama/models` opportunistic read for the CLI / agent
+  paths (skips the network round-trip if Ollama is installed locally).
+
 ### Fixed
 
 #### chat-pwa local Gemma 4 — receiver-attention divergence on AMD/Vulkan WebGPU

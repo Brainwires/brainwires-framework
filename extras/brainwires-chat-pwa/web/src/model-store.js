@@ -26,6 +26,7 @@ export const KNOWN_MODELS = {
         id: 'gemma-4-e2b-it',
         displayName: 'Gemma 4 E2B IT',
         description: 'Gemma 4 E2B Instruction-Tuned (effective ~2B) — chat-trained, Candle/safetensors, runs in WASM.',
+        source: 'hf',
         hf: { repo: 'google/gemma-4-e2b-it', revision: 'main' },
         files: [
             // SHA-256 pins null until upstream registry pins them.
@@ -39,6 +40,32 @@ export const KNOWN_MODELS = {
         // this flag to pick `init_local_multimodal` over the text-only
         // loader so `vision_chat` (parts[] with image entries) works.
         multimodal: true,
+    },
+};
+
+// Ollama-format models. Pulled from `registry.ollama.ai` via the OCI
+// Distribution Spec client in `ollama-fetch.js`. Files are populated
+// dynamically from the manifest at fetch time, not pinned here, because
+// Ollama re-publishes manifests as quantizations/templates evolve.
+//
+// Phase 4 status: download path lives in `ollama-download.js`; wasm-side
+// GGUF inference path is deferred until Phase 5 (WGPU Q4_K_M kernel)
+// makes it perf-relevant. Until then, an Ollama download saves bytes but
+// not tok/s.
+export const KNOWN_OLLAMA_MODELS = {
+    'gemma4:e2b': {
+        id: 'gemma4:e2b',
+        displayName: 'Gemma 4 E2B (Ollama, Q4_K_M)',
+        description: 'Gemma 4 E2B Q4_K_M from registry.ollama.ai (~1.6GB). Same model as the HF safetensors variant, ~6× smaller download via 4-bit quantization.',
+        source: 'ollama',
+        ollama: { name: 'gemma4', tag: 'e2b' },
+        // Files filled in at runtime from the manifest layers.
+        files: null,
+        estimatedBytes: 1_600_000_000,
+        contextSize: 8192,
+        gated: false,
+        // Ollama's gemma4:e2b is text-only (no vision tower in the GGUF).
+        multimodal: false,
     },
 };
 
@@ -1058,3 +1085,30 @@ async function sha256Hex(buf, ctx = null) {
 }
 
 export const HFAuthRequired = HfAuthRequiredError;
+
+// Re-export Ollama-format download API so callers (ui-chat.js, etc.) have
+// a single import point for both HF and Ollama models. Implementation
+// stays in `ollama-download.js` to keep that path isolated from the
+// existing 3-fallback HF download orchestration.
+export {
+    downloadOllamaModel,
+    isOllamaModelDownloaded,
+    getOllamaModelBytes,
+    ollamaModelInfo,
+} from './ollama-download.js';
+
+/** Resolve a known model regardless of source (HF or Ollama). */
+export function getKnownModelAny(modelId) {
+    return KNOWN_MODELS[modelId]
+        || KNOWN_OLLAMA_MODELS[modelId]
+        || KNOWN_EMBEDDING_MODELS[modelId]
+        || null;
+}
+
+/** Combined list of HF + Ollama chat models for UI pickers. */
+export function listAllChatModels() {
+    return [
+        ...Object.values(KNOWN_MODELS),
+        ...Object.values(KNOWN_OLLAMA_MODELS),
+    ];
+}
