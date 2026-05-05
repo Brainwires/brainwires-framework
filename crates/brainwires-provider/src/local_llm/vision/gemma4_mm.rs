@@ -121,6 +121,12 @@ static NAN_SCAN_FIRST_LABEL: Mutex<Option<String>> = Mutex::new(None);
 /// zero cost; the native `gemma4_diag` rig flips it on at startup.
 static DIAG_ENABLED: AtomicBool = AtomicBool::new(false);
 
+/// Layer index targeted for intra-layer diag captures. `-1` (sentinel)
+/// disables intra-capture. `i32::MIN` means "use env var fallback"
+/// (legacy behavior — read `BW_GEMMA4_DIAG_LAYER` once on first use).
+/// Otherwise the stored value is the layer index `0..num_hidden_layers`.
+static DIAG_TARGET_LAYER: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(i32::MIN);
+
 /// Enable or disable per-step diagnostic readbacks. Affects all
 /// subsequent [`nan_scan`] calls. The final NaN/Inf tally exposed via
 /// [`nan_scan_count`]/[`nan_scan_first_label`] only reflects values
@@ -132,6 +138,31 @@ pub fn set_diag_enabled(enabled: bool) {
 /// Returns the current diag-readback gate state.
 pub fn diag_enabled() -> bool {
     DIAG_ENABLED.load(Ordering::Relaxed)
+}
+
+/// Override the layer index used for intra-layer diag captures (the
+/// `target_intra_layer` selection in `generate_greedy`). Pass `None` to
+/// disable intra-capture; pass `Some(idx)` to focus captures on a
+/// specific decoder layer. Used by hosts (chat-pwa) that can't set
+/// the `BW_GEMMA4_DIAG_LAYER` env var because the wasm worker runtime
+/// doesn't surface `std::env::var`.
+pub fn set_diag_target_layer(layer: Option<usize>) {
+    let v: i32 = match layer {
+        None => -1,
+        Some(idx) => i32::try_from(idx).unwrap_or(-1),
+    };
+    DIAG_TARGET_LAYER.store(v, Ordering::Relaxed);
+}
+
+fn diag_target_layer_override() -> Option<Option<usize>> {
+    let v = DIAG_TARGET_LAYER.load(Ordering::Relaxed);
+    if v == i32::MIN {
+        None // not overridden — fall back to env-var read
+    } else if v < 0 {
+        Some(None) // explicit "none"
+    } else {
+        Some(Some(v as usize))
+    }
 }
 
 fn nan_scan_record(label: &str) {
@@ -552,10 +583,16 @@ impl Gemma4MultiModal {
         // disables intra-capture entirely; any non-numeric value also
         // disables; default is layer 8 since that's the current bug
         // bisection target).
-        let target_intra_layer: Option<usize> = match std::env::var("BW_GEMMA4_DIAG_LAYER") {
-            Ok(v) if v.eq_ignore_ascii_case("none") => None,
-            Ok(v) => v.parse::<usize>().ok(),
-            Err(_) => Some(8),
+        // Hosts that can't set env vars (chat-pwa wasm worker) call
+        // `set_diag_target_layer(...)` to override; otherwise we fall
+        // back to the `BW_GEMMA4_DIAG_LAYER` env var (native rig).
+        let target_intra_layer: Option<usize> = match diag_target_layer_override() {
+            Some(override_layer) => override_layer,
+            None => match std::env::var("BW_GEMMA4_DIAG_LAYER") {
+                Ok(v) if v.eq_ignore_ascii_case("none") => None,
+                Ok(v) => v.parse::<usize>().ok(),
+                Err(_) => Some(8),
+            },
         };
         let mut intra_states: Vec<(usize, String, Tensor)> = Vec::new();
         let hidden_gpu = model.language_model.forward_embeds_hidden_with_intra_hook(

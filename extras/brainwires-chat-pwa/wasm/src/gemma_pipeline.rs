@@ -942,6 +942,13 @@ struct LoadOptions {
     /// capture the per-layer trace under `[gemma4/diag]` lines.
     #[serde(default)]
     diag: bool,
+    /// When `diag` is on, target this decoder layer index for
+    /// intra-layer captures (`post_input_layernorm`, `post_self_attn`,
+    /// ple/post_*, etc). Defaults to layer 8. Set to `Some(15)` to
+    /// inspect the first KV-shared / double-wide-MLP receiver layer.
+    /// Negative values disable intra-capture entirely.
+    #[serde(default)]
+    diag_target_layer: Option<i32>,
 }
 
 fn default_true() -> bool {
@@ -1107,8 +1114,27 @@ pub async fn init_local_multimodal_chunked(
 
     if options.diag {
         brainwires_provider::local_llm::vision::gemma4_mm::set_diag_enabled(true);
+        let target_layer: Option<usize> = match options.diag_target_layer {
+            None => None, // fall back to default (layer 8)
+            Some(v) if v < 0 => {
+                brainwires_provider::local_llm::vision::gemma4_mm::set_diag_target_layer(None);
+                None
+            }
+            Some(v) => {
+                let l = v as usize;
+                brainwires_provider::local_llm::vision::gemma4_mm::set_diag_target_layer(Some(l));
+                Some(l)
+            }
+        };
         web_sys::console::log_1(
-            &"[wasm/mm] diag scaffold enabled — per-layer abs_max readback active".into(),
+            &format!(
+                "[wasm/mm] diag scaffold enabled — per-layer abs_max readback active (intra-layer target: {})",
+                match target_layer {
+                    Some(l) => l.to_string(),
+                    None => "default(8)".to_string(),
+                },
+            )
+            .into(),
         );
     }
 

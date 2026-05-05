@@ -497,10 +497,19 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId, msgDiag) {
         // false). Falls back to the worker-scope global as a secondary
         // opt-in for tests that drive the worker directly.
         const diag = !!(msgDiag || globalThis.__bw_diag);
+        // Optional intra-layer diag target: set
+        // `globalThis.__bw_diag_layer = 15` (or any layer index) on the
+        // page before model load to focus intra-layer captures away
+        // from the default (layer 8). Negative value disables
+        // intra-capture entirely.
+        const diagLayerRaw = (msg.diagLayer ?? globalThis.__bw_diag_layer);
+        const diagTargetLayer = (typeof diagLayerRaw === 'number' && Number.isInteger(diagLayerRaw))
+            ? diagLayerRaw
+            : null;
         if (disableAltup || disableLaurel || disablePerLayerInputGate || disablePleStreaming || diag) {
             console.warn(
                 '[local-worker] Gemma 3n kill-switches active:',
-                { disableAltup, disableLaurel, disablePerLayerInputGate, disablePleStreaming, diag },
+                { disableAltup, disableLaurel, disablePerLayerInputGate, disablePleStreaming, diag, diagTargetLayer },
             );
         }
         handle = await mod.init_local_multimodal_chunked(
@@ -516,6 +525,7 @@ async function tryChunkedMultimodalLoad(mod, modelId, requestId, msgDiag) {
                 disable_per_layer_input_gate: disablePerLayerInputGate,
                 disable_ple_streaming: disablePleStreaming,
                 diag,
+                diag_target_layer: diagTargetLayer,
             },
         );
         loadedModelId = modelId;

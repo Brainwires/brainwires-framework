@@ -186,7 +186,10 @@ export async function loadLocalModel(modelId = defaultModel) {
         // without rebuilding. Read at message-handle time on the worker
         // side; see local-worker.js handleLoad().
         const diag = !!globalThis.__bw_diag;
-        const out = await rpc({ type: 'load', modelId, diag });
+        const diagLayerRaw = globalThis.__bw_diag_layer;
+        const diagLayer = (typeof diagLayerRaw === 'number' && Number.isInteger(diagLayerRaw))
+            ? diagLayerRaw : null;
+        const out = await rpc({ type: 'load', modelId, diag, diagLayer });
         setLocalModelId(out.modelId || modelId);
         return out;
     } catch (err) {
