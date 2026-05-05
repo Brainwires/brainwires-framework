@@ -309,6 +309,58 @@ Migration:
 - New code: `use brainwires_core::confidence::ResponseConfidence;`
 - Existing code: continues to work via the shim until Phase 11g.
 
+### Fixed
+
+#### chat-pwa local Gemma 4 — receiver-attention divergence on AMD/Vulkan WebGPU
+
+The on-device Gemma 4 E2B IT path produced LaTeX-prefix gibberish on
+AMD GCN-4 + Linux/Vulkan WebGPU while the same model on Mac/Metal
+generated correct output. Root cause: `extras/brainwires-chat-pwa/wasm`
+hardcoded `num_kv_shared_layers: 10` (a Gemma 3n carry-over) when
+building the `Gemma4TextConfig` from the safetensors layout. Real
+Gemma 4 E2B is `20`. With `10`, `first_kv_shared_layer_idx` became
+`25` instead of `15`, so layers 15-24 silently took the **donor**
+branch in candle's gemma4 attention forward, ran their own `k_proj`
+against the (receiver-shape) placeholder weights left in the
+safetensors, and produced nonsense KV. The native `gemma4_diag`
+binary parsed `config.json` directly and got `20`, which is why the
+divergence reproduced only in the wasm path.
+
+Fix: derive `num_kv_shared_layers` from the inferred
+`num_hidden_layers`:
+- 35 layers (Gemma 4 E2B / E4B) → 20 shared (donors 0..14)
+- 30 layers (Gemma 3n E2B)      → 10 shared (donors 0..19)
+- other layouts                 → 0 (KV-share off)
+
+Bisected via new intra-`Attention::forward` `nan_scan` checkpoints
+(`q_after_proj_reshape`, `q_after_qnorm`, `k_full_from_donor` /
+`k_full_from_proj`, `q_after_rope`, `k/v_after_repeat_kv`,
+`attn_weights_pre_mask`, `attn_weights_post_mask`,
+`attn_weights_post_softmax`, `attn_after_v_matmul`) added to
+`Brainwires/candle@v0.10-wgpu` and gated on `target_intra_layer`.
+With the config fix in place, every sub-step at layer 15 now matches
+Mac/Metal bit-for-bit on chat-pwa, and the model produces the
+expected `"Hi! How can I help"` continuation.
+
+Two defensive cleanups landed alongside in the candle fork (kept
+because they harden the receiver path regardless of where the bug
+turned out to be):
+- `.contiguous()` on the donor's post-cache-append `(k_full, v_full)`
+  before publishing into `shared_kv_store` — `cache.append` can
+  return strided views; downstream `repeat_kv` / `matmul` produce
+  backend-specific results on strided sources where Metal happens to
+  tolerate them. Mirrors upstream candle PR #3475 / #3325 at the
+  shared-KV publication boundary.
+- `cos`/`sin` `to_dtype(xs.dtype())` coercion at the top of
+  `candle_nn::rotary_emb::{rope, rope_i, rope_thd}`. Mirrors upstream
+  PR #3488. Defensive against future configurations that store
+  position tables in F32 while the model dtype is BF16/F16.
+
+Affected commits:
+- `Brainwires/candle@596ba2ab` — intra-self_attn diag checkpoints
+- `Brainwires/candle@e17c22dd` — donor contiguify + RoPE dtype coerce
+- `brainwires-framework@dca60315` — chat-pwa wasm config fix
+
 ## [0.11.0] — 2026-05-02
 
 The "rename and split" release. Closes the deprecated/ god-crate
