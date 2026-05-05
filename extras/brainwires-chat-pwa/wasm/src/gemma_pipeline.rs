@@ -562,11 +562,25 @@ fn build_gemma4_config(
             disable_altup: options.disable_altup,
             disable_laurel: options.disable_laurel,
             disable_per_layer_input_gate: options.disable_per_layer_input_gate,
-            // Canonical Gemma 3n: last 10 of the 30 layers re-use K/V from
-            // earlier same-type donor layers. Shrinks GPU KV pressure at
-            // long contexts and matches the trained checkpoint's expected
-            // attention shape.
-            num_kv_shared_layers: 10,
+            // KV-cache sharing: last N layers re-use K/V from earlier
+            // donor layers of the same attention type (sliding vs full).
+            // Per the trained-checkpoint config:
+            //   - Gemma 4 E2B / E4B (35 layers) → 20 shared (donors 0..14)
+            //   - Gemma 3n E2B (30 layers)      → 10 shared (donors 0..19)
+            //   - other layouts                 → 0 (KV-share off)
+            // Picking the wrong value silently re-routes layer 15 from
+            // the receiver branch to the donor branch and the model
+            // produces gibberish on the WGPU/AMD path because layer-15
+            // k_proj weights in the safetensors are receiver-shape
+            // placeholders that the donor branch then matmuls against
+            // the wrong inputs. Mac diag binary parses config.json
+            // directly so it gets the right value; the wasm side has
+            // to derive it from the layout.
+            num_kv_shared_layers: match num_hidden_layers {
+                35 => 20,
+                30 => 10,
+                _ => 0,
+            },
         },
         vision_config: Gemma4VisionConfig {
             hidden_size: 768,
