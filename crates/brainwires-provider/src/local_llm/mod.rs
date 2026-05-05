@@ -16,6 +16,9 @@ mod config;
 mod model_registry;
 mod provider;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod ollama_cache;
+
 #[cfg(feature = "local-llm-candle")]
 pub mod candle_provider;
 
