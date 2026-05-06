@@ -56,7 +56,7 @@ export const KNOWN_OLLAMA_MODELS = {
     'gemma4:e2b': {
         id: 'gemma4:e2b',
         displayName: 'Gemma 4 E2B (Ollama, Q4_K_M)',
-        description: 'Gemma 4 E2B Q4_K_M from registry.ollama.ai (~1.6GB). Same model as the HF safetensors variant, ~6× smaller download via 4-bit quantization.',
+        description: 'Gemma 4 E2B Q4_K_M from registry.ollama.ai (~7.2GB). Same model as the HF safetensors variant; quantized weights for the language model, BF16 vision/audio towers still bundled which is why the blob is larger than a text-only Q4_K_M would be.',
         source: 'ollama',
         ollama: { name: 'gemma4', tag: 'e2b' },
         // Files filled in at runtime from the manifest layers.
@@ -72,7 +72,11 @@ export const KNOWN_OLLAMA_MODELS = {
             revision: 'main',
             filename: 'tokenizer.json',
         },
-        estimatedBytes: 1_600_000_000,
+        // Actual blob size per `ollama show gemma4:e2b`: 7.2 GB. Higher
+        // than a pure text-only Q4_K_M because the publication still
+        // bundles the BF16 vision + audio towers in the same GGUF
+        // (we don't load them on this path, but they live in the file).
+        estimatedBytes: 7_200_000_000,
         contextSize: 8192,
         gated: false,
         // Ollama's gemma4:e2b is text-only (no vision tower in the GGUF).
