@@ -985,3 +985,29 @@ body.drawer-open .drawer-scrim { opacity: 1; pointer-events: auto; }
 [dir="rtl"] .bubble.assistant { margin-right: 0; margin-left: auto; }
 [dir="rtl"] .icon-btn { transform: scaleX(-1); }
 
+/* ── Tab-conflict notice ─────────────────────────────────────
+ * Shown when the OPFS-primary lock isn't available because another
+ * tab on the same origin already holds it. See sql-db.js openDb /
+ * boot.js renderTabConflictNotice. */
+.tab-conflict-notice {
+    max-width: 480px;
+    margin: 80px auto;
+    padding: 24px;
+    border-radius: 12px;
+    background: var(--surface, #1b1b1b);
+    color: var(--text, #e7e7e7);
+    text-align: center;
+    line-height: 1.5;
+}
+.tab-conflict-notice h1 { margin: 0 0 12px; font-size: 1.25rem; }
+.tab-conflict-notice p { margin: 0 0 16px; }
+.tab-conflict-notice button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border, #444);
+    background: var(--surface-alt, #2a2a2a);
+    color: var(--text, #e7e7e7);
+    cursor: pointer;
+}
+.tab-conflict-notice button:hover { background: var(--accent-subtle, #353535); }
+

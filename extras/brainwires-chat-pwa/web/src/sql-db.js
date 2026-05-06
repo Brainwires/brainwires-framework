@@ -122,9 +122,70 @@ async function _logSync(table, rowKey, op) {
     } catch (_) { /* best-effort */ }
 }
 
+/**
+ * Error thrown by openDb when another tab already holds the
+ * OPFS-sqlite primary lock. Surfaces from boot.js so the UI can show
+ * a friendly "open in another tab" notice instead of a generic
+ * IndexedDB / NoModificationAllowed dump in DevTools.
+ */
+export class OpfsTabConflictError extends Error {
+    constructor() {
+        super(
+            'brainwires-chat is already open in another tab. Close the other tab, '
+            + 'then reload this one — OPFS sync access handles are exclusive per file.',
+        );
+        this.name = 'OpfsTabConflictError';
+        this.code = 'OPFS_TAB_CONFLICT';
+    }
+}
+
+const PRIMARY_LOCK_NAME = `bw-chat-opfs-primary:${DB_NAME}`;
+
+/**
+ * Acquire the cross-tab OPFS-primary lock. Holds it for the lifetime
+ * of this tab via a never-resolving promise, so:
+ *   - First tab to load: gets the lock, opens the rsqlite worker.
+ *   - Second tab: lock unavailable → throws OpfsTabConflictError.
+ *   - First tab closes / reloads: lock auto-releases, next tab can boot.
+ *
+ * The lock is acquired with `ifAvailable: true` so secondary tabs fail
+ * fast instead of hanging at boot.
+ */
+function acquirePrimaryLock() {
+    return new Promise((resolve, reject) => {
+        let acquired = false;
+        navigator.locks
+            .request(PRIMARY_LOCK_NAME, { mode: 'exclusive', ifAvailable: true }, (lock) => {
+                if (lock === null) {
+                    // Another tab holds it. resolve(false) so the caller
+                    // can throw OpfsTabConflictError without rejecting the
+                    // outer promise (which would also count as a lock
+                    // release).
+                    resolve(false);
+                    return undefined;
+                }
+                acquired = true;
+                resolve(true);
+                // Hold the lock until tab unload by never resolving.
+                return new Promise(() => {});
+            })
+            .catch((err) => {
+                // Some browsers / private mode don't expose Web Locks.
+                // Treat that as "lock acquired" (degrade to the previous
+                // single-tab behavior — multi-tab will still error from
+                // OPFS itself, just less helpfully).
+                if (!acquired) resolve(true);
+            });
+    });
+}
+
 export function openDb() {
     if (_dbPromise) return _dbPromise;
     _dbPromise = (async () => {
+        if (typeof navigator !== 'undefined' && navigator.locks) {
+            const ok = await acquirePrimaryLock();
+            if (!ok) throw new OpfsTabConflictError();
+        }
         cleanupLegacyData();
         const db = await WorkerDatabase.open(DB_NAME, {
             backend: 'opfs',

@@ -12,7 +12,7 @@
 //   8. lazy-init the wasm module in the background — TTS/STT/local
 //      providers wait on `getWasm()` themselves; first paint must not.
 
-import { openDb } from './sql-db.js';
+import { openDb, OpfsTabConflictError } from './sql-db.js';
 import {
     getWasm,
     setSwRegistration,
@@ -41,6 +41,53 @@ async function isDevMode() {
     } catch (_) {
         return false;
     }
+}
+
+/**
+ * Replace the app shell with a "this app is open in another tab"
+ * panel. The OPFS-backed sqlite db can only be held by one tab at a
+ * time (sync access handles are exclusive), so any second tab on the
+ * same origin needs to step aside until the primary releases.
+ *
+ * Polls every second on visibilitychange / focus to auto-recover when
+ * the user closes the other tab.
+ */
+function renderTabConflictNotice(app, _err) {
+    if (!app) return;
+    app.innerHTML = `
+        <main class="tab-conflict-notice">
+            <h1>Already open in another tab</h1>
+            <p>
+                Brainwires Chat keeps its database in browser-local storage
+                that only one tab can hold at a time. Please use the other
+                tab — or close it and click <strong>Retry</strong> here.
+            </p>
+            <button type="button" id="tab-conflict-retry">Retry</button>
+        </main>
+    `;
+    const retry = document.getElementById('tab-conflict-retry');
+    if (retry) retry.addEventListener('click', () => window.location.reload());
+    // Auto-retry when the user comes back to this tab — they likely
+    // closed the other one.
+    let attempting = false;
+    const tryAgain = async () => {
+        if (attempting || document.hidden) return;
+        attempting = true;
+        try {
+            const navAny = /** @type {any} */ (navigator);
+            if (navAny.locks && typeof navAny.locks.query === 'function') {
+                const state = await navAny.locks.query();
+                const stillHeld = (state.held || []).some((l) =>
+                    String(l.name || '').startsWith('bw-chat-opfs-primary:'),
+                );
+                if (!stillHeld) window.location.reload();
+            }
+        } catch (_) { /* ignore */ } finally {
+            attempting = false;
+        }
+    };
+    document.addEventListener('visibilitychange', tryAgain);
+    window.addEventListener('focus', tryAgain);
 }
 
 async function registerServiceWorker() {
@@ -139,6 +186,15 @@ async function boot() {
         registerServiceWorker(),
     ]);
     if (dbResult.status === 'rejected') {
+        // OPFS sync access handles are exclusive per file. If a second
+        // tab loads the same origin, the rsqlite worker fails with
+        // NoModificationAllowedError and the user gets a stuck app.
+        // Detect that case and replace the entire view with a friendly
+        // notice instead of trying to limp along.
+        if (dbResult.reason instanceof OpfsTabConflictError) {
+            renderTabConflictNotice(app, dbResult.reason);
+            return;
+        }
         console.warn('IndexedDB open failed:', dbResult.reason);
     }
     if (swResult.status === 'rejected') {
