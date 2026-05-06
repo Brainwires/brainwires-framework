@@ -227,6 +227,10 @@ async function pruneOrphanedOpfsModels() {
     const known = new Set([
         ...Object.keys(KNOWN_MODELS),
         ...Object.keys(KNOWN_EMBEDDING_MODELS),
+        // `model-downloads/ollama/<name>__<tag>/` — managed by
+        // ollama-download.js, not the per-modelId scheme above.
+        // Skip the parent so its children aren't recursively wiped.
+        'ollama',
     ]);
     // FileSystemDirectoryHandle is async-iterable in modern browsers;
     // the older `entries()` method is also accepted. Try the iterator
