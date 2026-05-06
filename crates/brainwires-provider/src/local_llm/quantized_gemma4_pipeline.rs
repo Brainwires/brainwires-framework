@@ -131,7 +131,13 @@ impl Gemma4QuantizedTextOnly {
 
         // Prefill: feed the entire prompt in one forward, take the
         // last-token logits.
-        let prompt_tensor = Tensor::new(input_ids.as_slice(), &self.device)?.unsqueeze(0)?;
+        //
+        // input_ids is only used for index lookups inside the model —
+        // never as a numeric input to a kernel — so we keep it on CPU
+        // regardless of `self.device`. Required on wasm32 + WebGPU,
+        // where sync GPU→CPU readback is forbidden (the embed table
+        // and PLE both live on CPU and consume the ids there).
+        let prompt_tensor = Tensor::new(input_ids.as_slice(), &Device::Cpu)?.unsqueeze(0)?;
         let mut logits = model.forward(&prompt_tensor, 0)?;
         let mut emitted_ids: Vec<u32> = Vec::with_capacity(max_new_tokens);
         let mut decoded = String::new();
@@ -161,7 +167,7 @@ impl Gemma4QuantizedTextOnly {
             // pointing past the prompt + previously-emitted tokens.
             let seqlen_offset = prompt_len + step;
             input_ids.push(next_id);
-            let one = Tensor::new(&[next_id], &self.device)?.unsqueeze(0)?;
+            let one = Tensor::new(&[next_id], &Device::Cpu)?.unsqueeze(0)?;
             logits = model.forward(&one, seqlen_offset)?;
         }
         Ok(decoded)
