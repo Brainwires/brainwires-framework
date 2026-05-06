@@ -36,6 +36,16 @@ const PKG_URL = new URL('./pkg/brainwires_chat_pwa.js', import.meta.url).href;
 const CACHE_NAME = 'bw-models-v1';
 const OPFS_DIR = 'model-downloads';
 
+// Ollama OPFS reader — only imported lazily because the worker may
+// load before the rest of the app and we don't want the module graph
+// to stall on this path when no Ollama model is selected.
+let _ollamaModule = null;
+async function _getOllamaModule() {
+    if (_ollamaModule) return _ollamaModule;
+    _ollamaModule = await import('./ollama-download.js');
+    return _ollamaModule;
+}
+
 async function _getOpfsFile(modelId, filename) {
     if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) return null;
     try {
@@ -57,6 +67,7 @@ async function _getOpfsFile(modelId, filename) {
 const KNOWN_MODELS = {
     'gemma-4-e2b-it': {
         id: 'gemma-4-e2b-it',
+        source: 'hf',
         hf: { repo: 'google/gemma-4-e2b-it', revision: 'main' },
         files: [
             { kind: 'weights', filename: 'model.safetensors' },
@@ -67,6 +78,33 @@ const KNOWN_MODELS = {
         multimodal: true,
     },
 };
+
+// Mirror of `KNOWN_OLLAMA_MODELS` in src/model-store.js. Kept here so
+// `getModelBytes` / `handleLoad` can route an ollama-source modelId to
+// the OPFS path used by `ollama-download.js` instead of the HF-only
+// `KNOWN_MODELS` lookup. Tokenizer for Ollama models comes from a
+// companion HF safetensors tokenizer.json (Ollama embeds the tokenizer
+// in the GGUF metadata, but extraction isn't wired up yet).
+const KNOWN_OLLAMA_MODELS = {
+    'gemma4:e2b': {
+        id: 'gemma4:e2b',
+        source: 'ollama',
+        ollama: { name: 'gemma4', tag: 'e2b' },
+        // Tokenizer companion — pulled from the same HF repo as the
+        // safetensors path so it doesn't duplicate the download.
+        tokenizerCompanion: {
+            repo: 'google/gemma-4-e2b-it',
+            revision: 'main',
+            filename: 'tokenizer.json',
+        },
+        // Ollama's gemma4:e2b is text-only (no vision tower in the GGUF).
+        multimodal: false,
+    },
+};
+
+function getKnownModelAny(modelId) {
+    return KNOWN_MODELS[modelId] || KNOWN_OLLAMA_MODELS[modelId] || null;
+}
 
 function cacheKey(modelId, filename) {
     const m = KNOWN_MODELS[modelId];
@@ -156,6 +194,11 @@ async function getWasm() {
 }
 
 async function isDownloaded(modelId) {
+    if (KNOWN_OLLAMA_MODELS[modelId]) {
+        const om = KNOWN_OLLAMA_MODELS[modelId];
+        const { isOllamaModelDownloaded } = await _getOllamaModule();
+        return await isOllamaModelDownloaded(om.ollama.name, om.ollama.tag);
+    }
     const m = KNOWN_MODELS[modelId];
     if (!m) return false;
     for (const f of m.files) {
@@ -170,6 +213,20 @@ async function isDownloaded(modelId) {
 }
 
 async function getModelBytes(modelId) {
+    if (KNOWN_OLLAMA_MODELS[modelId]) {
+        const om = KNOWN_OLLAMA_MODELS[modelId];
+        const { getOllamaModelBytes } = await _getOllamaModule();
+        const { bytes } = await getOllamaModelBytes(om.ollama.name, om.ollama.tag);
+        if (!bytes.weights) {
+            throw new Error(`ollama model ${modelId} missing weights blob`);
+        }
+        // Ollama may publish a `tokenizer` layer alongside the GGUF.
+        // When it doesn't, the user has to download the companion HF
+        // tokenizer.json; the wasm side bails clearly if `tokenizer`
+        // is empty.
+        const tokenizer = bytes.tokenizer || new Uint8Array(0);
+        return { weights: bytes.weights, tokenizer };
+    }
     const m = KNOWN_MODELS[modelId];
     if (!m) throw new Error(`unknown model: ${modelId}`);
     const out = {};
@@ -276,6 +333,43 @@ async function handleLoad(msg) {
         loadedModelId = null;
         handleIsMultimodal = false;
         closeMultimodalWeightsHandle();
+
+        // Ollama-source models route through the dedicated GGUF entry
+        // point (Phase 4 part 3). Single allocation: the GGUF blob is
+        // pulled from OPFS in one read, dequantized to BF16 in wasm,
+        // wired into the existing Gemma4 multimodal pipeline (vision
+        // disabled — Ollama gemma4:e2b is text-only).
+        if (KNOWN_OLLAMA_MODELS[modelId]) {
+            if (typeof mod.init_local_multimodal_gguf !== 'function') {
+                self.postMessage({
+                    requestId,
+                    type: 'load_error',
+                    error: 'wasm.init_local_multimodal_gguf not available — rebuild the WASM crate',
+                });
+                return;
+            }
+            let { weights, tokenizer } = await getModelBytes(modelId);
+            if (!tokenizer || tokenizer.byteLength === 0) {
+                self.postMessage({
+                    requestId,
+                    type: 'load_error',
+                    error: 'ollama-source models need a tokenizer.json layer in the manifest; this publication does not include one',
+                });
+                weights = null;
+                return;
+            }
+            try {
+                handle = await mod.init_local_multimodal_gguf(weights, tokenizer, modelId);
+            } finally {
+                weights = null;
+                tokenizer = null;
+            }
+            loadedModelId = modelId;
+            handleIsMultimodal = true; // Gemma4MultiModal handle, even though vision is off
+            self.postMessage({ requestId, type: 'load_done', modelId });
+            self.postMessage({ type: 'load_progress', phase: 'ready', modelId });
+            return;
+        }
 
         const m = KNOWN_MODELS[modelId];
         const multimodal = !!(m && m.multimodal);
