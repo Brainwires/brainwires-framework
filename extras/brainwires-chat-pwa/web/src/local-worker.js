@@ -171,6 +171,10 @@ let loadedModelId = null;
 // `vision_chat` against a text-only handle (and vice versa) instead of
 // silently calling the wrong wasm export.
 let handleIsMultimodal = false;
+// `true` when the active handle is a `LocalQuantizedHandle` (text-only,
+// QMatMul-backed). Routes chat to `local_chat_stream_quantized` and
+// makes vision_chat fail-fast with a clear error.
+let handleIsQuantized = false;
 
 // OPFS `FileSystemSyncAccessHandle` for the active multimodal weights
 // file. The WASM side keeps the chunked-loader `readFn` alive past init
@@ -386,19 +390,26 @@ async function handleLoad(msg) {
         handle = null;
         loadedModelId = null;
         handleIsMultimodal = false;
+        handleIsQuantized = false;
         closeMultimodalWeightsHandle();
 
-        // Ollama-source models route through the dedicated GGUF entry
-        // point (Phase 4 part 3). Single allocation: the GGUF blob is
-        // pulled from OPFS in one read, dequantized to BF16 in wasm,
-        // wired into the existing Gemma4 multimodal pipeline (vision
-        // disabled — Ollama gemma4:e2b is text-only).
+        // Ollama-source models route through the perf-bearing quantized
+        // path when the wasm crate exposes
+        // `init_local_multimodal_gguf_quantized` (Phase 5 path —
+        // QMatMul over q4_k.pwgsl). Falls back to the dequant-at-load
+        // path otherwise.
         if (KNOWN_OLLAMA_MODELS[modelId]) {
-            if (typeof mod.init_local_multimodal_gguf !== 'function') {
+            const useQuantized =
+                typeof mod.init_local_multimodal_gguf_quantized === 'function';
+            const initFn = useQuantized
+                ? mod.init_local_multimodal_gguf_quantized
+                : mod.init_local_multimodal_gguf;
+            if (typeof initFn !== 'function') {
                 self.postMessage({
                     requestId,
                     type: 'load_error',
-                    error: 'wasm.init_local_multimodal_gguf not available — rebuild the WASM crate',
+                    error:
+                        'no GGUF entry point available — rebuild the WASM crate',
                 });
                 return;
             }
@@ -407,13 +418,19 @@ async function handleLoad(msg) {
             // bytes are valid.
             let { weights, tokenizer } = await getModelBytes(modelId);
             try {
-                handle = await mod.init_local_multimodal_gguf(weights, tokenizer, modelId);
+                handle = await initFn(weights, tokenizer, modelId);
             } finally {
                 weights = null;
                 tokenizer = null;
             }
             loadedModelId = modelId;
-            handleIsMultimodal = true; // Gemma4MultiModal handle, even though vision is off
+            if (useQuantized) {
+                handleIsQuantized = true;
+                handleIsMultimodal = false;
+            } else {
+                handleIsMultimodal = true; // Gemma4MultiModal handle, even though vision is off
+                handleIsQuantized = false;
+            }
             self.postMessage({ requestId, type: 'load_done', modelId });
             self.postMessage({ type: 'load_progress', phase: 'ready', modelId });
             return;
@@ -713,6 +730,12 @@ async function handleChat(msg) {
     // Route through the multimodal stream fn instead — it accepts text-only
     // messages (no image parts → no vision tower needed) and emits the same
     // NDJSON wire shape, so `runChatStream` is unchanged.
+    //
+    // Quantized GGUF handles (LocalQuantizedHandle) get their own stream
+    // entry point — text-only, runs on QMatMul kernels.
+    if (handleIsQuantized) {
+        return runChatStream(msg, 'local_chat_stream_quantized');
+    }
     if (handleIsMultimodal) {
         return runChatStream(msg, 'local_chat_stream_with_image');
     }
@@ -729,6 +752,13 @@ async function handleChat(msg) {
 // than letting the wasm export reject with a cryptic type-mismatch.
 async function handleVisionChat(msg) {
     const { requestId, conversationId, messageId } = msg;
+    if (handle !== null && handleIsQuantized) {
+        self.postMessage({
+            requestId, type: 'chat_error', conversationId, messageId,
+            error: 'quantized GGUF model is text-only — reload with the HF safetensors variant for vision',
+        });
+        return;
+    }
     if (handle !== null && !handleIsMultimodal) {
         self.postMessage({
             requestId, type: 'chat_error', conversationId, messageId,
@@ -948,6 +978,7 @@ function handleUnload(msg) {
     handle = null;
     loadedModelId = null;
     handleIsMultimodal = false;
+    handleIsQuantized = false;
     closeMultimodalWeightsHandle();
     self.postMessage({ requestId, type: 'unload_ack' });
 }
