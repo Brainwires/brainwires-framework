@@ -233,8 +233,46 @@ fallback for Safari ≤ 16.0), Cross-Origin-Isolation headers for
 proxy. The PWA talks to LLM providers (Anthropic, OpenAI, Gemini, Ollama)
 or runs Candle locally in-browser.
 
+## Local model sources
+
+Two parallel download paths land in OPFS (`model-downloads/`):
+
+- **HuggingFace safetensors** (default) — `KNOWN_MODELS` registry in
+  `web/src/model-store.js`. Currently `gemma-4-e2b-it` (~10 GB BF16).
+  Loader chunks the safetensors file via `init_local_multimodal_chunked`
+  on the wasm side so peak linear memory stays bounded.
+- **Ollama-format GGUF** — `KNOWN_OLLAMA_MODELS` registry in
+  `web/src/model-store.js`. Currently `gemma4:e2b` (~1.6 GB Q4_K_M,
+  same model 6× smaller download). Pulled directly from
+  `registry.ollama.ai` via the OCI Distribution Spec client in
+  `web/src/ollama-fetch.js`. Tokenizer companion fetched from the HF
+  repo when the manifest doesn't include one.
+
+The wasm loader path (`init_local_multimodal_gguf` in
+`wasm/src/gemma_pipeline.rs`) currently dequantizes Q4_K_M to BF16 at
+load time, so VRAM footprint matches the safetensors path —
+**inference tok/s is the same on both sources.** The smaller download
+is the only user-visible win until a `quantized_gemma4` model that
+consumes `QMatMul` directly is wired up. The candle WGPU backend
+(via PR #3379) ships the `q4_k.pwgsl` quantized matmul kernel
+already, so that work is small once the model port lands.
+
+The `gemma4_diag` example at
+`crates/brainwires-provider/examples/gemma4_diag.rs` exercises the
+GGUF loader end-to-end on native:
+
+```sh
+cargo run --release -p brainwires-provider \
+    --features native,local-llm-vision,candle-wgpu \
+    --example gemma4_diag -- \
+    --gguf-path ~/Downloads/gemma4-e2b-q4_k_m.gguf \
+    --tokenizer-file ~/.cache/huggingface/hub/.../tokenizer.json \
+    --device cpu --prompt "Hi" --max-new-tokens 1
+```
+
 ## Constraints
 
 No model weights are bundled. Every model is fetched from huggingface.co
-at runtime. The crate ships only the runtime shell — no `*.gguf`,
-`*.safetensors`, or `*.bin` ever ride along in the artifact.
+or registry.ollama.ai at runtime. The crate ships only the runtime
+shell — no `*.gguf`, `*.safetensors`, or `*.bin` ever ride along in
+the artifact.
