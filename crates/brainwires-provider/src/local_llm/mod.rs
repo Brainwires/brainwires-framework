@@ -23,6 +23,9 @@ pub mod ollama_cache;
 pub mod gguf_loader;
 
 #[cfg(feature = "local-llm-candle")]
+pub mod quantized_gemma4_pipeline;
+
+#[cfg(feature = "local-llm-candle")]
 pub mod candle_provider;
 
 #[cfg(feature = "local-llm-vision")]
