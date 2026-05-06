@@ -118,8 +118,36 @@ export async function getOllamaModelBytes(name, tag) {
     const out = {};
     for (const f of info.files) {
         const fh = await dir.getFileHandle(f.filename, { create: false });
-        const file = await fh.getFile();
-        out[f.kind] = new Uint8Array(await file.arrayBuffer());
+        let bytes = null;
+
+        // Sync access handle path. `File.arrayBuffer()` throws
+        // NotReadableError on multi-GB OPFS files in Chrome (the same
+        // issue local-worker.js getModelBytes works around) — Q4_K_M
+        // gemma4:e2b weights are ~1.6 GB, well past the threshold.
+        // The sync API bypasses that code path.
+        try {
+            const syncHandle = await fh.createSyncAccessHandle();
+            try {
+                const size = syncHandle.getSize();
+                if (size > 0) {
+                    bytes = new Uint8Array(size);
+                    syncHandle.read(bytes, { at: 0 });
+                }
+            } finally {
+                syncHandle.close();
+            }
+        } catch (e) {
+            console.warn(`[ollama-download] ${f.filename}: sync handle read failed:`, e.message);
+        }
+
+        // Fallback to async File API for environments / file sizes
+        // where the sync path isn't available.
+        if (!bytes) {
+            const file = await fh.getFile();
+            bytes = new Uint8Array(await file.arrayBuffer());
+        }
+
+        out[f.kind] = bytes;
     }
     return { files: info.files, bytes: out };
 }
