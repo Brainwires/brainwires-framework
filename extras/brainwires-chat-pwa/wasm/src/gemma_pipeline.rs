@@ -2151,7 +2151,71 @@ pub async fn init_local_multimodal_gguf(
     })
 }
 
-// ── Quantized GGUF entry point — Phase 5 perf path ─────────────────────────
+// ── Quantized GGUF entry points — Phase 5 perf path ───────────────────────
+
+/// `Read + Seek` adapter that pulls bytes through a JS callback. Used by
+/// the chunked GGUF init (and any other reader-based loader) so we never
+/// have to allocate the whole file as a single `Vec<u8>` in wasm linear
+/// memory — Ollama Q4_K_M `gemma4:e2b` is a ~7.2 GB blob on disk
+/// (LM + vision + audio); even its LM-only subset (~1.6 GB) overflows
+/// `new Uint8Array(N)` in Chrome with "Array buffer allocation failed",
+/// and reading the rest of the file is required to walk through GGUF
+/// metadata anyway.
+struct JsCallbackReader {
+    read_fn: js_sys::Function,
+    file_size: u64,
+    cursor: u64,
+}
+
+impl JsCallbackReader {
+    fn new(read_fn: js_sys::Function, file_size: u64) -> Self {
+        Self { read_fn, file_size, cursor: 0 }
+    }
+}
+
+impl std::io::Read for JsCallbackReader {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.cursor >= self.file_size {
+            return Ok(0);
+        }
+        let want = std::cmp::min(buf.len() as u64, self.file_size - self.cursor);
+        if want == 0 {
+            return Ok(0);
+        }
+        let bytes = crate::call_read_fn(&self.read_fn, self.cursor, want).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("JS read_fn failed at offset {}: {:?}", self.cursor, e),
+            )
+        })?;
+        let n = bytes.len();
+        if n == 0 {
+            return Ok(0);
+        }
+        buf[..n].copy_from_slice(&bytes);
+        self.cursor += n as u64;
+        Ok(n)
+    }
+}
+
+impl std::io::Seek for JsCallbackReader {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        let new_pos = match pos {
+            std::io::SeekFrom::Start(p) => p as i64,
+            std::io::SeekFrom::End(p) => self.file_size as i64 + p,
+            std::io::SeekFrom::Current(p) => self.cursor as i64 + p,
+        };
+        if new_pos < 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "JsCallbackReader: seek to negative position",
+            ));
+        }
+        self.cursor = new_pos as u64;
+        Ok(self.cursor)
+    }
+}
+
 
 /// Build a text-only Gemma 4 handle from an Ollama Q4_K_M GGUF that
 /// keeps weights as `QTensor` end-to-end. Inference runs on PR #3379's
@@ -2201,6 +2265,73 @@ pub async fn init_local_multimodal_gguf_quantized(
     web_sys::console::log_1(
         &format!(
             "[wasm/gguf-q] quantized model built, layers={}",
+            cfg.text_config.num_hidden_layers,
+        )
+        .into(),
+    );
+
+    let tokenizer = Tokenizer::from_bytes(&tokenizer_json)
+        .map_err(|e| JsValue::from_str(&format!("tokenizer parse: {e}")))?;
+
+    let pipeline =
+        brainwires_provider::local_llm::quantized_gemma4_pipeline::Gemma4QuantizedTextOnly::from_components(
+            model, tokenizer, device, cfg,
+        );
+
+    Ok(LocalQuantizedHandle {
+        inner: Arc::new(pipeline),
+        model_id,
+    })
+}
+
+/// Chunked variant of [`init_local_multimodal_gguf_quantized`] for large
+/// Ollama blobs. Takes a JS callback `read_fn(offset, length) -> Uint8Array`
+/// instead of a pre-loaded `Vec<u8>`, so the GGUF blob never has to be
+/// materialised as a single allocation in either the JS heap or wasm
+/// linear memory.
+///
+/// Caller (chat-pwa local-worker.js) holds the OPFS sync access handle
+/// and drives `read_fn` from it; `gguf_loader::load_quantized_gemma4_from_reader`
+/// walks the file once, reading metadata + each tensor on demand.
+#[wasm_bindgen]
+pub async fn init_local_multimodal_gguf_quantized_chunked(
+    read_fn: js_sys::Function,
+    file_size: f64,
+    tokenizer_json: Vec<u8>,
+    model_id: String,
+) -> Result<LocalQuantizedHandle, JsValue> {
+    let device = match try_webgpu_device().await {
+        Ok(dev) => {
+            web_sys::console::log_1(&"[wasm/gguf-q-chunked] using WebGPU device".into());
+            dev
+        }
+        Err(e) => {
+            web_sys::console::warn_1(
+                &format!("[wasm/gguf-q-chunked] WebGPU unavailable ({e}), CPU fallback").into(),
+            );
+            Device::Cpu
+        }
+    };
+
+    let file_size = file_size as u64;
+    web_sys::console::log_1(
+        &format!(
+            "[wasm/gguf-q-chunked] streaming GGUF, file_size={file_size}, model_id={model_id}",
+        )
+        .into(),
+    );
+
+    let mut reader = JsCallbackReader::new(read_fn, file_size);
+    let (model, cfg) =
+        brainwires_provider::local_llm::gguf_loader::load_quantized_gemma4_from_reader(
+            &mut reader,
+            &device,
+        )
+        .map_err(|e| JsValue::from_str(&format!("quantized_gemma4 load: {e}")))?;
+
+    web_sys::console::log_1(
+        &format!(
+            "[wasm/gguf-q-chunked] quantized model built, layers={}",
             cfg.text_config.num_hidden_layers,
         )
         .into(),

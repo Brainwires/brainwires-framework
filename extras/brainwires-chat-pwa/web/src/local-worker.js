@@ -401,6 +401,17 @@ async function handleLoad(msg) {
         if (KNOWN_OLLAMA_MODELS[modelId]) {
             const useQuantized =
                 typeof mod.init_local_multimodal_gguf_quantized === 'function';
+            // Chunked path keeps the GGUF blob out of JS heap entirely.
+            // The full Ollama gemma4:e2b file is ~7 GB; even the LM-only
+            // subset (~1.6 GB) overflows `new Uint8Array(N)` in Chrome.
+            const useChunked =
+                useQuantized
+                && typeof mod.init_local_multimodal_gguf_quantized_chunked === 'function';
+            if (useChunked) {
+                const loaded = await tryChunkedOllamaLoad(mod, modelId, requestId);
+                if (loaded) return;
+                console.log('[local-worker] chunked GGUF load unavailable, falling back to bulk read');
+            }
             const initFn = useQuantized
                 ? mod.init_local_multimodal_gguf_quantized
                 : mod.init_local_multimodal_gguf;
@@ -493,6 +504,119 @@ async function handleLoad(msg) {
         const error = err && err.message ? err.message : String(err);
         console.error('local-worker: load failed', err);
         self.postMessage({ requestId, type: 'load_error', error });
+    }
+}
+
+/**
+ * Stream an Ollama Q4_K_M GGUF blob into wasm via a JS read-fn callback,
+ * keeping the multi-GB file out of the JS heap. Mirrors `tryChunkedLoad`
+ * for the non-Ollama (HF safetensors) path; the only differences are
+ * the OPFS layout (`model-downloads/ollama/library_<name>__<tag>/`) and
+ * the wasm entry point (`init_local_multimodal_gguf_quantized_chunked`).
+ *
+ * Returns true on success (load_done already posted), false to fall
+ * back to the bulk-read path.
+ */
+async function tryChunkedOllamaLoad(mod, modelId, requestId) {
+    if (typeof mod.init_local_multimodal_gguf_quantized_chunked !== 'function') return false;
+    if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.getDirectory) {
+        return false;
+    }
+
+    const om = KNOWN_OLLAMA_MODELS[modelId];
+    if (!om) return false;
+
+    const { ollamaModelInfo } = await _getOllamaModule();
+    const info = await ollamaModelInfo(om.ollama.name, om.ollama.tag);
+    const weightsFile = info.files.find((f) => f.kind === 'weights');
+    if (!weightsFile) return false;
+    const tokenizerFile = info.files.find((f) => f.kind === 'tokenizer');
+
+    const dirName = (() => {
+        const n = om.ollama.name;
+        const ns = n.includes('/') ? n : `library/${n}`;
+        return `${ns.replace('/', '_')}__${om.ollama.tag}`;
+    })();
+
+    let weightsSync = null;
+    try {
+        const root = await navigator.storage.getDirectory();
+        const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: false });
+        const ollamaDir = await dlDir.getDirectoryHandle('ollama', { create: false });
+        const modelDir = await ollamaDir.getDirectoryHandle(dirName, { create: false });
+
+        const weightsFh = await modelDir.getFileHandle(weightsFile.filename, { create: false });
+        weightsSync = await weightsFh.createSyncAccessHandle();
+        const fileSize = weightsSync.getSize();
+        if (fileSize === 0) {
+            weightsSync.close();
+            return false;
+        }
+        console.log(`[local-worker] chunked Ollama load: weights ${fileSize} bytes`);
+
+        // Tokenizer is small (~32 MB worst case for Gemma) — bulk-read.
+        let tokenizerBytes = new Uint8Array(0);
+        if (tokenizerFile) {
+            try {
+                const tokFh = await modelDir.getFileHandle(tokenizerFile.filename, { create: false });
+                const tokSync = await tokFh.createSyncAccessHandle();
+                try {
+                    const tokSize = tokSync.getSize();
+                    if (tokSize > 0) {
+                        tokenizerBytes = new Uint8Array(tokSize);
+                        tokSync.read(tokenizerBytes, { at: 0 });
+                    }
+                } finally {
+                    tokSync.close();
+                }
+            } catch (e) {
+                console.warn('[local-worker] chunked Ollama: tokenizer read failed:', e.message);
+            }
+        }
+        // No tokenizer in the GGUF? Fall back to the companion file
+        // (HF tokenizer.json bundled with the model id). The helper is
+        // defined locally in this file (`_fetchOllamaTokenizerCompanion`).
+        if (tokenizerBytes.byteLength === 0 && om.tokenizerCompanion) {
+            try {
+                const companion = await _fetchOllamaTokenizerCompanion(om);
+                if (companion && companion.byteLength > 0) tokenizerBytes = companion;
+            } catch (e) {
+                console.warn('[local-worker] chunked Ollama: tokenizer companion fetch failed:', e.message);
+            }
+        }
+
+        const readFn = (offset, length) => {
+            const buf = new Uint8Array(length);
+            weightsSync.read(buf, { at: offset });
+            return buf;
+        };
+
+        handle = await mod.init_local_multimodal_gguf_quantized_chunked(
+            readFn,
+            fileSize,
+            tokenizerBytes,
+            modelId,
+        );
+        loadedModelId = modelId;
+        handleIsQuantized = true;
+        handleIsMultimodal = false;
+
+        weightsSync.close();
+        weightsSync = null;
+
+        const deviceType = handle.device_type || 'cpu';
+        self.postMessage({ type: 'load_progress', phase: 'ready', modelId, deviceType });
+        self.postMessage({ requestId, type: 'load_done', modelId, deviceType });
+        return true;
+    } catch (e) {
+        if (weightsSync) {
+            try { weightsSync.close(); } catch (_) {}
+        }
+        console.error('[local-worker] chunked Ollama load failed:', e);
+        // Falling back to bulk read won't help if the issue is allocation
+        // size, but it might if the failure was something else. Let the
+        // caller decide.
+        return false;
     }
 }
 
