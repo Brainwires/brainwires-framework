@@ -2020,3 +2020,87 @@ impl candle_nn::var_builder::SimpleBackend for CpuPinnedBackend {
         self.inner.contains_key(name)
     }
 }
+
+// ---------------------------------------------------------------------------
+// GGUF (Ollama) loading — Phase 4 part 3
+// ---------------------------------------------------------------------------
+
+/// Build a Gemma 4 [`LocalMultiModalHandle`] from a Q4_K_M GGUF blob.
+///
+/// Reads via [`brainwires_provider::local_llm::gguf_loader`], dequantizes
+/// every quantized tensor to BF16 in memory, builds a
+/// [`CandleVarBuilder`] over the resulting tensor map, and constructs a
+/// text-only [`Gemma4Model`] feeding into a
+/// [`Gemma4MultiModal`] pipeline. The vision/audio towers are disabled
+/// — Ollama's `gemma4:e2b` is text-only and the GGUF doesn't carry the
+/// SigLIP / audio weights.
+///
+/// **No perf win on its own** — this is the dequant-at-load path. The
+/// quantized matmul pipeline (`QMatMul` over WGPU's `q4_k.pwgsl` kernel)
+/// is reachable through PR #3379 but requires a `quantized_gemma4`
+/// model implementation that doesn't exist yet. Until then, GGUF saves
+/// download bytes (~6× smaller than HF safetensors) but inference
+/// runs at the same BF16 tok/s as the safetensors path.
+#[wasm_bindgen]
+pub async fn init_local_multimodal_gguf(
+    weights: Vec<u8>,
+    tokenizer_json: Vec<u8>,
+    model_id: String,
+) -> Result<LocalMultiModalHandle, JsValue> {
+    let device = match try_webgpu_device().await {
+        Ok(dev) => {
+            web_sys::console::log_1(&"[wasm/gguf] using WebGPU device".into());
+            dev
+        }
+        Err(e) => {
+            web_sys::console::warn_1(
+                &format!("[wasm/gguf] WebGPU unavailable ({e}), CPU fallback").into(),
+            );
+            Device::Cpu
+        }
+    };
+
+    web_sys::console::log_1(
+        &format!(
+            "[wasm/gguf] loading GGUF blob ({} bytes), model_id={model_id}",
+            weights.len()
+        )
+        .into(),
+    );
+
+    let mut cursor = std::io::Cursor::new(weights);
+    let (tensors, cfg) =
+        brainwires_provider::local_llm::gguf_loader::load_gemma4_gguf_from_reader(
+            &mut cursor,
+            &device,
+        )
+        .map_err(|e| JsValue::from_str(&format!("GGUF dequant load failed: {e}")))?;
+
+    web_sys::console::log_1(
+        &format!(
+            "[wasm/gguf] dequantized {} tensors → BF16, layers={}",
+            tensors.len(),
+            cfg.text_config.num_hidden_layers,
+        )
+        .into(),
+    );
+
+    let vb = CandleVarBuilder::from_tensors(tensors, DType::BF16, &device);
+    let model = Gemma4Model::new_partial(&cfg, vb, false, false)
+        .map_err(|e| JsValue::from_str(&format!("Gemma4Model::new_partial: {e}")))?;
+
+    let tokenizer = Tokenizer::from_bytes(&tokenizer_json)
+        .map_err(|e| JsValue::from_str(&format!("tokenizer parse: {e}")))?;
+
+    let pipeline =
+        Gemma4MultiModal::from_components(model, tokenizer, device.clone(), cfg.clone());
+
+    Ok(LocalMultiModalHandle {
+        inner: MultimodalInner::Gemma4 {
+            pipeline: Arc::new(pipeline),
+            gpu_device: device,
+        },
+        model_id,
+        lazy: None,
+    })
+}
