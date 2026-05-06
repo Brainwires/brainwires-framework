@@ -19,6 +19,7 @@
 import { events } from './state.js';
 import {
     KNOWN_MODELS,
+    KNOWN_OLLAMA_MODELS,
     KNOWN_EMBEDDING_MODELS,
     downloadModel,
     cancelDownload,
@@ -124,7 +125,9 @@ function subscribe() {
  * @returns {Promise<void>}
  */
 export async function startDownload(modelId, opts = {}) {
-    const m = (KNOWN_MODELS[modelId] || KNOWN_EMBEDDING_MODELS[modelId]);
+    const m = (KNOWN_MODELS[modelId]
+        || KNOWN_OLLAMA_MODELS[modelId]
+        || KNOWN_EMBEDDING_MODELS[modelId]);
     if (!m) {
         toast(`Unknown model: ${modelId}`, 'error');
         return;
@@ -209,7 +212,11 @@ function render() {
 }
 
 function buildContent(compact) {
-    const m = _activeModelId ? (KNOWN_MODELS[_activeModelId] || KNOWN_EMBEDDING_MODELS[_activeModelId]) : null;
+    const m = _activeModelId
+        ? (KNOWN_MODELS[_activeModelId]
+            || KNOWN_OLLAMA_MODELS[_activeModelId]
+            || KNOWN_EMBEDDING_MODELS[_activeModelId])
+        : null;
     const name = m ? m.displayName : 'model';
     const wrap = el('div', { class: `bw-dl bw-dl-${_state}` });
 
