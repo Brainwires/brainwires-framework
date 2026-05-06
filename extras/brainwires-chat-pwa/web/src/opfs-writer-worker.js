@@ -2,11 +2,27 @@
 //
 // Uses FileSystemSyncAccessHandle for zero-copy, in-place writes to OPFS.
 // This avoids the O(n^2) overhead of createWritable({ keepExistingData: true })
-// which copies the entire file into a swap file on every open.
+// which copies the entire file into a swap file on every open. The sync
+// handle API is **only available in Worker contexts** — calling it from
+// the main thread throws `createSyncAccessHandle is not a function`.
 //
 // Wire protocol (main → worker):
-//   { type: 'start', modelId, filename, url, headers, offset }
+//   {
+//     type: 'start',
+//     modelId,                    // logging label (not part of OPFS path)
+//     dirPath: ['ollama', 'lib_x__y'],  // segments under model-downloads/
+//     filename,
+//     url,
+//     headers,
+//     offset,
+//   }
 //   { type: 'cancel' }
+//
+// `dirPath` is the path under `model-downloads/` to the file's parent
+// directory, expressed as an array of directory segments. The worker
+// creates each segment as needed. Older callers that pass only
+// `modelId` (no `dirPath`) get the legacy single-segment layout
+// `model-downloads/<modelId>/<filename>` for back-compat.
 //
 // Wire protocol (worker → main):
 //   { type: 'progress', bytesWritten, totalBytes, chunkBytes }
@@ -29,6 +45,11 @@ self.addEventListener('message', (ev) => {
 
 async function handleStart(msg) {
     const { modelId, filename, url, headers, offset } = msg;
+    // `dirPath` is the new (multi-segment) path API; fall back to
+    // single-segment `[modelId]` for legacy callers.
+    const dirPath = Array.isArray(msg.dirPath) && msg.dirPath.length > 0
+        ? msg.dirPath
+        : [modelId];
     cancelled = false;
 
     let syncHandle = null;
@@ -36,11 +57,15 @@ async function handleStart(msg) {
     let bytesSinceFlush = 0;
 
     try {
-        // Open OPFS directory structure
+        // Open OPFS directory structure. Walks every segment in
+        // `dirPath` under `model-downloads/`, creating as needed.
         const root = await navigator.storage.getDirectory();
         const dlDir = await root.getDirectoryHandle(OPFS_DIR, { create: true });
-        const modelDir = await dlDir.getDirectoryHandle(modelId, { create: true });
-        const fileHandle = await modelDir.getFileHandle(filename, { create: true });
+        let parentDir = dlDir;
+        for (const seg of dirPath) {
+            parentDir = await parentDir.getDirectoryHandle(seg, { create: true });
+        }
+        const fileHandle = await parentDir.getFileHandle(filename, { create: true });
 
         console.log(`[opfs-writer] opening sync handle for ${modelId}/${filename} at offset ${currentOffset}`);
         syncHandle = await fileHandle.createSyncAccessHandle();

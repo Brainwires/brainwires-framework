@@ -18,9 +18,9 @@
 
 import {
     fetchManifest,
-    fetchBlob,
     manifestToFiles,
     estimatedBytesFromManifest,
+    ollamaCacheKey,
 } from './ollama-fetch.js';
 import { events } from './state.js';
 
@@ -143,12 +143,15 @@ export async function getOllamaModelBytes(name, tag) {
  */
 export async function downloadOllamaModel(name, tag, opts = {}) {
     if (!_hasOpfs()) {
-        throw new Error('Ollama download requires OPFS (FileSystemSyncAccessHandle)');
+        throw new Error('Ollama download requires OPFS');
     }
     const { manifest: _manifest, files, estimatedBytes } = await ollamaModelInfo(name, tag);
     const dir = await _ollamaDir(name, tag, { create: true });
     const startedAt = Date.now();
     const modelId = opts.modelId || `ollama:${name}:${tag}`;
+    // OPFS path under `model-downloads/` for the worker. Mirrors
+    // `_ollamaDir` above: `model-downloads/ollama/<dirName>/...`.
+    const dirPath = [OPFS_OLLAMA_SUB, ollamaDirName(name, tag)];
 
     let totalBytesDone = 0;
     let lastEmit = 0;
@@ -180,6 +183,13 @@ export async function downloadOllamaModel(name, tag, opts = {}) {
         catch (_e) { /* events may be unavailable in some test contexts */ }
     };
 
+    // Streaming SHA-256 verification has too much OOM risk for multi-GB
+    // GGUF blobs (a single `arrayBuffer()` would allocate the full file
+    // on the heap). The HF path skips verification past 2 GB for the
+    // same reason. Trust HTTPS + the registry's content-addressed
+    // digest for blobs above this cap.
+    const SHA_VERIFY_CAP = 2 * 1024 * 1024 * 1024;
+
     for (const f of files) {
         // Skip if already verified.
         try {
@@ -192,46 +202,80 @@ export async function downloadOllamaModel(name, tag, opts = {}) {
             }
         } catch (_) { /* no marker, proceed */ }
 
-        // Resume from existing partial if present.
-        let fh;
-        try { fh = await dir.getFileHandle(f.filename, { create: true }); }
-        catch (e) { throw new Error(`OPFS getFileHandle ${f.filename}: ${e.message}`); }
-        const access = await fh.createSyncAccessHandle();
-        let writeOffset = 0;
-        try { writeOffset = access.getSize(); } catch (_) { writeOffset = 0; }
+        // Resume from existing partial if present. createSyncAccessHandle
+        // is worker-only, so we read the existing size via getFile()
+        // (which works on the main thread) before handing off to the
+        // worker for the actual write.
+        let existingSize = 0;
+        try {
+            const fh = await dir.getFileHandle(f.filename, { create: false });
+            existingSize = (await fh.getFile()).size;
+        } catch (_) { /* no partial yet */ }
 
-        const resp = await fetchBlob(name, f.digest, {
-            signal: opts.signal,
-            rangeStart: writeOffset,
-        });
-        const total = f.size || (resp.headers.get('content-length')
-            ? parseInt(resp.headers.get('content-length'), 10) + writeOffset
-            : 0);
+        const url = ollamaCacheKey(name, tag, f.digest);
 
-        const reader = resp.body.getReader();
-        let fileBytesDone = writeOffset;
+        // Spawn the same OPFS-writer worker the HF path uses. The
+        // worker handles fetch + sync-access write + flushing, sends
+        // back progress / done / error / cancelled.
+        const worker = new Worker(
+            new URL('./opfs-writer-worker.js', import.meta.url),
+            { type: 'module' },
+        );
+        const abortHandler = () => worker.postMessage({ type: 'cancel' });
+        if (opts.signal) opts.signal.addEventListener('abort', abortHandler, { once: true });
+
+        let lastWorkerBytes = existingSize;
+        let fileBytesDone = existingSize;
 
         try {
-            for (;;) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                if (opts.signal && opts.signal.aborted) {
-                    try { reader.cancel(); } catch (_) { /* swallow */ }
-                    throw new DOMException('aborted', 'AbortError');
-                }
-                access.write(value, { at: fileBytesDone });
-                fileBytesDone += value.byteLength;
-                totalBytesDone += value.byteLength;
-                emit(f, fileBytesDone, total);
-            }
+            await new Promise((resolve, reject) => {
+                worker.onmessage = (ev) => {
+                    const msg = ev.data;
+                    if (!msg || typeof msg !== 'object') return;
+                    if (msg.type === 'progress') {
+                        const delta = msg.bytesWritten - lastWorkerBytes;
+                        lastWorkerBytes = msg.bytesWritten;
+                        fileBytesDone = msg.bytesWritten;
+                        if (delta > 0) totalBytesDone += delta;
+                        emit(f, msg.bytesWritten, msg.totalBytes || f.size || 0);
+                    } else if (msg.type === 'done') {
+                        const delta = msg.totalBytes - lastWorkerBytes;
+                        if (delta > 0) totalBytesDone += delta;
+                        fileBytesDone = msg.totalBytes;
+                        emit(f, msg.totalBytes, msg.totalBytes, true);
+                        worker.terminate();
+                        resolve();
+                    } else if (msg.type === 'cancelled') {
+                        worker.terminate();
+                        reject(new DOMException('aborted', 'AbortError'));
+                    } else if (msg.type === 'error') {
+                        worker.terminate();
+                        reject(new Error(`ollama blob ${f.filename}: ${msg.error}`));
+                    }
+                };
+                worker.onerror = (ev) => {
+                    worker.terminate();
+                    reject(new Error(ev.message || 'Worker error'));
+                };
+                worker.postMessage({
+                    type: 'start',
+                    modelId,
+                    dirPath,
+                    filename: f.filename,
+                    url,
+                    headers: {},
+                    offset: existingSize,
+                });
+            });
         } finally {
-            try { access.flush(); } catch (_) { /* swallow */ }
-            try { access.close(); } catch (_) { /* swallow */ }
+            if (opts.signal) opts.signal.removeEventListener('abort', abortHandler);
         }
 
-        // Verify SHA-256 if the layer carries a digest. The digest format is
-        // `sha256:<hex>` so we match the hex part.
-        if (f.sha256) {
+        // Optional SHA-256 verification (small files only — large GGUF
+        // blobs would OOM). Reads via async getFile() so it works on
+        // the main thread.
+        if (f.sha256 && fileBytesDone <= SHA_VERIFY_CAP) {
+            const fh = await dir.getFileHandle(f.filename, { create: false });
             const file = await fh.getFile();
             const hex = await sha256Hex(await file.arrayBuffer());
             if (hex !== f.sha256.toLowerCase()) {
@@ -242,13 +286,14 @@ export async function downloadOllamaModel(name, tag, opts = {}) {
             }
         }
 
-        // Drop a `.verified` marker so resume short-circuits.
+        // Drop a `.verified` marker so resume short-circuits next
+        // time. Async createWritable() works on the main thread (the
+        // marker is 2 bytes — no perf concern from the
+        // keepExistingData copy).
         const markerFh = await dir.getFileHandle(f.filename + '.verified', { create: true });
-        const markerAccess = await markerFh.createSyncAccessHandle();
-        try { markerAccess.write(new Uint8Array([0x6f, 0x6b])); /* "ok" */ }
-        finally { try { markerAccess.flush(); } catch (_) {} try { markerAccess.close(); } catch (_) {} }
-
-        emit(f, fileBytesDone, total, true);
+        const writable = await markerFh.createWritable();
+        try { await writable.write(new Uint8Array([0x6f, 0x6b])); /* "ok" */ }
+        finally { try { await writable.close(); } catch (_) { /* swallow */ } }
     }
 }
 
