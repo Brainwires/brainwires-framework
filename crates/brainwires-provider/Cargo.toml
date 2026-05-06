@@ -37,9 +37,9 @@ encoding_rs = { workspace = true, optional = true }
 
 # Candle-based local LLM inference (WASM-compatible, no GPU/MKL/Accelerate).
 # All deps are pinned with default-features disabled and no GPU/SIMD backends.
-candle-core = { version = "0.10", default-features = false, optional = true }
-candle-nn = { version = "0.10", default-features = false, optional = true }
-candle-transformers = { version = "0.10", default-features = false, optional = true }
+candle-core = { version = "0.11", default-features = false, optional = true }
+candle-nn = { version = "0.11", default-features = false, optional = true }
+candle-transformers = { version = "0.11", default-features = false, optional = true }
 tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"], optional = true }
 safetensors = { version = "0.7", default-features = false, features = ["std"], optional = true }
 
