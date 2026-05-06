@@ -311,6 +311,42 @@ Migration:
 
 ### Added
 
+#### chat-pwa — Ollama-format end-to-end load (Phase 4 part 3)
+
+Wired the dequantize-at-load GGUF path through every layer:
+
+- `crates/brainwires-provider/src/local_llm/gguf_loader.rs` — native
+  + wasm GGUF reader. `gguf_to_hf_name()` translates GGUF tensor
+  names (`blk.0.attn_q.weight`) to the HF safetensors keys the
+  existing `Gemma4Model` consumer expects.
+  `build_gemma4_config_from_gguf()` reads the kv-store and falls back
+  to canonical Gemma 4 E2B values for missing optional keys (Ollama
+  GGUFs don't always carry the full HF schema). AltUp / Laurel /
+  per-layer-input-gate default-off until the Ollama publication's
+  metadata schema is verified. `load_gemma4_gguf_from_reader()` is
+  Read+Seek-generic so the wasm side wraps a `Cursor<Vec<u8>>` over
+  the OPFS blob and reuses the same code path.
+- `cargo run --example gemma4_diag -- --gguf-path <file>` exercises
+  the loader end-to-end on native — bypasses the HF safetensors
+  download entirely. Tokenizer still requires `--tokenizer-file`
+  until GGUF tokenizer extraction lands.
+- `init_local_multimodal_gguf(weights, tokenizer, model_id)` is the
+  new wasm entry point. Builds a `Gemma4MultiModal` pipeline with
+  vision + audio disabled (Ollama gemma4:e2b is text-only).
+- `local-worker.js` recognizes `KNOWN_OLLAMA_MODELS` ids and routes
+  them to the new entry point. `isDownloaded` and `getModelBytes`
+  delegate to `ollama-download.js`'s OPFS reader for ollama-source
+  models; HF-source flow unchanged.
+- `boot.js` orphan-prune skips the `model-downloads/ollama/` subtree
+  so the per-id scheme doesn't recursively wipe Ollama blobs.
+
+**Perf gain:** none yet. The GGUF Q4_K_M weights are dequantized to
+BF16 at load, so VRAM/RAM matches the safetensors path. The win is
+download size (~1.6 GB vs ~10 GB). Inference tok/s becomes a function
+of the BF16 path. Phase 5's `q4_k.pwgsl` kernel becomes reachable
+once we add a `quantized_gemma4` model that consumes `QTensor` /
+`QMatMul` directly — separate work.
+
 #### chat-pwa — candle rebase to v0.11-wgpu (Phase 1)
 
 Rebased the candle fork onto upstream PR #3379 (KimHenrikOtte's full
