@@ -336,4 +336,106 @@ mod tests {
         assert_eq!(gguf_to_hf_name("blk.foo.bar"), None);
         assert_eq!(gguf_to_hf_name("not_a_blk_tensor"), None);
     }
+
+    /// Hand-roll a `gguf_file::Content` with the metadata fields the
+    /// loader actually reads. This bypasses the file-format parsing so
+    /// we can exercise `build_gemma4_config_from_gguf` without an
+    /// actual GGUF file. Useful for catching regressions in field
+    /// names / types / fallback logic.
+    fn synthetic_gemma4_e2b_content() -> gguf_file::Content {
+        use candle_core::Shape;
+        use candle_core::quantized::GgmlDType;
+        use gguf_file::{TensorInfo, Value, VersionedMagic};
+
+        let mut metadata = std::collections::HashMap::new();
+        metadata.insert("gemma4.attention.head_count".into(), Value::U32(8));
+        metadata.insert("gemma4.attention.head_count_kv".into(), Value::U32(2));
+        metadata.insert("gemma4.block_count".into(), Value::U32(35));
+        metadata.insert("gemma4.embedding_length".into(), Value::U32(1536));
+        metadata.insert("gemma4.feed_forward_length".into(), Value::U32(8192));
+        metadata.insert("gemma4.attention.key_length".into(), Value::U32(256));
+        metadata.insert(
+            "gemma4.attention.layer_norm_rms_epsilon".into(),
+            Value::F32(1e-6),
+        );
+        metadata.insert("gemma4.context_length".into(), Value::U32(8192));
+        metadata.insert("gemma4.rope.freq_base".into(), Value::F32(1_000_000.0));
+
+        // Need token_embd.weight to exist so vocab_size lookup works.
+        let mut tensor_infos = std::collections::HashMap::new();
+        tensor_infos.insert(
+            "token_embd.weight".into(),
+            TensorInfo {
+                ggml_dtype: GgmlDType::Q4K,
+                shape: Shape::from((262144, 1536)),
+                offset: 0,
+            },
+        );
+
+        gguf_file::Content {
+            magic: VersionedMagic::GgufV3,
+            metadata,
+            tensor_infos,
+            tensor_data_offset: 0,
+        }
+    }
+
+    #[test]
+    fn config_from_gguf_gemma4_e2b_canonical() {
+        let content = synthetic_gemma4_e2b_content();
+        let cfg = build_gemma4_config_from_gguf(&content)
+            .expect("config build should succeed for canonical metadata");
+        assert_eq!(cfg.text_config.num_attention_heads, 8);
+        assert_eq!(cfg.text_config.num_key_value_heads, 2);
+        assert_eq!(cfg.text_config.num_hidden_layers, 35);
+        assert_eq!(cfg.text_config.hidden_size, 1536);
+        assert_eq!(cfg.text_config.intermediate_size, 8192);
+        assert_eq!(cfg.text_config.head_dim, 256);
+        assert_eq!(cfg.text_config.vocab_size, 262144);
+        assert_eq!(cfg.text_config.max_position_embeddings, 8192);
+        assert_eq!(cfg.text_config.rope_theta, 1_000_000.0);
+        // E2B canonical: 35 layers → 20 KV-shared.
+        assert_eq!(cfg.text_config.num_kv_shared_layers, 20);
+        // Auxiliary towers default-disabled on the GGUF path.
+        assert!(cfg.text_config.disable_altup);
+        assert!(cfg.text_config.disable_laurel);
+        assert!(cfg.text_config.disable_per_layer_input_gate);
+    }
+
+    #[test]
+    fn config_from_gguf_kv_share_30_layer_fallback() {
+        let mut content = synthetic_gemma4_e2b_content();
+        content.metadata.insert(
+            "gemma4.block_count".into(),
+            gguf_file::Value::U32(30),
+        );
+        let cfg = build_gemma4_config_from_gguf(&content).unwrap();
+        // 30-layer fallback: 10 KV-shared (Gemma 3n canonical).
+        assert_eq!(cfg.text_config.num_kv_shared_layers, 10);
+    }
+
+    #[test]
+    fn config_from_gguf_kv_share_explicit_metadata_wins() {
+        let mut content = synthetic_gemma4_e2b_content();
+        // Even with the canonical 35-layer count, an explicit
+        // `kv_shared_layers` metadata key should override.
+        content.metadata.insert(
+            "gemma4.attention.kv_shared_layers".into(),
+            gguf_file::Value::U32(15),
+        );
+        let cfg = build_gemma4_config_from_gguf(&content).unwrap();
+        assert_eq!(cfg.text_config.num_kv_shared_layers, 15);
+    }
+
+    #[test]
+    fn config_from_gguf_missing_required_metadata_errors() {
+        let mut content = synthetic_gemma4_e2b_content();
+        content.metadata.remove("gemma4.attention.head_count");
+        let err = build_gemma4_config_from_gguf(&content).unwrap_err();
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("attention.head_count"),
+            "error should mention the missing key, got: {msg}"
+        );
+    }
 }
