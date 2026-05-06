@@ -144,7 +144,7 @@ impl Gemma4QuantizedTextOnly {
         let mut prev_decoded_len = 0usize;
 
         for step in 0..max_new_tokens {
-            let next_id = argmax_last(&logits)?;
+            let next_id = argmax_last(&logits).await?;
             emitted_ids.push(next_id);
 
             // Decode the cumulative emitted tokens to compute the
@@ -176,14 +176,19 @@ impl Gemma4QuantizedTextOnly {
 
 /// Argmax over the last token's logits. `logits` is `[B, T, vocab_size]`;
 /// result is the highest-scoring vocab id at position `T-1`.
-fn argmax_last(logits: &Tensor) -> Result<u32, QuantizedPipelineError> {
+///
+/// Runs argmax on-device (so we only read back a single u32) and uses
+/// `to_vec0_async` for the readback. Required on wasm32 + WebGPU,
+/// where sync GPU→CPU copy panics — `mapAsync` is the only readback
+/// path. On native CPU the async path is a thin wrapper over the sync
+/// one, no observable cost.
+async fn argmax_last(logits: &Tensor) -> Result<u32, QuantizedPipelineError> {
     let last = logits.i((.., logits.dim(1)? - 1, ..))?.squeeze(0)?;
-    let vec = last.to_dtype(DType::F32)?.to_vec1::<f32>()?;
-    let (id, _) = vec
-        .iter()
-        .enumerate()
-        .fold((0usize, f32::NEG_INFINITY), |acc, (i, &v)| {
-            if v > acc.1 { (i, v) } else { acc }
-        });
-    Ok(id as u32)
+    // Promote to F32 before argmax — keeps numerical ordering stable
+    // when logits arrive as BF16 / F16 (some tied scores otherwise
+    // collapse to the lower-id token).
+    let last = last.to_dtype(DType::F32)?;
+    let arg = last.argmax(0)?;
+    let id: u32 = arg.to_vec0_async::<u32>().await?;
+    Ok(id)
 }
