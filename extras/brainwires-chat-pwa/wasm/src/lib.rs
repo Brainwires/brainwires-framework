@@ -308,18 +308,20 @@ pub(crate) fn call_read_fn(read_fn: &Function, offset: u64, length: u64) -> Resu
     Ok(buf)
 }
 
-/// Stream tensor bytes from OPFS into a GPU buffer.
+/// Stream tensor bytes from OPFS into a GPU buffer one chunk at a time.
 ///
-/// Originally we used a chunked write-at-offset pattern
-/// (`create_storage_buffer` + `write_to_buffer` + `WgpuStorage::from_raw_buffer`)
-/// to keep peak wasm linear memory at one chunk (64 MiB) regardless of
-/// tensor size. PR #3379's WGPU backend doesn't expose those low-level
-/// buffer ops, so we now collect every chunk into a single `Vec<u8>` and
-/// hand it to `alloc_from_bytes`. Peak wasm memory becomes the largest
-/// tensor (Gemma 4 E2B's `embed_tokens.weight` is ~805 MB BF16, well
-/// within the wasm32 4 GB linear-memory cap). Restoring true streaming
-/// will require porting `create_storage_buffer` / `write_to_buffer` /
-/// `from_raw_buffer` forward into PR #3379's wgpu-compute-layer.
+/// Pre-allocates the destination GPU buffer up front via
+/// `alloc_uninit_storage_eager`, then drains the JS `read_fn` in
+/// `CHUNK`-byte windows, dropping each `Uint8Array.to_vec()` allocation
+/// after the corresponding `write_to_storage_at` returns. Peak wasm
+/// linear memory stays bounded at one chunk (~64 MiB) regardless of
+/// tensor size, so a 2 GB embedding tensor uploads with a 64 MiB
+/// linear-memory footprint instead of needing to fit the whole thing
+/// in wasm32's 4 GB budget.
+///
+/// `byte_length` and the read_fn's chunk lengths must be 4-byte aligned
+/// (wgpu spec for `queue.write_buffer`); safetensors pads to 4-byte
+/// boundaries by construction so this holds in practice.
 pub(crate) fn load_tensor_to_gpu(
     read_fn: &Function,
     file_offset: u64,
@@ -330,7 +332,10 @@ pub(crate) fn load_tensor_to_gpu(
 ) -> Result<Tensor, JsValue> {
     const CHUNK: u64 = 64 * 1024 * 1024;
 
-    let mut bytes = Vec::with_capacity(byte_length as usize);
+    let storage = wgpu_dev
+        .alloc_uninit_storage_eager(dtype, byte_length)
+        .map_err(|e| JsValue::from_str(&format!("alloc_uninit_storage_eager failed: {e}")))?;
+
     let mut pos = 0u64;
     while pos < byte_length {
         let chunk_len = std::cmp::min(CHUNK, byte_length - pos);
@@ -341,13 +346,12 @@ pub(crate) fn load_tensor_to_gpu(
         )?;
         let array = Uint8Array::new(&result);
         let chunk_bytes = array.to_vec();
-        bytes.extend_from_slice(&chunk_bytes);
+        wgpu_dev
+            .write_to_storage_at(&storage, pos, &chunk_bytes)
+            .map_err(|e| JsValue::from_str(&format!("write_to_storage_at failed: {e}")))?;
         pos += chunk_len;
     }
 
-    let storage = wgpu_dev
-        .alloc_from_bytes(dtype, &bytes)
-        .map_err(|e| JsValue::from_str(&format!("alloc_from_bytes failed: {e}")))?;
     let storage = Storage::Wgpu(storage);
     let shape: candle_core::Shape = shape.into();
     Ok(Tensor::from_storage(
