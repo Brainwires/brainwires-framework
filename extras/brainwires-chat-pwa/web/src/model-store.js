@@ -308,6 +308,10 @@ function _hasCaches() {
  * @returns {Promise<boolean>}
  */
 export async function isDownloaded(modelId) {
+    const om = KNOWN_OLLAMA_MODELS[modelId];
+    if (om) {
+        return await isOllamaModelDownloaded(om.ollama.name, om.ollama.tag);
+    }
     const m = getKnownModel(modelId);
     if (!m) return false;
     for (const f of m.files) {
@@ -443,6 +447,18 @@ export async function downloadModel(modelId, opts = {}) {
         await other.promise.catch((e) => { console.warn("[bw] swallowed:", e); });
     }
     if (!_hasOpfs() && !_hasCaches()) throw new Error('Neither OPFS nor Cache Storage available');
+
+    // Ollama-source models route through the dedicated OCI Distribution
+    // Spec downloader. Same `model_progress` event channel as the HF
+    // path so the banner state machine works unchanged.
+    const om = KNOWN_OLLAMA_MODELS[modelId];
+    if (om) {
+        return downloadOllamaModel(om.ollama.name, om.ollama.tag, {
+            modelId,
+            signal: opts.signal,
+            onProgress: opts.onProgress,
+        });
+    }
 
     // Priority 1: Dedicated Worker (zero-copy FileSystemSyncAccessHandle)
     if (_hasOpfs() && typeof Worker !== 'undefined') {
@@ -1097,16 +1113,22 @@ async function sha256Hex(buf, ctx = null) {
 
 export const HFAuthRequired = HfAuthRequiredError;
 
-// Re-export Ollama-format download API so callers (ui-chat.js, etc.) have
-// a single import point for both HF and Ollama models. Implementation
-// stays in `ollama-download.js` to keep that path isolated from the
-// existing 3-fallback HF download orchestration.
-export {
+// Bring Ollama-format download API into local scope so `downloadModel`
+// can route ollama-source modelIds through it, then re-export so
+// callers (ui-chat.js, etc.) have a single import point for both HF
+// and Ollama models. Implementation stays in `ollama-download.js`.
+import {
     downloadOllamaModel,
     isOllamaModelDownloaded,
     getOllamaModelBytes,
     ollamaModelInfo,
 } from './ollama-download.js';
+export {
+    downloadOllamaModel,
+    isOllamaModelDownloaded,
+    getOllamaModelBytes,
+    ollamaModelInfo,
+};
 
 /** Resolve a known model regardless of source (HF or Ollama). */
 export function getKnownModelAny(modelId) {
