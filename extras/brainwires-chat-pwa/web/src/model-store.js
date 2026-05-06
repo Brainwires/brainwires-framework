@@ -488,14 +488,21 @@ export async function downloadModel(modelId, opts = {}) {
 
     // Ollama-source models route through the dedicated OCI Distribution
     // Spec downloader. Same `model_progress` event channel as the HF
-    // path so the banner state machine works unchanged.
+    // path so the banner state machine works unchanged. Emit a final
+    // `phase: 'ready'` event after the per-file events end — without
+    // this the banner stays in the "downloading" phase forever even
+    // though every byte is on disk.
     const om = KNOWN_OLLAMA_MODELS[modelId];
     if (om) {
-        return downloadOllamaModel(om.ollama.name, om.ollama.tag, {
+        await downloadOllamaModel(om.ollama.name, om.ollama.tag, {
             modelId,
             signal: opts.signal,
             onProgress: opts.onProgress,
         });
+        events.dispatchEvent(new CustomEvent('model_progress', {
+            detail: { phase: 'ready', modelId },
+        }));
+        return;
     }
 
     // Priority 1: Dedicated Worker (zero-copy FileSystemSyncAccessHandle)
