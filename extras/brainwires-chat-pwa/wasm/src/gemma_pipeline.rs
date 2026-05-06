@@ -115,6 +115,10 @@ pub struct LocalMultiModalHandle {
     /// Present iff this is a Gemma4 handle whose vision and/or audio tower
     /// was deferred at init. Consumed to drive `attach_vision`/`attach_audio`.
     lazy: Option<Gemma4LazyState>,
+    /// `"hf"` for safetensors-loaded handles, `"gguf"` for ones built via
+    /// `init_local_multimodal_gguf`. Read by JS to render the right UI
+    /// badge / route quantization-specific diagnostics.
+    source: &'static str,
 }
 
 #[wasm_bindgen]
@@ -166,6 +170,12 @@ impl LocalMultiModalHandle {
             MultimodalInner::Gemma3(_) => false,
             MultimodalInner::Gemma4 { pipeline, .. } => pipeline.has_audio(),
         }
+    }
+
+    /// `"hf"` (safetensors) or `"gguf"` (Ollama-format dequant-at-load).
+    #[wasm_bindgen(getter)]
+    pub fn source(&self) -> String {
+        self.source.into()
     }
 
     /// Stream the vision-tower tensors from the original safetensors file
@@ -1054,6 +1064,7 @@ pub async fn init_local_multimodal(
         inner: MultimodalInner::Gemma3(Arc::new(pipeline)),
         model_id,
         lazy: None,
+        source: "hf",
     })
 }
 
@@ -1513,6 +1524,7 @@ pub async fn init_local_multimodal_chunked(
         inner,
         model_id,
         lazy,
+        source: "hf",
     })
 }
 
@@ -2102,5 +2114,6 @@ pub async fn init_local_multimodal_gguf(
         },
         model_id,
         lazy: None,
+        source: "gguf",
     })
 }
