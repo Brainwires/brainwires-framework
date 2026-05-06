@@ -121,6 +121,18 @@ struct Args {
     /// scale path verified against HF transformers issue #45206.
     #[arg(long, default_value_t = false)]
     load_ple_table: bool,
+
+    /// Load weights from a local GGUF file instead of HF safetensors.
+    /// Uses the dequantize-at-load path: every quantized tensor is
+    /// upcast to BF16 in memory, then fed into the standard
+    /// `Gemma4Model` via `VarBuilder::from_tensors`. Useful for
+    /// validating Phase 4's GGUF loader against an Ollama-published
+    /// `gemma4:e2b` blob without standing up the chat-pwa stack. The
+    /// `--tokenizer-file` flag is still required (Ollama embeds the
+    /// tokenizer in the GGUF itself, but we don't extract it here yet
+    /// — pass an HF tokenizer.json explicitly).
+    #[arg(long)]
+    gguf_path: Option<PathBuf>,
 }
 
 /// Tensors the chat-pwa filters out of the safetensors load. Replicated
@@ -449,13 +461,63 @@ async fn run(args: Args) -> Result<()> {
     let device = build_device(args.device)?;
     eprintln!("[gemma4_diag] device built: {:?}", device);
 
-    let (weights, tokenizer_path, config_path) = fetch_files(&args).await?;
-    eprintln!("[gemma4_diag] weights={}", weights.display());
-    eprintln!("[gemma4_diag] tokenizer={}", tokenizer_path.display());
-    eprintln!("[gemma4_diag] config={}", config_path.display());
+    let dtype = DType::BF16;
 
-    let mut cfg = load_config(&config_path)?;
-    override_cfg_from_safetensors(&mut cfg, &weights)?;
+    // GGUF path: dequantize-at-load via the new Phase 4 loader. Skips HF
+    // safetensors download entirely; tokenizer still has to be supplied
+    // separately (`--tokenizer-file`) since we don't extract from GGUF
+    // metadata yet.
+    let (cfg, vb) = if let Some(gguf_path) = args.gguf_path.clone() {
+        eprintln!("[gemma4_diag] loading GGUF: {}", gguf_path.display());
+        let t0 = std::time::Instant::now();
+        let (tensors, cfg) =
+            brainwires_provider::local_llm::gguf_loader::load_gemma4_gguf(&gguf_path, &device)
+                .context("GGUF load")?;
+        eprintln!(
+            "[gemma4_diag] dequantized {} tensors → BF16 in {:?}",
+            tensors.len(),
+            t0.elapsed()
+        );
+        let vb = VarBuilder::from_tensors(tensors, dtype, &device);
+        (cfg, vb)
+    } else {
+        let (weights, tokenizer_path, config_path) = fetch_files(&args).await?;
+        eprintln!("[gemma4_diag] weights={}", weights.display());
+        eprintln!("[gemma4_diag] tokenizer={}", tokenizer_path.display());
+        eprintln!("[gemma4_diag] config={}", config_path.display());
+
+        let mut cfg = load_config(&config_path)?;
+        override_cfg_from_safetensors(&mut cfg, &weights)?;
+
+        // SAFETY: from_mmaped_safetensors is unsafe because the underlying
+        // mmap can be invalidated by external file writes. We hold the file
+        // for the duration of the program; nothing modifies it.
+        let inner = unsafe {
+            candle_core::safetensors::MmapedSafetensors::multi(&[&weights])
+                .context("mmap safetensors")?
+        };
+        let backend: Box<dyn SimpleBackend + 'static> = Box::new(FilteredBackend {
+            inner: Box::new(inner),
+            load_ple_table: args.load_ple_table,
+        });
+        let vb: VarBuilder = VarBuilderArgs::from_backend(backend, dtype, device.clone());
+        (cfg, vb)
+    };
+
+    let tokenizer_path = if args.gguf_path.is_some() {
+        // GGUF path needs an explicit tokenizer file — bail with a
+        // clear error if the user forgot to pass it.
+        args.tokenizer_file.clone().ok_or_else(|| {
+            anyhow::anyhow!(
+                "--gguf-path requires --tokenizer-file (GGUF tokenizer extraction not implemented yet)"
+            )
+        })?
+    } else {
+        // Fetched alongside weights in the safetensors branch above.
+        let (_, t, _) = fetch_files(&args).await?;
+        t
+    };
+
     eprintln!(
         "[gemma4_diag] config: hidden={} layers={} heads={} head_dim={} global_head_dim={} \
          altup_num_inputs={} laurel_rank={}",
@@ -467,20 +529,6 @@ async fn run(args: Args) -> Result<()> {
         cfg.text_config.altup_num_inputs,
         cfg.text_config.laurel_rank,
     );
-
-    let dtype = DType::BF16;
-    // SAFETY: from_mmaped_safetensors is unsafe because the underlying
-    // mmap can be invalidated by external file writes. We hold the file
-    // for the duration of the program; nothing modifies it.
-    let inner = unsafe {
-        candle_core::safetensors::MmapedSafetensors::multi(&[&weights])
-            .context("mmap safetensors")?
-    };
-    let backend: Box<dyn SimpleBackend + 'static> = Box::new(FilteredBackend {
-        inner: Box::new(inner),
-        load_ple_table: args.load_ple_table,
-    });
-    let vb: VarBuilder = VarBuilderArgs::from_backend(backend, dtype, device.clone());
 
     eprintln!("[gemma4_diag] building Gemma 4 model (text-only, no vision/audio)...");
     let t0 = std::time::Instant::now();
