@@ -202,6 +202,19 @@ impl Gemma4QuantizedTextOnly {
                 .decode(&emitted_ids, true)
                 .map_err(|e| QuantizedPipelineError::Decode(e.to_string()))?;
             let delta = &cumulative[prev_decoded_len..];
+            // Surface the actual decoded text for the first few steps
+            // — the chat UI may swallow whitespace-only deltas.
+            if step < 16 {
+                diag_log(&format!(
+                    "[gemma4/text] step {step}: id={next_id} delta={:?} cum={:?}",
+                    delta,
+                    if cumulative.len() > 80 {
+                        format!("{}…", &cumulative[..80])
+                    } else {
+                        cumulative.clone()
+                    },
+                ));
+            }
             on_delta(next_id, delta);
             decoded = cumulative.clone();
             prev_decoded_len = decoded.len();
