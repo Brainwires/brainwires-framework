@@ -190,6 +190,26 @@ impl Gemma4QuantizedTextOnly {
 
         for step in 0..max_new_tokens {
             let t_step_start = perf_now_ms();
+            // Top-5 logit dump for the first 4 steps so we can side-by-side
+            // diff browser vs native gemma4_diag --device wgpu output and
+            // pin down the kernel that diverges between Naga (native) and
+            // Tint/Dawn (browser) on the same Metal hardware.
+            if step < 4 {
+                let last = logits
+                    .i((.., logits.dim(1)? - 1, ..))?
+                    .squeeze(0)?
+                    .to_dtype(DType::F32)?;
+                if let Ok(vals) = last.to_vec1_async::<f32>().await {
+                    let mut indexed: Vec<(usize, f32)> = vals.into_iter().enumerate().collect();
+                    indexed.sort_unstable_by(|a, b| {
+                        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                    let top5: Vec<(usize, f32)> = indexed.into_iter().take(5).collect();
+                    diag_log(&format!(
+                        "[gemma4/logits] step {step}: top5={top5:?}",
+                    ));
+                }
+            }
             let next_id = argmax_last(&logits).await?;
             let t_argmax = perf_now_ms();
             emitted_ids.push(next_id);

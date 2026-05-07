@@ -48,6 +48,7 @@ test('quantized local gemma4:e2b — generate, stream, render', async () => {
             text.includes('[gemma4/text]')
             || text.includes('[gemma4/perf]')
             || text.includes('[gemma4/diag]')
+            || text.includes('[gemma4/logits]')
             || text.includes('[wasm/gguf')
             || text.includes('[local-worker]')
             || text.includes('[bw-sw]')
@@ -61,6 +62,26 @@ test('quantized local gemma4:e2b — generate, stream, render', async () => {
 
     // ── Boot ─────────────────────────────────────────────────────────
     await page.goto(process.env.BW_PWA_URL || 'http://localhost:8080/');
+    // Clear conversation history so each run starts fresh — otherwise
+    // every successive run grows the context and we can't diff against
+    // the native baseline (prompt_len=10). The model + activation
+    // settings live in OPFS / Cache Storage which we leave alone, so
+    // the 7 GB Q4_K_M GGUF stays cached.
+    await page.evaluate(async () => {
+        const dbs = await indexedDB.databases?.() || [];
+        for (const { name } of dbs) {
+            if (!name) continue;
+            // chat history lives in `bw-chat` (or similar). Provider
+            // settings, encrypted keys, and the model registry live
+            // in their own dbs and we do NOT want to touch those.
+            if (/chat/i.test(name) && !/key|secret|cred/i.test(name)) {
+                await new Promise((r) => {
+                    const req = indexedDB.deleteDatabase(name);
+                    req.onsuccess = req.onerror = req.onblocked = r;
+                });
+            }
+        }
+    }).catch(() => { /* best-effort */ });
     // Wait for the SW to claim, otherwise fetches race against
     // network-only first-load.
     await page.waitForFunction(
