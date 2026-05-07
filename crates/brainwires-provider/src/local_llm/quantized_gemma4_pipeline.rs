@@ -25,6 +25,32 @@ use candle_transformers::models::gemma4::config::Gemma4Config;
 use candle_transformers::models::quantized_gemma4::ModelWeights;
 use tokenizers::Tokenizer;
 
+/// Best-effort diagnostic log. On wasm32 forwards to `console.log`; on
+/// native, writes to stderr. Mirrors the BF16 `gemma4_mm` pipeline so
+/// the chat-pwa shows the same `[gemma4/diag]` and `[gemma4/perf]`
+/// signal regardless of which weight path the user picked.
+fn diag_log(msg: &str) {
+    #[cfg(target_arch = "wasm32")]
+    web_sys::console::log_1(&msg.into());
+    #[cfg(not(target_arch = "wasm32"))]
+    eprintln!("{msg}");
+}
+
+/// Cross-platform millisecond timestamp for perf diags.
+fn perf_now_ms() -> f64 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        js_sys::Date::now()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::sync::OnceLock;
+        use std::time::Instant;
+        static START: OnceLock<Instant> = OnceLock::new();
+        START.get_or_init(Instant::now).elapsed().as_secs_f64() * 1000.0
+    }
+}
+
 /// Errors surfaced by the quantized Gemma 4 text-only pipeline.
 #[derive(Debug, thiserror::Error)]
 pub enum QuantizedPipelineError {
@@ -121,6 +147,18 @@ impl Gemma4QuantizedTextOnly {
         let mut input_ids: Vec<u32> = enc.get_ids().to_vec();
         let prompt_len = input_ids.len();
 
+        let preview_n = prompt_len.min(40);
+        diag_log(&format!(
+            "[gemma4/diag] prompt encoded: len={prompt_len} \
+             ids[..{preview_n}]={:?} \
+             tokens[..{preview_n}]={:?}",
+            &input_ids[..preview_n],
+            enc.get_tokens()
+                .iter()
+                .take(preview_n)
+                .collect::<Vec<_>>(),
+        ));
+
         let mut model = self
             .model
             .lock()
@@ -137,14 +175,23 @@ impl Gemma4QuantizedTextOnly {
         // regardless of `self.device`. Required on wasm32 + WebGPU,
         // where sync GPU→CPU readback is forbidden (the embed table
         // and PLE both live on CPU and consume the ids there).
+        let t_prefill_start = perf_now_ms();
         let prompt_tensor = Tensor::new(input_ids.as_slice(), &Device::Cpu)?.unsqueeze(0)?;
         let mut logits = model.forward(&prompt_tensor, 0)?;
+        let t_prefill_done = perf_now_ms();
+        diag_log(&format!(
+            "[gemma4/perf] prefill forward: {:.1}ms (prompt_len={prompt_len})",
+            t_prefill_done - t_prefill_start,
+        ));
+
         let mut emitted_ids: Vec<u32> = Vec::with_capacity(max_new_tokens);
         let mut decoded = String::new();
         let mut prev_decoded_len = 0usize;
 
         for step in 0..max_new_tokens {
+            let t_step_start = perf_now_ms();
             let next_id = argmax_last(&logits).await?;
+            let t_argmax = perf_now_ms();
             emitted_ids.push(next_id);
 
             // Decode the cumulative emitted tokens to compute the
@@ -160,6 +207,9 @@ impl Gemma4QuantizedTextOnly {
             prev_decoded_len = decoded.len();
 
             if eos_token_ids.contains(&next_id) {
+                diag_log(&format!(
+                    "[gemma4/diag] step {step}: EOS {next_id} — generation terminated",
+                ));
                 break;
             }
 
@@ -168,7 +218,21 @@ impl Gemma4QuantizedTextOnly {
             let seqlen_offset = prompt_len + step;
             input_ids.push(next_id);
             let one = Tensor::new(&[next_id], &Device::Cpu)?.unsqueeze(0)?;
+            let t_forward_start = perf_now_ms();
             logits = model.forward(&one, seqlen_offset)?;
+            let t_forward_done = perf_now_ms();
+
+            // Per-token timing for the first 5 steps so we can profile
+            // what's slow without spamming logs forever.
+            if step < 5 {
+                diag_log(&format!(
+                    "[gemma4/perf] step {step}: total={:.1}ms \
+                     [argmax={:.1} forward={:.1}] next_id={next_id}",
+                    t_forward_done - t_step_start,
+                    t_argmax - t_step_start,
+                    t_forward_done - t_forward_start,
+                ));
+            }
         }
         Ok(decoded)
     }
