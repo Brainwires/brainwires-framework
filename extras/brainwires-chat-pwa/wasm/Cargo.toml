@@ -24,7 +24,7 @@ wgpu = { version = "29", default-features = false, features = ["webgpu"] }
 # at the workspace root redirects this to the Brainwires candle fork
 # (currently `v0.11-wgpu`).
 candle-core = { version = "0.11", default-features = false }
-candle-transformers = { version = "0.11", default-features = false }
+candle-transformers = { version = "0.11", default-features = false, features = ["wasm-trace-quantized-gemma4"] }
 
 # Candle NN — needed for the multimodal vision path which references
 # `candle_nn::Activation` when constructing the `gemma3_mm::Config`. The
