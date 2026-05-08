@@ -199,6 +199,18 @@ test('quantized local gemma4:e2b — generate, stream, render', async () => {
     }
     await page.waitForSelector('textarea.composer-input', { state: 'visible', timeout: 30_000 });
 
+    // ── Start a fresh conversation ─────────────────────────────────
+    // The SQLite-backed chat history lives in OPFS, which we don't
+    // wipe (would trigger a 7 GB model re-download). Instead we click
+    // the SPA's "+ New chat" affordance so the next prompt starts
+    // clean (prompt_len=10 matching the native baseline) instead of
+    // concatenating prior turns onto the chat template.
+    await page.getByRole('button', { name: /^\s*\+ New chat\s*$/ })
+        .first()
+        .click({ timeout: 5_000 })
+        .catch(() => { /* may not exist on first run */ });
+    await page.waitForTimeout(250);
+
     // ── Force the active provider to local before sending ─────────
     // The chat-pwa picks a default provider during refreshActiveProvider;
     // when the persistent context has a stale `chat.activeProvider`
