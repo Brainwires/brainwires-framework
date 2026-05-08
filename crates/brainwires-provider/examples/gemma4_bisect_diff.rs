@@ -212,12 +212,20 @@ fn main() -> ExitCode {
     let dir_a = PathBuf::from(&args[1]);
     let dir_b = PathBuf::from(&args[2]);
     let mut threshold = 0.001_f64;
+    let mut layer_filter: Option<u32> = None;
     let mut i = 3;
     while i < args.len() {
         match args[i].as_str() {
             "--threshold" => {
                 if let Some(v) = args.get(i + 1).and_then(|s| s.parse::<f64>().ok()) {
                     threshold = v;
+                    i += 2;
+                    continue;
+                }
+            }
+            "--layer" => {
+                if let Some(v) = args.get(i + 1).and_then(|s| s.parse::<u32>().ok()) {
+                    layer_filter = Some(v);
                     i += 2;
                     continue;
                 }
@@ -336,6 +344,27 @@ fn main() -> ExitCode {
     lay_rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     for ((s, l), max, mean, n) in lay_rows.iter().take(15) {
         println!("    {:>4} {:>3} {:>11.3e} {:>11.3e} {:>5}", s, l, max, mean, n);
+    }
+
+    // Per-layer chain view: show every checkpoint for one specific
+    // layer in source order so the propagation of drift is visible.
+    if let Some(filter) = layer_filter {
+        println!(
+            "\n==> Full checkpoint chain for layer {} (sorted by step, label)",
+            filter,
+        );
+        println!(
+            "    {:>4} {:30} {:>11} {:>11} {:>11} {:>10}",
+            "step", "label", "max|Δ|", "L2(diff)", "rel", "L2(A)",
+        );
+        let mut chain: Vec<&Diff> = diffs.iter().filter(|d| d.layer == filter).collect();
+        chain.sort_by(|a, b| a.step.cmp(&b.step).then_with(|| a.label.cmp(&b.label)));
+        for d in chain {
+            println!(
+                "    {:>4} {:30} {:>11.3e} {:>11.3e} {:>11.3e} {:>10.3e}",
+                d.step, d.label, d.max_abs_diff, d.l2_diff, d.relative, d.a_l2,
+            );
+        }
     }
 
     // NaN / Inf report.
