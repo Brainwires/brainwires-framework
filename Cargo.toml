@@ -344,6 +344,26 @@ debug = "line-tables-only"
 [profile.test]
 debug = "line-tables-only"
 
+# Release profile tuned for FAST compile during functional iteration.
+# Keeps the bits that matter for correctness on wasm (overflow-checks
+# off, debug-assertions off — both are what make candle's u32 bit
+# math NOT trap as `unreachable`). Drops the bits that cost compile
+# time but only buy runtime perf:
+#   - opt-level = 1 → basic inlining, register alloc; skips LLVM's
+#     expensive vectorization / inlining passes
+#   - lto = false → no whole-program optimization
+#   - codegen-units = 256 → parallel codegen across all CPU cores
+# Net effect: ~5× faster cargo/wasm-pack rebuilds; runtime is slower
+# (matmuls won't auto-vectorize), but the chat-pwa is currently
+# bound by GPU work + GPU→CPU readback, not Rust hot loops, so the
+# user-visible perf hit on the WGPU path is small. Crank back to
+# `opt-level = 3 + lto = "fat"` once we ship to production.
+[profile.release]
+opt-level = 1
+lto = false
+codegen-units = 256
+debug = "line-tables-only"
+
 # ── Patches ─────────────────────────────────────────────────────────────────
 #
 # Redirect `rustpotter` (transitive dep of `brainwires-hardware`'s
@@ -360,7 +380,7 @@ rustpotter = { git = "https://github.com/Brainwires/rustpotter", rev = "4dbd6fd5
 # publication (upstream did not cut a `0.10.2` tag). The WebGPU backend
 # lands incrementally on this branch in subsequent phases of the
 # bright-scroll plan.
-candle-core         = { git = "https://github.com/Brainwires/candle", rev = "8ac8c126" }
-candle-nn           = { git = "https://github.com/Brainwires/candle", rev = "8ac8c126" }
-candle-transformers = { git = "https://github.com/Brainwires/candle", rev = "8ac8c126" }
+candle-core         = { git = "https://github.com/Brainwires/candle", rev = "404f3799" }
+candle-nn           = { git = "https://github.com/Brainwires/candle", rev = "404f3799" }
+candle-transformers = { git = "https://github.com/Brainwires/candle", rev = "404f3799" }
 

@@ -455,7 +455,27 @@ function renderMessages() {
     for (const m of _messages) {
         _ui.listEl.appendChild(buildBubble(m));
     }
-    requestAnimationFrame(() => scrollToBottom(true));
+    // Initial scroll-to-bottom on conversation load. One rAF gets us
+    // past the synchronous append; the second rAF + ResizeObserver
+    // covers the markdown / image / async-bubble case where bubble
+    // height changes after first paint.
+    requestAnimationFrame(() => {
+        scrollToBottom(true);
+        requestAnimationFrame(() => scrollToBottom(true));
+    });
+    if (typeof ResizeObserver !== 'undefined' && _ui.listEl && !_ui.listEl._initialScrollObs) {
+        const obs = new ResizeObserver(() => {
+            if (_autoScroll) scrollToBottom(true);
+        });
+        // Watch each message bubble for late layout (images, code blocks).
+        for (const child of _ui.listEl.children) obs.observe(child);
+        _ui.listEl._initialScrollObs = obs;
+        // Stop forcing scroll once the user has had a moment to interact.
+        setTimeout(() => {
+            obs.disconnect();
+            delete _ui.listEl._initialScrollObs;
+        }, 1500);
+    }
 }
 
 function buildBubble(m) {

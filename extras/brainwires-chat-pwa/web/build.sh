@@ -20,6 +20,13 @@ fi
 # web_sys_unstable_apis enables web-sys's WebGPU bindings (navigator.gpu etc.)
 export RUSTFLAGS="${RUSTFLAGS:-} --cfg=web_sys_unstable_apis"
 
+# NOTE: --release is required here for *functional correctness*, not
+# perf. Candle's quantized + WGPU paths use u32 bit-arithmetic that
+# wraps cleanly in release but TRAPS under Rust's debug overflow
+# checks ("Uncaught RuntimeError: unreachable" the moment the model
+# loads). --dev wasm physically cannot run the model. This is the
+# ONE exception to the no-`--release` rule for this project — see
+# memory/feedback_no_release_builds.md.
 echo "==> wasm-pack build $WASM_CRATE_DIR"
 wasm-pack build \
     --target web \
