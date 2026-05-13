@@ -6,11 +6,11 @@
 
 Cloud fine-tune APIs and dataset pipelines for Brainwires agents.
 
-The fine-tuning trio:
+Fine-tuning surface:
 
 - **`brainwires-finetune`** (this crate) — cloud fine-tune APIs (OpenAI / Anthropic / Together / Fireworks / Anyscale / Bedrock / Vertex AI) plus dataset pipelines.
-- [`brainwires-finetune-local`](https://crates.io/crates/brainwires-finetune-local) — local PEFT (LoRA / QLoRA / DoRA), Burn-backed.
-- [`brainwires-training`](https://crates.io/crates/brainwires-training) — placeholder for actual training-from-scratch (no code yet).
+- **`rullama-finetune`** (sibling `rullama` workspace) — local PEFT (LoRA / QLoRA / DoRA), Burn-backed. Lived here as `brainwires-finetune-local` prior to v0.11.
+- **`rullama-training`** (sibling `rullama` workspace) — placeholder for actual training-from-scratch.
 
 ## What lives here
 
@@ -20,7 +20,7 @@ The fine-tuning trio:
   trait + factory.
 - `cloud::providers` (one module per cloud API) — concrete impls.
 - `config` — hyperparameter / adapter / alignment-method types shared with
-  `brainwires-finetune-local`.
+  `rullama-finetune`.
 - `datasets` — JSONL / format conversion / tokenization / dedup
   (absorbed from the deprecated `brainwires-datasets` crate).
 - `error::TrainingError`, `types::{TrainingJobId, TrainingJobStatus, ...}`
@@ -55,11 +55,12 @@ let job = manager.submit(CloudFineTuneConfig { /* ... */ }).await?;
 
 ## See also
 
-- [`brainwires-finetune-local`](https://crates.io/crates/brainwires-finetune-local) — local PEFT (depends on this crate for shared `config` / `error` / `types`).
-- [`brainwires-providers`](https://crates.io/crates/brainwires-providers) — LLM chat clients (separate crate).
+- `rullama-finetune` (sibling `rullama` workspace) — local PEFT (LoRA /
+  QLoRA / DoRA), Burn-backed. Reuses this crate's shared `config` / `error` /
+  `types` modules.
+- [`brainwires-provider`](https://crates.io/crates/brainwires-provider) — LLM chat clients (separate crate).
 - [`brainwires`](https://crates.io/crates/brainwires) — umbrella facade
-  with `training` / `training-cloud` / `training-local` / `training-full`
-  features.
+  with `training` / `training-cloud` features (cloud only since v0.11).
 
 ## License
 

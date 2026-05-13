@@ -7,15 +7,15 @@ use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary};
 #[cfg(feature = "cloud")]
 use crate::cloud::{CloudFineTuneConfig, FineTuneProvider, JobPoller};
 
-// Local training backend lives in `brainwires-finetune-local` since the
-// 0.11 split. Consumers wire that crate's `TrainingBackend` impl into
-// their own orchestrator (this manager covers cloud only).
+// Local training backend lives in the sibling `rullama` workspace
+// (`rullama-finetune`). Consumers wire that crate's `TrainingBackend` impl
+// into their own orchestrator (this manager covers cloud only).
 
 /// High-level training orchestrator.
 ///
 /// Provides a unified API for cloud fine-tuning across providers. Local
-/// training backends (LoRA / QLoRA / DoRA) live in `brainwires-finetune-local`
-/// — drive them from your own loop.
+/// training backends (LoRA / QLoRA / DoRA) live in `rullama-finetune` (sibling
+/// workspace) — drive them from your own loop.
 pub struct TrainingManager {
     #[cfg(feature = "cloud")]
     cloud_providers: HashMap<String, Box<dyn FineTuneProvider>>,
@@ -131,8 +131,8 @@ impl TrainingManager {
         Ok(all_jobs)
     }
 
-    // train_local removed — local fine-tuning lives in
-    // `brainwires-finetune-local` since the 0.11 split. Drive it directly
+    // train_local removed — local fine-tuning lives in the sibling
+    // `rullama` workspace as `rullama-finetune`. Drive it directly
     // from that crate's `TrainingBackend` impl.
 }
 

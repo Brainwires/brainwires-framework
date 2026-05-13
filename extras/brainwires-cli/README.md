@@ -601,7 +601,7 @@ The framework crates, grouped by function:
 | **Integration** | `brainwires-mcp`, `brainwires-mcp-server`, `brainwires-network` |
 | **Security** | `brainwires-permissions` |
 | **Execution** | `brainwires-wasm`, `brainwires-autonomy` |
-| **Hardware & Training** | `brainwires-hardware`, `brainwires-training`, `brainwires-a2a` |
+| **Hardware & Training** | `brainwires-hardware`, `brainwires-finetune`, `brainwires-a2a` |
 
 ### CLI Layer
 

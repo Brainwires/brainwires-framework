@@ -149,7 +149,7 @@ Source of truth: `scripts/publish.sh`. Reproduced here for reference.
 | 4 — Action | `brainwires-tools`, `brainwires-permissions` |
 | 4b — Reasoning (deps: tools) | `brainwires-reasoning` |
 | 5 — Agency | `brainwires-agent`, `brainwires-network` |
-| 6 — Training | `brainwires-training` |
+| 6 — Fine-tune | `brainwires-finetune` |
 | 7 — Facade | `brainwires` |
 
 **Excluded from publish** (`publish = false` in their `Cargo.toml`): `brainwires-autonomy`, `brainwires-wasm`. All other `extras/*` crates are also not published.

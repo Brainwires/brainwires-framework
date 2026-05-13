@@ -1,35 +1,27 @@
-//! Bisect diff tool — pairs up checkpoint dumps from two
-//! `gemma4_diag` runs (e.g. `--device cpu` vs `--device wgpu`) and
-//! reports per-checkpoint max-abs-diff + L2 distance, sorted to
-//! highlight the FIRST layer where outputs diverge.
+//! Bisect diff tool — pairs up per-layer checkpoint dumps from two
+//! Gemma 4 inference runs (e.g. CPU vs WGPU) and reports per-checkpoint
+//! max-abs-diff + L2 distance, sorted to highlight the FIRST layer
+//! where outputs diverge.
+//!
+//! The producer that wrote these dumps (the candle-based `gemma4_diag`
+//! example) was moved out of this workspace to `rullama` along with
+//! the rest of the low-level Candle inference path. This bisect tool
+//! is preserved here because it's a standalone f32-blob diff utility
+//! with no candle/wgpu dependency — point it at two dump directories
+//! produced by any tool that writes the file format below.
 //!
 //! ## How to use
 //!
-//! 1. Run gemma4_diag twice with the **same prompt + same seed**
-//!    against the same GGUF, capturing per-layer dumps:
-//!
 //! ```sh
-//! CANDLE_BISECT_DUMP_DIR=/tmp/g4-cpu \
-//!   cargo run --release --example gemma4_diag --features native,candle-wgpu -- \
-//!     --quantized --device cpu --gguf-path <BLOB> --tokenizer-file <TOK> \
-//!     --chat-template --prompt "Hi" --max-new-tokens 1
-//!
-//! CANDLE_BISECT_DUMP_DIR=/tmp/g4-wgpu \
-//!   cargo run --release --example gemma4_diag --features native,candle-wgpu -- \
-//!     --quantized --device wgpu --gguf-path <BLOB> --tokenizer-file <TOK> \
-//!     --chat-template --prompt "Hi" --max-new-tokens 1
+//! cargo run --example gemma4_bisect_diff -- /tmp/g4-cpu /tmp/g4-wgpu
 //! ```
 //!
-//! 2. Run this diff tool. It scans both dirs for matching files
-//!    (filename = `step{NNNN}_layer{MMM}_{label}.bin`) and reports:
+//! The tool scans both dirs for matching files
+//! (filename = `step{NNNN}_layer{MMM}_{label}.bin`) and reports:
 //!    - max-abs-diff per checkpoint
 //!    - L2 distance per checkpoint
 //!    - which layer + checkpoint diverged FIRST (most useful info)
 //!    - top-5 worst-divergence checkpoints
-//!
-//! ```sh
-//! cargo run --release --example gemma4_bisect_diff -- /tmp/g4-cpu /tmp/g4-wgpu
-//! ```
 //!
 //! ## File format
 //!

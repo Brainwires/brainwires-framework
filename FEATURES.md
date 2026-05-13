@@ -882,7 +882,7 @@ Full peer-to-peer audio/video/DataChannel support via the Brainwires `webrtc-rs`
 
 ## Datasets & Training Data
 
-**Crate:** `brainwires-training` (feature `datasets` — absorbed from the deprecated `brainwires-datasets` crate)
+**Crate:** `brainwires-finetune` (feature `datasets-full` — absorbed from the deprecated `brainwires-datasets` crate)
 
 Training data pipelines for fine-tuning workflows.
 
@@ -926,9 +926,9 @@ Training data pipelines for fine-tuning workflows.
 
 ## Model Training & Fine-Tuning
 
-**Crate:** `brainwires-training`
-
-Cloud and local model fine-tuning.
+**Crate:** `brainwires-finetune` (cloud only since v0.11). Local PEFT and
+training-from-scratch live in the sibling `rullama` workspace as
+`rullama-finetune` and `rullama-training`.
 
 ### Cloud Fine-Tuning (feature: `cloud`)
 
@@ -936,7 +936,7 @@ Cloud and local model fine-tuning.
 - **FineTuneProviderFactory** — Create providers from config
 - Supported providers: **OpenAI**, **Together**, **Fireworks**, **Anyscale**, **Bedrock**, **Vertex AI**
 
-### Local Training (feature: `local`)
+### Local Training (`rullama-finetune`, separate workspace)
 
 - **LoRA** — Low-Rank Adaptation
 - **QLoRA** — Quantized LoRA

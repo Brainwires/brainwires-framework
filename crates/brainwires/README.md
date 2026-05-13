@@ -105,11 +105,14 @@ Source of truth: [`Cargo.toml`](Cargo.toml). Listed in rough capability order.
 | `network-hardware` | no | `brainwires-hardware/network` | NIC enumeration, IP config, ARP discovery, port scanning |
 | `camera` | no | `brainwires-hardware/camera` | Webcam/camera frame capture (V4L2/AVFoundation/MSMF) |
 | `usb` | no | `brainwires-hardware/usb` | Raw USB device enumeration and transfers (no libusb) |
-| `training` | no | `brainwires-training` | Model fine-tuning (cloud + local) |
-| `training-cloud` | no | `brainwires-training/cloud` | Cloud fine-tuning only (implies `training`) |
-| `training-local` | no | `brainwires-training/local` | Local LoRA/QLoRA/DoRA via Burn (implies `training`) |
-| `training-full` | no | `brainwires-training/full` + `datasets` | Cloud + local + dataset tooling |
-| `datasets` | no | `brainwires-training/datasets-full` | Training data pipelines (JSONL, tokenization, dedup) |
+| `training` | no | `brainwires-finetune` | Cloud fine-tuning APIs |
+| `training-cloud` | no | `brainwires-finetune/cloud` | Cloud fine-tuning (alias for `training`) |
+| `datasets` | no | `brainwires-finetune/datasets-full` | Training data pipelines (JSONL, tokenization, dedup) |
+
+> Local PEFT (LoRA / QLoRA / DoRA via Burn) and training-from-scratch live
+> in the sibling `rullama` workspace as `rullama-finetune` and
+> `rullama-training`. They had `training-local` / `training-full` facade
+> features prior to v0.11 — depend on the rullama crates directly now.
 
 ### Recommended profile
 

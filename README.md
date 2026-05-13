@@ -85,9 +85,8 @@ The Brainwires Framework is a workspace of 32 framework crates plus 18 extras (i
 | [**brainwires-reasoning**](crates/brainwires-reasoning/README.md) | Reasoning scorers — complexity, entity enhancer, relevance, retrieval classifier, router, strategy selector, summarizer, validator |
 | [**brainwires-call-policy**](crates/brainwires-call-policy/README.md) | Policies on outbound provider calls — retry with backoff, circuit breaker, budget caps, response cache, error classification |
 | [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, Matter (experimental PASE), home automation, camera/webcam, raw USB |
-| [**brainwires-finetune**](crates/brainwires-finetune/README.md) | Cloud fine-tune APIs (OpenAI, Anthropic, Together, Fireworks, Anyscale, Bedrock, Vertex AI) + dataset pipelines |
-| [**brainwires-finetune-local**](crates/brainwires-finetune-local/README.md) | Local PEFT fine-tuning (LoRA / QLoRA / DoRA) on a pre-trained model, Burn-backed |
-| [**brainwires-training**](crates/brainwires-training/README.md) | Placeholder reserved for future training-from-scratch primitives — see crate README for the rename history |
+| [**brainwires-finetune**](crates/brainwires-finetune/README.md) | Cloud fine-tune APIs (OpenAI, Anthropic, Together, Fireworks, Anyscale, Bedrock, Vertex AI) + dataset pipelines. Local PEFT (LoRA / QLoRA / DoRA) and training-from-scratch live in the sibling `rullama` workspace. |
+| [**brainwires-llama**](crates/brainwires-llama/README.md) | Gemma 4 inference engine — pure Rust + wgpu + WASM, GGUF-native (no candle). Powers the chat-PWA local model path. |
 | [**brainwires-telemetry**](crates/brainwires-telemetry/README.md) | OutcomeMetrics, Prometheus export, anomaly detection, billing-hook trait |
 | [**brainwires-a2a**](crates/brainwires-a2a/README.md) | Agent-to-Agent protocol — JSON-RPC 2.0, HTTP/REST, and gRPC bindings |
 | [**brainwires-sandbox**](crates/brainwires-sandbox/README.md) | Container-backed sandbox executor for untrusted tool code |
@@ -215,8 +214,8 @@ The `brainwires` facade crate exposes feature flags corresponding to each sub-cr
 | `mcp-server-framework` | No | MCP server building blocks (McpServer, McpHandler, middleware pipeline) |
 | `rag` | No | RAG engine with code search |
 | `audio` | No | Audio capture, STT, TTS |
-| `training` | No | Model fine-tuning (cloud + local) |
-| `datasets` | No | Training data pipelines (delegates to `brainwires-training`) |
+| `training` | No | Cloud fine-tuning (local PEFT lives in `rullama-finetune`) |
+| `datasets` | No | Training data pipelines (delegates to `brainwires-finetune`) |
 | `telemetry` | No | OutcomeMetrics, Prometheus export, billing hooks |
 | `reasoning` | No | Reasoning strategies (re-exports from core) |
 | `mesh` | No | Mesh networking (via `agent-network` mesh feature) |
@@ -290,13 +289,10 @@ cargo test -p brainwires-core
   │   ├── brainwires-core
   │   ├── brainwires-mcp-client
   │   └── brainwires-a2a (a2a-transport feature)
-  ├── brainwires-finetune
+  ├── brainwires-finetune          (cloud only — local PEFT moved to rullama-finetune)
   │   ├── brainwires-core
   │   └── brainwires-provider (cloud feature)
-  ├── brainwires-finetune-local
-  │   ├── brainwires-core
-  │   └── brainwires-finetune
-  ├── brainwires-training        (placeholder — no code yet)
+  ├── brainwires-llama             (Gemma 4 — pure Rust + wgpu + WASM, GGUF-native)
   ├── brainwires-telemetry
   │   └── brainwires-core
   └── brainwires-hardware

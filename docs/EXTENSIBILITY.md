@@ -51,12 +51,12 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `RedFlagValidator` | `validate` | Response quality check |
 | `ResultComposer` | `compose` | Subtask output composition |
 
-### Training Traits (brainwires-training)
+### Fine-tune Traits (brainwires-finetune)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
 | `FineTuneProvider` | 9 methods (create_job, get_status, etc.) | Cloud fine-tuning provider |
-| `TrainingBackend` | `name`, `available_devices`, `train` | Local training execution |
+| `TrainingBackend` | `name`, `available_devices`, `train` | Local training execution (impl lives in `rullama-finetune`) |
 
 ### Other Extension Traits
 
@@ -65,9 +65,9 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `TextToSpeech` | brainwires-hardware | TTS synthesis backend |
 | `SpeechToText` | brainwires-hardware | STT transcription backend |
 | `LanguageExecutor` | brainwires-tools (interpreters) | Sandboxed code execution |
-| `Dataset` | brainwires-training | Training data container |
-| `FormatConverter` | brainwires-training | Training data format conversion |
-| `Tokenizer` | brainwires-training | Token encoding/counting |
+| `Dataset` | brainwires-finetune | Training data container |
+| `FormatConverter` | brainwires-finetune | Training data format conversion |
+| `Tokenizer` | brainwires-finetune | Token encoding/counting |
 | `ApprovalPolicy` | brainwires-autonomy | Autonomous operation approval |
 | `GitForge` | brainwires-autonomy | Git forge API (GitHub, GitLab) |
 
@@ -252,8 +252,8 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 | `gpio` | `brainwires-hardware/gpio` | — |
 | `bluetooth` | `brainwires-hardware/bluetooth` | — |
 | `network-hardware` | `brainwires-hardware/network` | — |
-| `datasets` | `brainwires-training` | — |
-| `training` | `brainwires-training` | — |
+| `datasets` | `brainwires-finetune/datasets-full` | — |
+| `training` | `brainwires-finetune` | cloud-only since v0.11 |
 | `autonomy` | `brainwires-autonomy` | — |
 | `brain` | `brainwires-knowledge/knowledge` | — |
 
@@ -266,7 +266,6 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 | `learning` | seal + knowledge + seal/knowledge |
 | `full` | Everything |
 | `rag-full-languages` | rag + tree-sitter language grammars |
-| `training-full` | training/full + datasets/full |
 
 ### Default features
 
@@ -295,8 +294,8 @@ brainwires (facade)
   ├── brainwires-storage             ← StorageBackend trait, embeddings, BM25, LanceDB
   ├── brainwires-stores              ← Schema + CRUD: sessions, tasks, plans, conversations, …
   ├── brainwires-memory              ← TieredMemory orchestration + dream consolidation
-  ├── brainwires-finetune            ← Cloud fine-tune APIs + dataset pipelines
-  └── brainwires-finetune-local      ← Local PEFT (LoRA/QLoRA/DoRA), Burn-backed
+  └── brainwires-finetune            ← Cloud fine-tune APIs + dataset pipelines
+                                     ← (local PEFT moved to rullama-finetune)
 ```
 
 ### Where to define new traits

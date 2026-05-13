@@ -101,13 +101,14 @@ brainwires  (facade — re-exports every framework crate via feature flags)
 │        └─> a2a (opt, "a2a-transport" feature)
 │
 └─── Fine-tuning + training
-     ├── brainwires-finetune           Cloud fine-tune APIs (OpenAI, Anthropic, Together, Fireworks, Anyscale, Bedrock, Vertex AI) + dataset pipelines
-     │   └─> core
-     │   └─> provider (opt, "cloud" feature)
-     ├── brainwires-finetune-local     Local PEFT (LoRA/QLoRA/DoRA) on a pre-trained model, Burn-backed
-     │   └─> core
-     │   └─> finetune
-     └── brainwires-training           Placeholder for future training-from-scratch primitives (no code yet)
+     └── brainwires-finetune           Cloud fine-tune APIs (OpenAI, Anthropic, Together, Fireworks, Anyscale, Bedrock, Vertex AI) + dataset pipelines
+         └─> core
+         └─> provider (opt, "cloud" feature)
+
+Local PEFT (LoRA / QLoRA / DoRA) and training-from-scratch live in the
+sibling `rullama` workspace as `rullama-finetune` and `rullama-training`
+since v0.11. Lived here as `brainwires-finetune-local` and
+`brainwires-training` before that.
 ```
 
 ## Three-layer storage architecture

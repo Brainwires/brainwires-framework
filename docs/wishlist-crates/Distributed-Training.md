@@ -1,8 +1,14 @@
-# Distributed Training for `brainwires-training`
+# Distributed Training for `rullama-finetune` / `rullama-training`
+
+> **Note (v0.11):** `brainwires-training` and `brainwires-finetune-local` moved
+> to the sibling `rullama` workspace as `rullama-training` and `rullama-finetune`.
+> This wishlist is preserved here for historical context; if you pick it up,
+> implement it against the rullama crates and `brainwires-network::mesh`
+> (which remains in this workspace) for the transport layer.
 
 ## Context
 
-The `brainwires-training` crate currently supports two training modes: **cloud fine-tuning** (delegated to providers like OpenAI, Together, etc.) and **local training** (single-machine Burn framework with LoRA/QLoRA/DoRA adapters). There is no support for distributing local training across multiple machines or GPUs on different nodes.
+The `rullama-finetune` crate (formerly `brainwires-finetune-local` in this workspace) supports local training (single-machine Burn framework with LoRA/QLoRA/DoRA adapters). Cloud fine-tuning lives separately in this workspace's `brainwires-finetune`. There is no support for distributing local training across multiple machines or GPUs on different nodes.
 
 The goal is to add a feature-gated `distributed` module that enables **data-parallel distributed training** across a mesh of nodes, leveraging the existing `brainwires-network::mesh` (topology, routing, discovery abstractions) and the rest of `brainwires-network` (transport layers) for communication.
 
