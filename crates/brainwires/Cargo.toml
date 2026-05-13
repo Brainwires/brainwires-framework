@@ -58,7 +58,7 @@ brainwires-hardware = { workspace = true, optional = true }
 
 # Datasets & Fine-tuning
 brainwires-finetune = { workspace = true, optional = true }
-brainwires-finetune-local = { workspace = true, optional = true }
+# brainwires-finetune-local moved to the `rullama` workspace (rullama-finetune).
 
 
 
@@ -105,7 +105,12 @@ required-features = ["memory", "rag"]
 [features]
 default = ["tools", "agents", "inference"]
 wasm = ["brainwires-core/wasm"]
-tools = ["dep:brainwires-tool-runtime", "dep:brainwires-tool-builtins"]
+tools = [
+    "dep:brainwires-tool-runtime",
+    "dep:brainwires-tool-builtins",
+    "brainwires-tool-runtime/native",
+    "brainwires-tool-builtins/native",
+]
 agents = ["dep:brainwires-agent"]
 # LLM-driven workhorses (ChatAgent, TaskAgent, planner/judge/validator).
 inference = ["dep:brainwires-inference", "agents"]
@@ -156,8 +161,8 @@ voice-assistant = ["dep:brainwires-hardware", "brainwires-hardware/voice-assista
 datasets = ["training", "brainwires-finetune/datasets-full"]
 training = ["dep:brainwires-finetune"]
 training-cloud = ["training", "brainwires-finetune/cloud"]
-training-local = ["dep:brainwires-finetune-local"]
-training-full = ["training", "training-local", "brainwires-finetune/full", "datasets"]
+# `training-local` and `training-full` removed when local PEFT moved to rullama;
+# depend on `rullama-finetune` directly for LoRA / QLoRA / DoRA.
 # autonomy feature requires brainwires-autonomy (publish = false, workspace-only)
 system = ["tools", "brainwires-tool-builtins/system"]
 dream = ["tiered", "brainwires-memory/dream"]
@@ -165,7 +170,6 @@ telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwi
 bedrock = ["providers", "brainwires-provider/bedrock"]
 vertex-ai = ["providers", "brainwires-provider/vertex-ai"]
 llama-cpp-2 = ["providers", "brainwires-provider/llama-cpp-2"]
-local-llm-candle = ["providers", "brainwires-provider/local-llm-candle"]
 web-speech = ["dep:brainwires-provider-speech", "brainwires-provider-speech/web-speech"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration

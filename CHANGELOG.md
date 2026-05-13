@@ -9,6 +9,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactored (BREAKING)
 
+#### Low-level inference + training crates moved out to `rullama`
+
+The framework sheds its low-level layer. `rullama` — originally written
+to *replace* Candle after the earlier on-Candle attempt failed — is
+becoming a small Rust workspace that hosts both the existing wgpu/WASM
+Gemma 4 inference engine and the training crates pulled from here. The
+framework keeps its high-level surface (agents, providers, MCP, RAG,
+prompting, reasoning, cloud fine-tune) and stops carrying a model
+runtime of its own.
+
+- **`crates/brainwires-finetune-local/` deleted** — Burn 0.20-backed
+  LoRA / QLoRA / DoRA fine-tuning. Moves to `rullama` as
+  `rullama-finetune`, gated behind a `training` feature, native-only.
+- **`crates/brainwires-training/` deleted** — from-scratch training
+  placeholder. Moves to `rullama` as `rullama-training`.
+- **`brainwires-provider` `local-llm-candle` feature deleted** — the
+  Candle-based local LLM provider (`CandleLlmProvider`, `gguf_loader`,
+  `quantized_gemma4_pipeline`, ~1,400 LOC). Rullama already covers
+  Gemma 4 inference natively in wgpu, bit-exact vs Ollama, so this
+  path was redundant. Consumers wanting local LLM inference depend on
+  `rullama` directly.
+- **`brainwires-provider` `local-llm-vision` feature deleted** —
+  Gemma 3 SigLIP + Gemma 4 multimodal pipeline (~3,000 LOC). Gemma 4
+  vision is already shipped in rullama (bit-identical to Ollama); the
+  Gemma 3 SigLIP path is out of scope.
+- **Workspace deps pruned** — the Brainwires `candle` 0.10 WebGPU
+  fork, `burn` 0.20, `hf-hub`, and the candle-only `safetensors` /
+  `tokenizers` / `image` pins drop from `[workspace.dependencies]`
+  once `cargo tree -e normal` shows no remaining consumer.
+- **`extras/brainwires-chat-pwa/wasm/` deleted** — the 944-line wasm
+  bridge crate (`brainwires-chat-pwa-wasm`) existed solely to expose
+  `CandleLlmProvider` to JavaScript. With the Candle path gone it has
+  no remaining surface area; the chat PWA loads `rullama`'s wasm
+  bundle directly.
+- **`brainwires-provider`'s candle-only re-exports gone** —
+  `CandleDevice`, `CandleTensor`, `CandleVarBuilder`,
+  `CandleGemmaConfig`, `CandleDeviceLocation`, `WgpuDevice`,
+  `WgpuStorage`, `CandleStorage`, `CandleDType`, and the `gemma4`
+  re-export are removed from `brainwires_provider`'s public API.
+  Along with them, the `candle-wgpu` cargo feature is gone and the
+  candle-bound examples (`gemma4_diag`, `gguf_dump`) are deleted.
+
+API breakage:
+- `brainwires_finetune_local::*` — gone. Use `rullama_finetune::*`.
+- `brainwires_training::*` — gone. Use `rullama_training::*`.
+- `brainwires_provider::local_llm::*` (incl. `CandleLlmProvider`,
+  `CandleDevice`, `CandleGemmaConfig`, vision pipelines) — gone.
+  For local inference, embed `rullama` directly. A
+  `Provider`-trait shim from rullama back into the framework is a
+  later milestone, added only when a concrete agent flow needs one.
+- `brainwires-provider`'s `local-llm-candle` and `local-llm-vision`
+  cargo features — gone (along with their gated deps).
+- The `brainwires` facade crate's re-exports of any of the above —
+  gone. Bumps the facade as a breaking change.
+
+`brainwires-framework` final shape after this move: zero local model
+runtime, zero GPU kernels, zero autodiff. The framework is purely
+about coordinating agents, calling providers (remote or
+rullama-backed), tools, RAG, and policy.
+
 #### Phase 9 — `brainwires-storage` further refinement
 
 Cleanup pass that the original plan flagged as optional. Now done.

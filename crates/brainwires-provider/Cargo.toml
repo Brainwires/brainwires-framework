@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-provider"
-description = "LLM provider implementations (Anthropic, OpenAI Chat + Responses, Google Gemini, Ollama, Bedrock, Vertex AI, local llama.cpp / Candle) for the Brainwires Agent Framework. Speech (TTS/STT) providers live in `brainwires-provider-speech`."
+description = "LLM provider implementations (Anthropic, OpenAI Chat + Responses, Google Gemini, Ollama, Bedrock, Vertex AI, local llama.cpp) for the Brainwires Agent Framework. Speech (TTS/STT) providers live in `brainwires-provider-speech`."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -35,18 +35,6 @@ dirs = { workspace = true }
 llama-cpp-2 = { version = "0.1", optional = true }
 encoding_rs = { workspace = true, optional = true }
 
-# Candle-based local LLM inference (WASM-compatible, no GPU/MKL/Accelerate).
-# All deps are pinned with default-features disabled and no GPU/SIMD backends.
-candle-core = { version = "0.11", default-features = false, optional = true }
-candle-nn = { version = "0.11", default-features = false, optional = true }
-candle-transformers = { version = "0.11", default-features = false, optional = true }
-tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"], optional = true }
-safetensors = { version = "0.7", default-features = false, features = ["std"], optional = true }
-
-# Image preprocessing for the multimodal vision tower (local-llm-vision feature).
-# Default features off; enable common web formats only.
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
-
 # Analytics (optional) — used on both native and wasm if `telemetry` is on.
 brainwires-telemetry = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
@@ -55,9 +43,9 @@ chrono = { workspace = true, optional = true }
 # wasm-bindgen / js-sys / web-sys / wasm-bindgen-futures deps deleted.
 
 # All deps below are native-only. We declare them under a wasm-excluding target
-# so the optional `dep:foo` references in the `native`/`bedrock`/`vertex-ai`/
-# `local-llm-candle` features become no-ops on wasm32 (cargo silently ignores
-# `dep:` entries whose underlying dep doesn't exist for the current target).
+# so the optional `dep:foo` references in the `native`/`bedrock`/`vertex-ai`
+# features become no-ops on wasm32 (cargo silently ignores `dep:` entries
+# whose underlying dep doesn't exist for the current target).
 # This lets `cargo check ... --target wasm32-unknown-unknown` succeed even with
 # `default = ["native"]` enabled.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
@@ -77,14 +65,10 @@ aws-smithy-runtime-api = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 # Vertex AI auth (Google OAuth2)
 gcp_auth = { workspace = true, optional = true }
-# `hf-hub` is only used by the native `from_hf` model loader. It enables tokio's
-# `fs` feature, which doesn't compile on wasm32. WASM consumers must load model
-# bytes via JS (see `CandleLlmProvider::from_bytes`).
-hf-hub = { version = "0.4", default-features = false, features = ["tokio", "rustls-tls"], optional = true }
 
 # wasm32 needs the JS-backed `getrandom` for any RNG-using transitive deps
-# (uuid, candle/tokenizers via rand). We enable both 0.2 (`js`) and 0.3
-# (`wasm_js`) since the dep graph includes both major versions.
+# (uuid). We enable both 0.2 (`js`) and 0.3 (`wasm_js`) since the dep
+# graph includes both major versions.
 #
 # `web-sys` (with the `console` feature) is also pulled in unconditionally
 # on wasm32 so the local-llm pipeline can emit per-step diagnostics into
@@ -113,39 +97,11 @@ native = [
 # Forwards `wasm` to brainwires-core (which enables chrono/wasmbind etc.).
 wasm = ["brainwires-core/wasm"]
 llama-cpp-2 = ["dep:tracing", "dep:tokio", "dep:llama-cpp-2", "dep:encoding_rs"]
-local-llm-candle = [
-    "dep:candle-core",
-    "dep:candle-nn",
-    "dep:candle-transformers",
-    "dep:tokenizers",
-    "dep:hf-hub",
-    "dep:safetensors",
-]
-# Multimodal vision tower scaffolding (Gemma 3/4 SigLIP path). Pulls in the
-# `image` crate for decode + resize, and requires `local-llm-candle` for the
-# Candle Tensor/Device types used to ship the preprocessed image to the model.
-local-llm-vision = [
-    "local-llm-candle",
-    "dep:image",
-]
 bedrock = ["native", "dep:aws-sigv4", "dep:aws-credential-types", "dep:aws-smithy-runtime-api", "dep:http"]
 vertex-ai = ["native", "dep:gcp_auth"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "dep:chrono"]
 # `web-speech` lives on `brainwires-provider-speech` — depend on that crate
 # directly for browser-native TTS / STT.
-
-# WebGPU acceleration for local-llm-candle. Forwards to candle-core/wgpu
-# *and* candle-nn/wgpu + candle-transformers/wgpu so the
-# `#[cfg(feature = "wgpu")]`-gated `wgpu_fwd` impls on `CustomOp*`
-# implementations (rope, softmax-last-dim, …) land in the build.
-# Without those, the runtime falls back to the default trait impl that
-# returns "no wgpu implementation for <name>".
-candle-wgpu = [
-    "local-llm-candle",
-    "candle-core/wgpu",
-    "candle-nn/wgpu",
-    "candle-transformers/wgpu",
-]
 
 [dev-dependencies]
 serde_json = { workspace = true }
@@ -161,14 +117,6 @@ required-features = ["native"]
 [[example]]
 name = "rate_limited_client"
 required-features = ["native"]
-
-# Native Gemma 4 forward-pass diagnostic rig. Reproduces the chat-pwa's
-# step-0 diag scaffold against a candle WGPU device (or CPU). Used to
-# verify candle-fork bug fixes without spinning up the chat-pwa Docker
-# stack. See `examples/gemma4_diag.rs` for usage.
-[[example]]
-name = "gemma4_diag"
-required-features = ["native", "local-llm-vision", "candle-wgpu"]
 
 [package.metadata.docs.rs]
 all-features = true

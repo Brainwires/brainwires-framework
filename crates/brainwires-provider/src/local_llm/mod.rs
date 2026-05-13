@@ -19,21 +19,6 @@ mod provider;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod ollama_cache;
 
-#[cfg(feature = "local-llm-candle")]
-pub mod gguf_loader;
-
-#[cfg(feature = "local-llm-candle")]
-pub mod quantized_gemma4_pipeline;
-
-#[cfg(feature = "local-llm-candle")]
-pub mod candle_provider;
-
-#[cfg(feature = "local-llm-vision")]
-pub mod vision;
-
 pub use config::*;
 pub use model_registry::*;
 pub use provider::*;
-
-#[cfg(feature = "local-llm-candle")]
-pub use candle_provider::CandleLlmProvider;
