@@ -18,12 +18,6 @@
 //! local traits ([`TtsSink`], [`SttSource`]) that capture the shape of a
 //! browser-native fire-and-forget TTS sink and an event-driven STT source.
 //!
-//! TODO(future): once the chat-pwa integration shakes out, lift these traits
-//! (or a superset) into a crate-level abstraction and have the cloud
-//! providers implement them too. That refactor is intentionally out of scope
-//! for the first cut so this feature can land without churning the existing
-//! cloud-speech surface.
-//!
 //! # Notes on `web-sys` features
 //!
 //! All Speech\* bindings used here are stable in `web-sys` 0.3.95 — they do

@@ -1,6 +1,6 @@
 //! Evaluation trial results and statistical analysis.
 //!
-//! A *trial* is one execution of an [`EvaluationCase`].  Run N trials and
+//! A *trial* is one execution of an [`EvaluationCase`](crate::case::EvaluationCase).  Run N trials and
 //! summarise with [`EvaluationStats`] which reports the success rate together
 //! with a Wilson-score 95 % confidence interval.
 

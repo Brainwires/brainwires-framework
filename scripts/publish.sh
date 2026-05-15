@@ -35,7 +35,7 @@ case "${1:-}" in
         ;;
 esac
 
-# 21 publishable workspace crates in strict dependency order (leaves → facade).
+# 30 publishable workspace crates in strict dependency order (leaves → facade).
 # Within each layer, crates have no mutual dependencies.
 # Excluded (publish = false): brainwires-autonomy, brainwires-wasm, brainwires-sandbox-proxy
 # Excluded (webrtc git-only dep): brainwires-channels (tombstone only)

@@ -7,11 +7,11 @@
 //!
 //! The implementation is split across focused submodules:
 //!
-//! - [`constructor`] — constructors, basic utilities, path helpers
-//! - [`locking`] — two-layer index locking (filesystem + in-process broadcast)
-//! - [`search`] — indexing dispatch, semantic search, filtered search, statistics, clear, git history
-//! - [`ensemble`] — multi-strategy ensemble query with Reciprocal Rank Fusion
-//! - [`reranking`] — pluggable diversity/relevance reranking (`spectral` feature)
+//! - `constructor` — constructors, basic utilities, path helpers
+//! - `locking` — two-layer index locking (filesystem + in-process broadcast)
+//! - `search` — indexing dispatch, semantic search, filtered search, statistics, clear, git history
+//! - `ensemble` — multi-strategy ensemble query with Reciprocal Rank Fusion
+//! - `reranking` — pluggable diversity/relevance reranking (`spectral` feature)
 //! - `code_analysis` — find definition, find references, call graph (`code-analysis` feature)
 
 use crate::code_analysis::HybridRelationsProvider;

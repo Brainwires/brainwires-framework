@@ -3,8 +3,8 @@
 //! `dream` runs periodically (via cron or on-demand) and turns older
 //! conversation messages into summaries and durable facts, reducing token
 //! pressure while preserving important knowledge. It's the consolidation
-//! engine paired with the data structures in [`crate::tiered_memory`] /
-//! [`crate::summary_store`] / [`crate::fact_store`].
+//! engine paired with the data structures in [`crate::tiered_memory`] plus
+//! the `SummaryStore` / `FactStore` re-exported from `brainwires-stores`.
 //!
 //! Lives in `brainwires-memory` rather than a separate crate because dream
 //! and the tiered memory stores it writes to are one concern — splitting

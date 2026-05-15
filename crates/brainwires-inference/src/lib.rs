@@ -4,7 +4,7 @@
 //!
 //! This crate is the home for everything in the framework that drives an
 //! LLM call (chat / completion) or constructs prompts for one. It depends
-//! on [`brainwires-agent`] for coordination primitives (locks, message
+//! on `brainwires-agent` for coordination primitives (locks, message
 //! bus, agent lifecycle, runtime context) — coordination is what holds
 //! agents together; inference is what they do.
 //!

@@ -21,7 +21,7 @@
 //! of the core traits:
 //!
 //! - [`StorageBackend`] — generic CRUD + vector search for domain stores
-//! - [`VectorDatabase`](databases::VectorDatabase) — RAG embedding storage
+//! - [`VectorDatabase`](databases::traits::VectorDatabase) — RAG embedding storage
 //!   with hybrid search
 //!
 //! ### Database backends
@@ -89,7 +89,8 @@ pub use error::StorageError;
 pub mod image_types;
 
 /// Unified database layer — one struct per database, shared connection,
-/// implementing [`StorageBackend`] and/or [`VectorDatabase`](databases::VectorDatabase).
+/// implementing [`StorageBackend`](databases::traits::StorageBackend) and/or
+/// [`VectorDatabase`](databases::traits::VectorDatabase).
 pub mod databases;
 
 /// BM25 keyword search using Tantivy. Used by Lance backend for hybrid

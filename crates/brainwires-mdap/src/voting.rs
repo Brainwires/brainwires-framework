@@ -653,7 +653,7 @@ impl FirstToAheadByKVoter {
             .await
     }
 
-    /// Check if any candidate has won: V[y] >= k + max(V[v] for v != y)
+    /// Check if any candidate has won: `V[y] >= k + max(V[v] for v != y)`
     fn check_winner<T: Clone>(&self, votes: &HashMap<String, (u32, T)>) -> Option<(String, T)> {
         if votes.is_empty() {
             return None;

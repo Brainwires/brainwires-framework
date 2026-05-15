@@ -5,8 +5,8 @@
 //! source facts rather than from individual conversation messages.
 //!
 //! Entries are written explicitly via
-//! [`TieredMemory::synthesize_mental_model`]; they are never populated
-//! automatically.
+//! `TieredMemory::synthesize_mental_model` (in `brainwires-memory`); they
+//! are never populated automatically.
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

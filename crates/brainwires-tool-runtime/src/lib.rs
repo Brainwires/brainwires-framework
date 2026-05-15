@@ -25,9 +25,9 @@
 //!   (Rhai script executor).
 //! - `oauth` — OAuth 2.0 client, PKCE, pluggable token store.
 //! - `openapi` — OpenAPI 3 spec → tool descriptor conversion.
-//! - `sandbox` — [`sandbox_executor::SandboxedToolExecutor`] (wraps any
+//! - `sandbox` — `sandbox_executor::SandboxedToolExecutor` (wraps any
 //!   `ToolExecutor` to route bash/code-exec through `brainwires-sandbox`).
-//! - `sessions` — [`sessions::SessionsTool`] (`sessions_list`, `sessions_history`,
+//! - `sessions` — `sessions::SessionsTool` (`sessions_list`, `sessions_history`,
 //!   `sessions_send`, `sessions_spawn`) over a `brainwires-session::SessionBroker`.
 //! - `rag` — [`tool_embedding::ToolEmbeddingIndex`] backing `ToolSearchTool`'s
 //!   semantic mode.

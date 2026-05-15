@@ -7,7 +7,7 @@
 //! root filesystem, network egress controls, and a whitelist of allowed
 //! bind-mount source paths.
 //!
-//! The [`HostSandbox`] implementation (behind the `unsafe-host` feature) is
+//! The `HostSandbox` implementation (behind the `unsafe-host` feature) is
 //! intentionally dangerous — it is a no-op pass-through that runs the
 //! requested command directly on the host with no isolation, intended for
 //! development only. Production callers should use [`DockerSandbox`].

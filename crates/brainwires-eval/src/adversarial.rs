@@ -2,13 +2,15 @@
 //!
 //! [`AdversarialTestCase`] wraps a concrete adversarial scenario (prompt
 //! injection, ambiguous instructions, missing context, budget exhaustion) and
-//! exposes it as an [`EvaluationCase`] so it can be driven by
-//! [`EvaluationSuite`] like any other case.
+//! exposes it as an [`EvaluationCase`](crate::case::EvaluationCase) so it can
+//! be driven by [`EvaluationSuite`](crate::suite::EvaluationSuite) like any
+//! other case.
 //!
 //! The test cases in this module are *structural templates* — they produce
 //! test inputs / payloads but do **not** execute agent code themselves.
-//! Wire them up with a closure or a concrete [`EvaluationCase`] impl that
-//! passes the payload to your agent under test.
+//! Wire them up with a closure or a concrete
+//! [`EvaluationCase`](crate::case::EvaluationCase) impl that passes the
+//! payload to your agent under test.
 
 use serde::{Deserialize, Serialize};
 
@@ -68,8 +70,9 @@ impl AdversarialTestType {
 
 /// A structured adversarial test scenario.
 ///
-/// Use [`AdversarialTestCase::new`] or the builder methods to construct, then
-/// hand off to whatever evaluation harness you use to run it against an agent.
+/// Use one of the constructor methods (`prompt_injection`, `ambiguous_instruction`,
+/// etc.) on this type to construct, then hand off to whatever evaluation harness
+/// you use to run it against an agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdversarialTestCase {
     /// Human-readable identifier (used as the case name in reports).
@@ -171,7 +174,8 @@ impl AdversarialTestCase {
 // ── Standard adversarial suite ────────────────────────────────────────────────
 
 /// A ready-made collection of adversarial test cases covering all four
-/// scenario types.  Feed into [`EvaluationSuite`] with concrete agent runners.
+/// scenario types.  Feed into [`EvaluationSuite`](crate::suite::EvaluationSuite)
+/// with concrete agent runners.
 pub fn standard_adversarial_suite() -> Vec<AdversarialTestCase> {
     vec![
         // Prompt injection

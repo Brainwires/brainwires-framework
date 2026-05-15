@@ -16,9 +16,9 @@ impl RagClient {
     ///
     /// ## Reranker options
     ///
-    /// - [`RerankerKind::Spectral`] — greedy log-det maximization (diversity-focused)
-    /// - [`RerankerKind::CrossEncoder`] — query-document cosine blend (relevance-focused)
-    /// - [`RerankerKind::Both`] — spectral first, then cross-encoder on the selected subset
+    /// - [`RerankerKind::Spectral`](crate::spectral::RerankerKind::Spectral) — greedy log-det maximization (diversity-focused)
+    /// - [`RerankerKind::CrossEncoder`](crate::spectral::RerankerKind::CrossEncoder) — query-document cosine blend (relevance-focused)
+    /// - [`RerankerKind::Both`](crate::spectral::RerankerKind::Both) — spectral first, then cross-encoder on the selected subset
     ///
     /// Requires the `spectral` feature.
     pub async fn query_diverse(

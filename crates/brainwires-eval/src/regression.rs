@@ -41,7 +41,7 @@ use super::trial::EvaluationStats;
 /// Per-category success-rate baseline stored for regression comparison.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CategoryBaseline {
-    /// Category label matching [`EvaluationCase::category`].
+    /// Category label matching [`EvaluationCase::category`](crate::case::EvaluationCase::category).
     pub category: String,
     /// Baseline success rate in [0, 1].
     pub baseline_success_rate: f64,
@@ -239,7 +239,7 @@ impl RegressionSuite {
         self.baselines.get(category)
     }
 
-    /// Load baselines from a JSON string (produced by [`baselines_to_json`]).
+    /// Load baselines from a JSON string (produced by [`Self::baselines_to_json`]).
     pub fn load_baselines_from_json(json: &str) -> anyhow::Result<Self> {
         let baselines: Vec<CategoryBaseline> = serde_json::from_str(json)?;
         let mut map = HashMap::new();

@@ -3,7 +3,8 @@
 //! [`analyze_suite_for_faults`] inspects a completed [`SuiteResult`] and
 //! classifies per-case issues into [`FaultReport`]s sorted by priority.
 //! The `suggested_task_description` on each report is ready to pass directly
-//! to a [`SelfImprovementController`] as a task description.
+//! to a `SelfImprovementController` (from `brainwires-autonomy`) as a task
+//! description.
 //!
 //! # Classification precedence (first match wins per case)
 //!
@@ -89,9 +90,9 @@ impl FaultKind {
 /// A classified eval fault ready for self-improvement task generation.
 #[derive(Debug, Clone)]
 pub struct FaultReport {
-    /// Eval case name (matches [`EvaluationCase::name`]).
+    /// Eval case name (matches [`EvaluationCase::name`](crate::case::EvaluationCase::name)).
     pub case_name: String,
-    /// Category from [`EvaluationCase::category`], or the case name if unknown.
+    /// Category from [`EvaluationCase::category`](crate::case::EvaluationCase::category), or the case name if unknown.
     pub category: String,
     /// Classification and relevant rates.
     pub fault_kind: FaultKind,

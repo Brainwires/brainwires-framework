@@ -209,7 +209,7 @@ pub struct TaskAgentConfig {
     /// the [`on_context_pressure`][crate::agent_hooks::AgentLifecycleHooks::on_context_pressure]
     /// hook is called so the consumer can summarize or evict messages.
     ///
-    /// Only effective when lifecycle hooks are set on the [`AgentContext`].
+    /// Only effective when lifecycle hooks are set on the [`AgentContext`](crate::context::AgentContext).
     /// Default: `None` (no context pressure callbacks).
     pub context_budget_tokens: Option<u64>,
 

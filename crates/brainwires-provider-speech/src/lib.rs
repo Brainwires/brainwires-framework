@@ -16,7 +16,7 @@
 //! - [`murf`] — Murf AI TTS.
 //!
 //! ## Browser-native (`web-speech` feature, `wasm32` only)
-//! - [`web_speech`] — `speechSynthesis` (TTS) and `SpeechRecognition` (STT).
+//! - `web_speech` — `speechSynthesis` (TTS) and `SpeechRecognition` (STT).
 
 /// Token-bucket rate limiter shared by every native provider.
 ///

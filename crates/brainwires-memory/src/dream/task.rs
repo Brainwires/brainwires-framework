@@ -1,4 +1,4 @@
-//! Scheduled dream task — wraps [`DreamConsolidator`] for periodic execution.
+//! Scheduled dream task — wraps [`DreamConsolidator`](crate::dream::consolidator::DreamConsolidator) for periodic execution.
 
 use std::sync::Arc;
 

@@ -6,7 +6,7 @@
 //! # Feature flag
 //! This module is always compiled; regex-based custom patterns are a runtime
 //! option. Add the `regex` crate to your own crate if you need to build
-//! [`PiiRedactionRules::custom_patterns`].
+//! [`PiiRedactionRules::custom_patterns`](crate::pii::PiiRedactionRules::custom_patterns).
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};

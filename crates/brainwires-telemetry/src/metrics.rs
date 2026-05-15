@@ -122,10 +122,10 @@ impl OutcomeMetrics {
 
     /// Prompt-cache hit rate: fraction of input tokens served from cache
     /// across all tracked provider calls. `0.0` if no input tokens have been
-    /// seen. Useful for validating that a [`CacheStrategy`] upgrade actually
+    /// seen. Useful for validating that a `CacheStrategy` upgrade actually
     /// produced cache hits in production.
     ///
-    /// [`CacheStrategy`]: brainwires_core::provider::CacheStrategy
+    /// (`CacheStrategy` is defined in `brainwires_core::provider`.)
     pub fn cache_hit_rate(&self) -> f64 {
         let denom = self.total_tokens_prompt + self.total_cache_read_tokens;
         if denom == 0 {
@@ -140,7 +140,7 @@ impl OutcomeMetrics {
 
 /// Thread-safe registry of per-agent [`OutcomeMetrics`].
 ///
-/// Implements [`AnalyticsSink`] — register it with an [`AnalyticsCollector`]
+/// Implements [`AnalyticsSink`] — register it with an [`AnalyticsCollector`](crate::collector::AnalyticsCollector)
 /// and it will update counters automatically as events arrive.
 #[derive(Clone, Default)]
 pub struct MetricsRegistry {

@@ -159,7 +159,7 @@ pub struct SkillMetadata {
 
     /// Parent directory of the skill (set only for subdirectory layout: `skill-name/SKILL.md`).
     ///
-    /// Used by [`SkillRegistry::get_resources`] to discover Level 3 resource files
+    /// Used by [`SkillRegistry::get_resources`](crate::registry::SkillRegistry::get_resources) to discover Level 3 resource files
     /// (`scripts/`, `references/`, `assets/`) without scanning at startup.
     /// None for flat file layout (`skill-name.md`).
     #[serde(skip)]

@@ -8,8 +8,9 @@ use super::trial::TrialResult;
 
 /// A single evaluation scenario.
 ///
-/// Implement this trait and pass instances to [`EvaluationSuite`] to run N
-/// independent trials and compute statistics.
+/// Implement this trait and pass instances to
+/// [`EvaluationSuite`](crate::suite::EvaluationSuite) to run N independent
+/// trials and compute statistics.
 ///
 /// ```rust,ignore
 /// use brainwires_eval::{EvaluationCase, TrialResult};

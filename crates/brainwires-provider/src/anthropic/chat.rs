@@ -129,7 +129,7 @@ impl AnthropicChatProvider {
             .collect()
     }
 
-    /// Map a [`CacheStrategy`] to the Anthropic request's `cache_prompt` bool.
+    /// Map a [`CacheStrategy`](brainwires_core::provider::CacheStrategy) to the Anthropic request's `cache_prompt` bool.
     ///
     /// Today the underlying builder at `anthropic/mod.rs::build_body` treats
     /// `cache_prompt` as a combined "system + tools" switch, so `Off` and

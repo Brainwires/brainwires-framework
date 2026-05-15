@@ -1,4 +1,5 @@
-//! Pluggable persona construction for [`ChatAgent`](crate::ChatAgent).
+//! Pluggable persona construction for any chat agent (e.g. `ChatAgent` in
+//! `brainwires-inference`).
 //!
 //! Previously every app rolled its own system-prompt assembly: `agent-chat`
 //! read CLI args, `brainwires-cli` stitched a config value, `brainclaw` had a

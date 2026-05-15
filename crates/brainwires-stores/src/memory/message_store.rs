@@ -31,7 +31,7 @@ pub struct MessageMetadata {
     ///
     /// `None` means no expiry (the entry persists indefinitely).  Use
     /// [`MessageStore::delete_expired`] to perform bulk eviction, or call
-    /// [`TieredMemory::evict_expired`](crate::TieredMemory::evict_expired) for tier-aware cleanup.
+    /// `TieredMemory::evict_expired` (in `brainwires-memory`) for tier-aware cleanup.
     pub expires_at: Option<i64>,
 }
 

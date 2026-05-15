@@ -1,7 +1,8 @@
 //! A simple chat agent that processes messages through an LLM provider with tool support.
 //!
 //! [`ChatAgent`] is the framework's ready-to-use agent for text message to response
-//! flows, including automatic tool call dispatch via [`BuiltinToolExecutor`].
+//! flows, including automatic tool call dispatch via a `BuiltinToolExecutor`
+//! (from `brainwires-tool-builtins`).
 
 use std::sync::Arc;
 
@@ -21,7 +22,8 @@ use crate::summarization::Summarizer;
 ///
 /// This is the framework's ready-to-use agent for text message -> response flows.
 /// It manages conversation history, streams responses from the provider, and
-/// automatically dispatches tool calls through a [`BuiltinToolExecutor`].
+/// automatically dispatches tool calls through a `BuiltinToolExecutor`
+/// (from `brainwires-tool-builtins`).
 ///
 /// # Example
 ///

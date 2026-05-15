@@ -10,7 +10,7 @@
 //! recorded response is out of scope for this decorator).
 //!
 //! The in-memory [`MemoryCache`] is the default backend. A SQLite-backed
-//! [`SqliteCache`] lives behind the `cache` feature flag for runs that need
+//! `SqliteCache` lives behind the `cache` feature flag for runs that need
 //! persistence across process restarts.
 
 use std::collections::HashMap;

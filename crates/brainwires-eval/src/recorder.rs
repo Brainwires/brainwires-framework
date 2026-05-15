@@ -2,8 +2,9 @@
 //!
 //! [`ToolSequenceRecorder`] is a lightweight, thread-safe recorder that
 //! captures the ordered sequence of tool calls made during an agent run.
-//! Attach it to an agent's pre-execution hook and call [`diff_against`] at the
-//! end of a trial to verify behavioural correctness.
+//! Attach it to an agent's pre-execution hook and call
+//! [`ToolSequenceRecorder::diff_against`] at the end of a trial to verify
+//! behavioural correctness.
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
