@@ -41,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires = "0.10"  # default features: tools + agents
+brainwires = "0.11"  # default features: tools + agents
 ```
 
 Then import via the prelude:
@@ -64,36 +64,39 @@ Source of truth: [`Cargo.toml`](Cargo.toml). Listed in rough capability order.
 
 | Feature | Default | Activates | Description |
 |---------|---------|-----------|-------------|
-| `tools` | **yes** | `brainwires-tools` | File, bash, git, search, web, and validation tools |
+| `tools` | **yes** | `brainwires-tool-runtime` + `brainwires-tool-builtins` | File, bash, git, search, web, and validation tools |
 | `agents` | **yes** | `brainwires-agent` | Agent runtime, communication hub, task manager, validation loop |
+| `inference` | **yes** | `brainwires-inference` | LLM-driven workhorses (ChatAgent, PlannerAgent, JudgeAgent, TaskAgent, CycleOrchestrator) |
 | `wasm` | no | `brainwires-core/wasm` | WASM-safe build of `brainwires-core` (no native deps) |
-| `storage` | no | `brainwires-storage` | Unified database layer (9 backends), tiered memory (hot/warm/cold) |
-| `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
+| `storage` | no | `brainwires-storage` | Unified database layer (9 backends) |
+| `memory` | no | `brainwires-stores` (memory) | Conversation message stores, fact stores, mental-model stores |
+| `tiered` | no | `brainwires-memory` | TieredMemory orchestration (hot/warm/cold) + multi-factor search |
+| `mcp` | no | `brainwires-mcp-client` | MCP client for connecting to external MCP servers |
 | `mcp-server` | no | `rmcp` + `schemars` + `tokio-util` | Low-level MCP server re-exports |
 | `mcp-server-framework` | no | `brainwires-mcp-server` | Higher-level MCP server framework with middleware |
 | `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol (JSON-RPC 2.0, HTTP, gRPC) |
 | `agent-network` | no | `brainwires-network` | 5-layer networking stack (IPC, TCP, A2A, pub/sub) |
 | `mesh` | no | `brainwires-network/mesh` | Mesh networking for distributed agents (implies `agent-network`) |
-| `mdap` | no | `brainwires-agent/mdap` | Multi-Dimensional Adaptive Planning with k-agent voting (implies `agents`) |
-| `prompting` | no | `brainwires-knowledge/prompting` | Prompt generation, technique library, temperature optimizer |
-| `knowledge` | no | `brainwires-knowledge/knowledge` | Persistent knowledge caches — BKS/PKS behavioral + personal stores, entity graphs |
-| `dream` | no | `brainwires-knowledge/dream` | Offline consolidation / replay passes over knowledge stores |
-| `rag` | no | `brainwires-knowledge/rag` + `brainwires-storage` | Semantic code search with vector + BM25 hybrid search |
-| `rag-full-languages` | no | `brainwires-knowledge/tree-sitter-languages` | Full tree-sitter language pack for `rag` |
-| `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |
-| `orchestrator` | no | `brainwires-tools/orchestrator` | Tool orchestration layer (implies `tools`) |
-| `interpreters` | no | `brainwires-tools/interpreters` | Sandboxed JavaScript and Python code execution |
-| `system` | no | `brainwires-tools/system` | System-level tool primitives |
-| `openapi` | no | `brainwires-tools/openapi` | Auto-generate tools from OpenAPI 3.x specs |
-| `providers` | no | `brainwires-providers` | AI providers (Anthropic, OpenAI, Google, Ollama) |
-| `chat` | no | `brainwires-providers` | Chat helpers built on `providers` |
-| `bedrock` | no | `brainwires-providers/bedrock` | AWS Bedrock provider (implies `providers`) |
-| `vertex-ai` | no | `brainwires-providers/vertex-ai` | Google Vertex AI provider (implies `providers`) |
-| `llama-cpp-2` | no | `brainwires-providers/llama-cpp-2` | Local LLM inference (implies `providers`) |
+| `mdap` | no | `brainwires-mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
+| `prompting` | no | `brainwires-prompting` | Prompt generation, technique library, temperature optimizer |
+| `knowledge` | no | `brainwires-knowledge` | Persistent knowledge caches — BKS/PKS behavioral + personal stores, entity graphs |
+| `dream` | no | `brainwires-memory/dream` | Offline consolidation / replay passes over tiered memory (implies `tiered`) |
+| `rag` | no | `brainwires-rag` + `brainwires-storage` | Semantic code search with vector + BM25 hybrid search |
+| `rag-full-languages` | no | `rag` | Full tree-sitter language pack (alias for `rag`) |
+| `permissions` | no | `brainwires-permission` | Capability profiles, trust levels, policy engine, audit logging |
+| `orchestrator` | no | `brainwires-tool-runtime/orchestrator` + `brainwires-tool-builtins/orchestrator` | Tool orchestration layer (implies `tools`) |
+| `interpreters` | no | `brainwires-tool-builtins/interpreters` | Sandboxed Rhai / Lua / JS code execution |
+| `system` | no | `brainwires-tool-builtins/system` | System-level tool primitives |
+| `openapi` | no | `brainwires-tool-runtime/openapi` | Auto-generate tools from OpenAPI 3.x specs |
+| `providers` | no | `brainwires-provider` | AI providers (Anthropic, OpenAI, Google, Ollama) |
+| `chat` | no | `brainwires-provider` | Chat helpers built on `providers` |
+| `bedrock` | no | `brainwires-provider/bedrock` | AWS Bedrock provider (implies `providers`) |
+| `vertex-ai` | no | `brainwires-provider/vertex-ai` | Google Vertex AI provider (implies `providers`) |
+| `llama-cpp-2` | no | `brainwires-provider/llama-cpp-2` | Local LLM inference (implies `providers`) |
 | `reasoning` | no | `brainwires-reasoning` | Reasoning strategies (planners, validators, routers, scorers) |
-| `seal` | no | `brainwires-agent/seal` | Self-Evolving Autonomous Learner |
-| `skills` | no | `brainwires-agent/skills-registry` | Pluggable skills system |
-| `eval` | no | `brainwires-agent/eval` | Evaluation framework for benchmarking agents |
+| `seal` | no | `brainwires-seal` | Self-Evolving Autonomous Learner |
+| `skills` | no | `brainwires-skills` | Pluggable skills system (SKILL.md routing) |
+| `eval` | no | `brainwires-eval` | Evaluation framework for benchmarking agents |
 | `otel` | no | `brainwires-agent/otel` | OpenTelemetry span export for agent traces |
 | `telemetry` | no | `brainwires-telemetry` | OutcomeMetrics, Prometheus export, billing hooks |
 | `audio` | no | `brainwires-hardware/audio` | Audio capture, STT, TTS (16 cloud providers + local Whisper) |
@@ -120,7 +123,7 @@ If you're unsure which features to pick, start with:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.10", features = ["agent-full", "reasoning", "providers"] }
+brainwires = { version = "0.11", features = ["agent-full", "reasoning", "providers"] }
 ```
 
 That gives you the full agent runtime (communication hub, validation loop,
@@ -179,7 +182,7 @@ interop, and `seal + knowledge` when you want self-improving behavior.
 
 ```toml
 [dependencies]
-brainwires = { version = "0.10", features = ["agent-full"] }
+brainwires = { version = "0.11", features = ["agent-full"] }
 ```
 
 ```rust
@@ -204,7 +207,7 @@ let validation = ValidationConfig {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.10", features = ["rag", "mcp-server"] }
+brainwires = { version = "0.11", features = ["rag", "mcp-server"] }
 ```
 
 ```rust
@@ -222,7 +225,7 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.10", features = ["rag"] }
+brainwires = { version = "0.11", features = ["rag"] }
 ```
 
 ```rust
@@ -241,7 +244,7 @@ for result in results {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.10", features = ["learning"] }
+brainwires = { version = "0.11", features = ["learning"] }
 ```
 
 ```rust

@@ -9,7 +9,7 @@ Cloud fine-tune APIs and dataset pipelines for Brainwires agents.
 Fine-tuning surface:
 
 - **`brainwires-finetune`** (this crate) — cloud fine-tune APIs (OpenAI / Anthropic / Together / Fireworks / Anyscale / Bedrock / Vertex AI) plus dataset pipelines.
-- **`rullama-finetune`** (sibling `rullama` workspace) — local PEFT (LoRA / QLoRA / DoRA), Burn-backed. Lived here as `brainwires-finetune-local` prior to v0.11.
+- **`rullama-finetune`** (sibling `rullama` workspace) — local PEFT (LoRA / QLoRA / DoRA), Burn-backed. (Lived in this workspace as a separate local-PEFT crate prior to v0.11; moved out alongside the rest of the wgpu inference engine.)
 - **`rullama-training`** (sibling `rullama` workspace) — placeholder for actual training-from-scratch.
 
 ## What lives here
@@ -43,7 +43,7 @@ Fine-tuning surface:
 
 ```toml
 [dependencies]
-brainwires-finetune = "0.10"
+brainwires-finetune = "0.11"
 ```
 
 ```rust,ignore

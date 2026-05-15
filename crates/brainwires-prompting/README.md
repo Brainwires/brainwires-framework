@@ -41,7 +41,7 @@ unconditionally, hence the `knowledge` default. The standalone bits
 
 ```toml
 [dependencies]
-brainwires-prompting = "0.10"
+brainwires-prompting = "0.11"
 ```
 
 ```rust,ignore

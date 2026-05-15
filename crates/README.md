@@ -107,8 +107,8 @@ brainwires  (facade — re-exports every framework crate via feature flags)
 
 Local PEFT (LoRA / QLoRA / DoRA) and training-from-scratch live in the
 sibling `rullama` workspace as `rullama-finetune` and `rullama-training`
-since v0.11. Lived here as `brainwires-finetune-local` and
-`brainwires-training` before that.
+since v0.11 — they used to live here as separate local-training crates,
+moved out alongside the rest of the wgpu inference engine.
 ```
 
 ## Three-layer storage architecture

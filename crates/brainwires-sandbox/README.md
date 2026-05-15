@@ -9,7 +9,7 @@ egress-allowlist networking, and whitelisted bind mounts.
 ```
 ┌──────────────────────┐     spawn()        ┌─────────────────────┐
 │  ChatAgent /         │ ──────────────▶    │  SandboxPolicy      │
-│  brainwires-tools    │                    │  - resource caps    │
+│  brainwires-tool-*   │                    │  - resource caps    │
 └──────────────────────┘                    │  - mount whitelist  │
                                             │  - NetworkPolicy    │
                                             └──────────┬──────────┘
@@ -155,6 +155,6 @@ refuses `SandboxRuntime::Host` explicitly.
 
 ## Consumed by
 
-`brainwires-tools` uses the `Sandbox` trait to execute bash / python tool
+`brainwires-tool-builtins` uses the `Sandbox` trait to execute bash / python tool
 calls under isolation; `brainwires-agent` composes per-agent sandbox
 policies.

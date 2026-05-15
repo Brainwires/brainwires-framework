@@ -10,7 +10,7 @@ Personal voice assistant built on the [Brainwires Framework](https://github.com/
 
 - Continuous microphone capture via CPAL
 - Speech-to-text via OpenAI Whisper (configurable)
-- LLM response via any `brainwires-providers` backend
+- LLM response via any `brainwires-provider` backend
 - Text-to-speech playback via OpenAI TTS (configurable)
 - Optional wake-word detection (Rustpotter or Picovoice Porcupine)
 - TOML config file at `~/.config/voice-assistant/config.toml`

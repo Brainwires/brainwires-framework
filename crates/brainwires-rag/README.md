@@ -46,7 +46,7 @@ the RAG dep weight.
 
 ```toml
 [dependencies]
-brainwires-rag = "0.10"
+brainwires-rag = "0.11"
 ```
 
 ```rust,ignore

@@ -35,14 +35,14 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `CompensableOperation` | `execute`, `compensate`, `description` (+`operation_type` default) | Saga step with rollback |
 | `EvaluationCase` | `name`, `category`, `run` | Eval scenario |
 
-### Tool Traits (brainwires-tools)
+### Tool Traits (brainwires-tool-runtime)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
 | `ToolExecutor` | `execute`, `available_tools` | Custom tool execution backend |
 | `ToolPreHook` | `before_execute` | Pre-execution tool gate |
 
-### MDAP Traits (brainwires-agent, feature `mdap`)
+### MDAP Traits (brainwires-mdap)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
@@ -64,7 +64,7 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 |-------|-------|---------|
 | `TextToSpeech` | brainwires-hardware | TTS synthesis backend |
 | `SpeechToText` | brainwires-hardware | STT transcription backend |
-| `LanguageExecutor` | brainwires-tools (interpreters) | Sandboxed code execution |
+| `LanguageExecutor` | brainwires-tool-builtins (interpreters) | Sandboxed code execution |
 | `Dataset` | brainwires-finetune | Training data container |
 | `FormatConverter` | brainwires-finetune | Training data format conversion |
 | `Tokenizer` | brainwires-finetune | Token encoding/counting |
@@ -227,7 +227,7 @@ The facade crate (`brainwires`) gates each subsystem behind a feature flag.
 
 ```toml
 [dependencies]
-brainwires = { version = "0.10", features = ["researcher"] }
+brainwires = { version = "0.11", features = ["researcher"] }
 ```
 
 This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
@@ -236,18 +236,23 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 
 | Feature | Enables | Transitive Dependencies |
 |---------|---------|------------------------|
-| `tools` | `brainwires-tools` | — |
-| `agents` | `brainwires-agent` | brainwires-tools |
+| `tools` | `brainwires-tool-runtime` + `brainwires-tool-builtins` | — |
+| `agents` | `brainwires-agent` | — |
+| `inference` | `brainwires-inference` | brainwires-agent, brainwires-call-policy |
 | `storage` | `brainwires-storage` (with native) | lancedb, arrow, fastembed |
-| `mcp` | `brainwires-mcp` | rmcp |
-| `mdap` | `brainwires-agent/mdap` | — |
-| `prompting` | `brainwires-knowledge/prompting` | linfa-clustering, ndarray |
-| `permissions` | `brainwires-permissions` | — |
-| `rag` | `brainwires-knowledge/rag` + `brainwires-storage` | lancedb, tantivy, tree-sitter |
-| `providers` | `brainwires-providers` | reqwest |
-| `seal` | `brainwires-agent/seal` | — |
+| `memory` | `brainwires-stores` | — |
+| `tiered` | `brainwires-memory` | brainwires-stores |
+| `mcp` | `brainwires-mcp-client` | rmcp |
+| `mcp-server-framework` | `brainwires-mcp-server` | — |
+| `mdap` | `brainwires-mdap` | — |
+| `prompting` | `brainwires-prompting` | linfa-clustering, ndarray |
+| `permissions` | `brainwires-permission` | — |
+| `rag` | `brainwires-rag` + `brainwires-storage` | lancedb, tantivy, tree-sitter |
+| `providers` | `brainwires-provider` | reqwest |
+| `seal` | `brainwires-seal` | — |
+| `eval` | `brainwires-eval` | — |
 | `agent-network` | `brainwires-network` | — |
-| `skills` | `brainwires-agent` (skills) | — |
+| `skills` | `brainwires-skills` | — |
 | `audio` | `brainwires-hardware/audio` | — |
 | `gpio` | `brainwires-hardware/gpio` | — |
 | `bluetooth` | `brainwires-hardware/bluetooth` | — |

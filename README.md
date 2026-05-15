@@ -203,8 +203,9 @@ The `brainwires` facade crate exposes feature flags corresponding to each sub-cr
 | Feature | Default | What it enables |
 |---------|---------|-----------------|
 | `core` | Always | Core types and traits (not feature-gated) |
-| `tools` | Yes | Tool definitions, execution, and interpreters (`brainwires-tools`) |
-| `agents` | Yes | Multi-agent orchestration, skills (`brainwires-agent`) |
+| `tools` | Yes | Tool definitions, execution, and interpreters (`brainwires-tool-runtime` + `brainwires-tool-builtins`) |
+| `agents` | Yes | Multi-agent orchestration, communication hub, file/resource locks (`brainwires-agent`) |
+| `inference` | Yes | LLM-driven workhorses — ChatAgent, PlannerAgent, JudgeAgent, TaskAgent, CycleOrchestrator (`brainwires-inference`) |
 | `providers` | No | AI provider integrations |
 | `storage` | No | Vector storage and semantic search |
 | `mcp` | No | MCP client support |

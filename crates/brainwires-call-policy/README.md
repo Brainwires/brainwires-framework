@@ -1,4 +1,4 @@
-# brainwires-resilience
+# brainwires-call-policy
 
 Provider-layer resilience middleware for the Brainwires Agent Framework.
 Composable decorators that wrap any `brainwires_core::Provider` with retry

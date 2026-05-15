@@ -1,14 +1,14 @@
-# brainwires-permissions
+# brainwires-permission
 
-[![Crates.io](https://img.shields.io/crates/v/brainwires-permissions.svg)](https://crates.io/crates/brainwires-permissions)
-[![Documentation](https://img.shields.io/docsrs/brainwires-permissions)](https://docs.rs/brainwires-permissions)
-[![License](https://img.shields.io/crates/l/brainwires-permissions.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/brainwires-permission.svg)](https://crates.io/crates/brainwires-permission)
+[![Documentation](https://img.shields.io/docsrs/brainwires-permission)](https://docs.rs/brainwires-permission)
+[![License](https://img.shields.io/crates/l/brainwires-permission.svg)](LICENSE)
 
 Capability-based permission system with policy engine, audit logging, trust management, and anomaly detection for the Brainwires Agent Framework.
 
 ## Overview
 
-`brainwires-permissions` provides a comprehensive security layer for autonomous AI agents. Every agent receives a set of capabilities that govern file access, tool usage, network calls, git operations, and child-agent spawning. A rule-based policy engine evaluates requests against configurable policies, an audit logger records every action for compliance, a trust manager tracks agent reputation over time, and an anomaly detector flags suspicious behavior in real time.
+`brainwires-permission` provides a comprehensive security layer for autonomous AI agents. Every agent receives a set of capabilities that govern file access, tool usage, network calls, git operations, and child-agent spawning. A rule-based policy engine evaluates requests against configurable policies, an audit logger records every action for compliance, a trust manager tracks agent reputation over time, and an anomaly detector flags suspicious behavior in real time.
 
 **Design principles:**
 
@@ -19,7 +19,7 @@ Capability-based permission system with policy engine, audit logging, trust mana
 
 ```text
   ┌──────────────────────────────────────────────────────────────┐
-  │                   brainwires-permissions                      │
+  │                   brainwires-permission                      │
   │                                                              │
   │  ┌──────────────────────────────────────────────────────┐    │
   │  │                  Configuration                       │    │
@@ -59,7 +59,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-permissions = "0.10"
+brainwires-permission = "0.11"
 ```
 
 Create a capability set and evaluate a policy:
@@ -100,10 +100,10 @@ let decision = engine.evaluate(&request);
 
 ```toml
 # Default (native)
-brainwires-permissions = "0.10"
+brainwires-permission = "0.11"
 
 # WASM target
-brainwires-permissions = { version = "0.10", default-features = false, features = ["wasm"] }
+brainwires-permission = { version = "0.11", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -705,10 +705,10 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = "0.10"
+brainwires = "0.11"
 ```
 
-Or use standalone — `brainwires-permissions` depends only on `brainwires-core`.
+Or use standalone — `brainwires-permission` depends only on `brainwires-core`.
 
 ## License
 

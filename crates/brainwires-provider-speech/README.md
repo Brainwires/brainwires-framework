@@ -10,7 +10,7 @@ Standalone so consumers (typically `brainwires-hardware`'s audio surface
 and the chat-pwa wasm bridge) can pull just the speech clients without
 dragging in the LLM provider stack (candle / llama.cpp / huggingface,
 aws-sigv4, gcp_auth, …) that lives in
-[`brainwires-providers`](https://crates.io/crates/brainwires-providers).
+[`brainwires-provider`](https://crates.io/crates/brainwires-provider).
 
 ## What lives here
 
@@ -34,7 +34,7 @@ aws-sigv4, gcp_auth, …) that lives in
 
 ```toml
 [dependencies]
-brainwires-provider-speech = { version = "0.10", features = ["native"] }
+brainwires-provider-speech = { version = "0.11", features = ["native"] }
 ```
 
 ```rust,ignore
@@ -46,7 +46,7 @@ let client = ElevenLabsClient::new("api-key");
 
 ## See also
 
-- [`brainwires-providers`](https://crates.io/crates/brainwires-providers) —
+- [`brainwires-provider`](https://crates.io/crates/brainwires-provider) —
   LLM chat clients (sibling).
 - [`brainwires-hardware`](https://crates.io/crates/brainwires-hardware) —
   primary consumer (its audio API uses these clients).

@@ -1,14 +1,14 @@
-# brainwires-providers
+# brainwires-provider
 
-[![Crates.io](https://img.shields.io/crates/v/brainwires-providers.svg)](https://crates.io/crates/brainwires-providers)
-[![Documentation](https://img.shields.io/docsrs/brainwires-providers)](https://docs.rs/brainwires-providers)
-[![License](https://img.shields.io/crates/l/brainwires-providers.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/brainwires-provider.svg)](https://crates.io/crates/brainwires-provider)
+[![Documentation](https://img.shields.io/docsrs/brainwires-provider)](https://docs.rs/brainwires-provider)
+[![License](https://img.shields.io/crates/l/brainwires-provider.svg)](LICENSE)
 
 AI provider implementations for the Brainwires Agent Framework.
 
 ## Overview
 
-`brainwires-providers` provides concrete implementations of the `Provider` trait for multiple AI services: Anthropic (Claude), OpenAI (GPT), Google (Gemini), Ollama, and local LLM inference via llama.cpp. Every provider converts to and from the unified `brainwires-core` message types, so callers can swap backends without changing application code.
+`brainwires-provider` provides concrete implementations of the `Provider` trait for multiple AI services: Anthropic (Claude), OpenAI (GPT), Google (Gemini), Ollama, and local LLM inference via llama.cpp. Every provider converts to and from the unified `brainwires-core` message types, so callers can swap backends without changing application code.
 
 **Design principles:**
 
@@ -21,7 +21,7 @@ AI provider implementations for the Brainwires Agent Framework.
 
 ```text
   ┌───────────────────────────────────────────────────────────────────────┐
-  │                        brainwires-providers                           │
+  │                        brainwires-provider                           │
   │                                                                       │
   │  ┌─── Provider trait (brainwires-core) ────────────────────────────┐  │
   │  │  chat()        ──► ChatResponse                                 │  │
@@ -65,7 +65,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-providers = "0.10"
+brainwires-provider = "0.11"
 ```
 
 Send a chat request with the Anthropic provider:
@@ -98,13 +98,13 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (cloud providers only)
-brainwires-providers = "0.10"
+brainwires-provider = "0.11"
 
 # With local LLM support
-brainwires-providers = { version = "0.10", features = ["llama-cpp-2"] }
+brainwires-provider = { version = "0.11", features = ["llama-cpp-2"] }
 
 # Local LLM only (no cloud providers)
-brainwires-providers = { version = "0.10", default-features = false, features = ["llama-cpp-2"] }
+brainwires-provider = { version = "0.11", default-features = false, features = ["llama-cpp-2"] }
 ```
 
 ## Architecture
@@ -606,16 +606,16 @@ pool.unload_all().await;
 
 ## Integration
 
-Use via the `brainwires` facade crate with the `providers` feature, or depend on `brainwires-providers` directly:
+Use via the `brainwires` facade crate with the `providers` feature, or depend on `brainwires-provider` directly:
 
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.10", features = ["providers"] }
+brainwires = { version = "0.11", features = ["providers"] }
 
 # Direct
 [dependencies]
-brainwires-providers = "0.10"
+brainwires-provider = "0.11"
 ```
 
 Re-exports at crate root for convenience:

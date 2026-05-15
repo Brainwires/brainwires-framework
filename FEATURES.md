@@ -78,7 +78,7 @@ Foundation types shared by all framework crates.
 
 ## AI Providers
 
-**Crate:** `brainwires-providers`
+**Crate:** `brainwires-provider`
 
 Unified multi-provider AI interface with 18 provider types.
 
@@ -126,7 +126,7 @@ All chat providers honour `ChatOptions::model: Option<String>`. When `Some`, pro
 - **Local LLM** — `llama-cpp-2` integration for local inference (feature: `llama-cpp-2`)
 - **Streaming** — All providers return async streams for real-time output; `StreamChunk::ContextCompacted { summary, tokens_freed }` emitted when Claude auto-summarizes context mid-stream (Claude 4.6+)
 - **Default models** — Updated to GA Claude 4.6 IDs: Anthropic → `claude-sonnet-4-6`, Bedrock → `anthropic.claude-sonnet-4-6-v1:0`, VertexAI → `claude-sonnet-4-6`
-- **HTTP client transport** (`brainwires-mcp`, feature `http`) — `HttpTransport` for stateless JSON-RPC-over-HTTP MCP clients
+- **HTTP client transport** (`brainwires-mcp-client`, feature `http`) — `HttpTransport` for stateless JSON-RPC-over-HTTP MCP clients
 
 ---
 
@@ -215,9 +215,9 @@ Multi-agent infrastructure for autonomous task execution.
 
 ## Tool System
 
-**Crate:** `brainwires-tools`
+**Crates:** `brainwires-tool-runtime` (registry, executor, dispatch, validation, orchestrator) + `brainwires-tool-builtins` (concrete bash / file_ops / git / web / search / interpreters / email / calendar tools)
 
-Composable tool implementations for agent use.
+Composable tool implementations for agent use. The 0.11 split moved the runtime primitives into `brainwires-tool-runtime` and the always-available concrete tools into `brainwires-tool-builtins`.
 
 ### Built-in Tools (always available)
 
@@ -258,7 +258,7 @@ Composable tool implementations for agent use.
 
 ## MCP Protocol
 
-**Crate:** `brainwires-mcp`
+**Crate:** `brainwires-mcp-client` (the old aggregate `brainwires-mcp` was split into `brainwires-mcp-client` + `brainwires-mcp-server` in 0.10)
 
 MCP client for connecting to external MCP servers.
 
@@ -501,7 +501,7 @@ Self-evolving agent capabilities without retraining.
 
 ## Permissions & Security
 
-**Crate:** `brainwires-permissions`
+**Crate:** `brainwires-permission`
 
 Capability-based permission system.
 
@@ -685,7 +685,7 @@ Home automation protocols (Matter 1.3, Zigbee 3.0, Z-Wave Plus v2, Thread 1.3.0)
 
 ## Code Interpreters
 
-**Crate:** `brainwires-tools` (absorbed from `brainwires-code-interpreters`)
+**Crate:** `brainwires-tool-builtins` (absorbed from `brainwires-code-interpreters` in 0.10)
 
 Sandboxed multi-language code execution.
 

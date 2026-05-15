@@ -4,13 +4,9 @@ This module (inside `brainwires-agent`) implements the SEAL framework for enhanc
 
 > Inspired by: **SEAL: Self-Evolving Agentic Learning for Conversational Question Answering over Knowledge Graphs** (Wang et al., arXiv:2512.04868, December 2024)
 
-## Why It Lives in `brainwires-agent`
+## Crate boundary
 
-SEAL was previously a standalone crate (`brainwires-seal`). It was moved here because:
-
-1. **No circular dependencies** — SEAL needs `ResponseConfidence` (defined in agents) and `ToolOutcome`/`ToolErrorCategory` (from `brainwires-tools`, already a dep of agents).
-2. **Semantically correct** — "Self-Evolving **Agentic** Learning" belongs with agents.
-3. **Feature-gated** — the `seal` feature flag keeps it opt-in; optional integrations use `seal-knowledge`, `seal-feedback`, and `seal-mdap`.
+SEAL spent part of the 0.10 cycle folded into `brainwires-agent` behind a `seal` feature flag; in 0.11 it moved back out into the standalone `brainwires-seal` crate. The dependencies it needs — `ResponseConfidence` (now in `brainwires-core`), `ToolOutcome` / `ToolErrorCategory` (in `brainwires-tool-runtime`), `RelationshipGraph` (in `brainwires-knowledge`) — are all addressable from a leaf crate, so the standalone shape is back to being the right one. Optional integrations use the `knowledge`, `feedback`, and `mdap` features.
 
 ## Feature Flags
 
@@ -19,17 +15,17 @@ SEAL was previously a standalone crate (`brainwires-seal`). It was moved here be
 | `seal` | Core SEAL pipeline (coreference, query extraction, learning, reflection) |
 | `seal-mdap` | MDAP metric recording via `mdap` feature |
 | `seal-knowledge` | BKS/PKS knowledge system integration via `brainwires-knowledge` |
-| `seal-feedback` | Audit feedback bridge via `brainwires-permissions` |
+| `seal-feedback` | Audit feedback bridge via `brainwires-permission` |
 
 ```toml
 # Core SEAL
-brainwires-agent = { version = "0.10", features = ["seal"] }
+brainwires-seal = "0.11"
 
 # With knowledge integration
-brainwires-agent = { version = "0.10", features = ["seal-knowledge"] }
+brainwires-seal = { version = "0.11", features = ["knowledge"] }
 
 # Via the brainwires facade
-brainwires = { version = "0.10", features = ["seal"] }
+brainwires = { version = "0.11", features = ["seal"] }
 ```
 
 ## Architecture

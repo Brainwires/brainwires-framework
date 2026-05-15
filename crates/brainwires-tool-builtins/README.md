@@ -41,7 +41,7 @@ active feature set.
 
 ```toml
 [dependencies]
-brainwires-tool-builtins = "0.10"
+brainwires-tool-builtins = "0.11"
 ```
 
 ```rust,ignore

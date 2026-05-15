@@ -39,9 +39,9 @@ that this runtime knows how to dispatch.
 
 ```toml
 [dependencies]
-brainwires-tool-runtime = "0.10"
+brainwires-tool-runtime = "0.11"
 # Or, for the standard built-in tools too:
-brainwires-tool-builtins = "0.10"  # already pulls brainwires-tool-runtime
+brainwires-tool-builtins = "0.11"  # already pulls brainwires-tool-runtime
 ```
 
 ```rust,ignore
