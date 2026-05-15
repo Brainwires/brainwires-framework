@@ -15,7 +15,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_agent::ChatAgent;
+use brainwires_inference::ChatAgent;
 use brainwires_core::{
     ChatOptions, ChatResponse, ContentBlock, Message, MessageContent, Provider, StreamChunk, Tool,
     ToolContext, ToolInputSchema, ToolResult, ToolUse, Usage,

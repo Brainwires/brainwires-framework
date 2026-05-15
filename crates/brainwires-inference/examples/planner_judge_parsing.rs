@@ -5,9 +5,9 @@
 //! simplest possible entry point for understanding the structured output
 //! formats used in the Plan->Work->Judge cycle.
 //!
-//! Run: cargo run -p brainwires-agent --example planner_judge_parsing
+//! Run: cargo run -p brainwires-inference --example planner_judge_parsing
 
-use brainwires_agent::{JudgeAgent, JudgeVerdict, PlannerAgent, PlannerAgentConfig};
+use brainwires_inference::{JudgeAgent, JudgeVerdict, PlannerAgent, PlannerAgentConfig};
 
 fn main() {
     // ── 1. Parse a planner output from a fenced JSON block ─────────────

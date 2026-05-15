@@ -4,7 +4,7 @@
 //! spawn multiple agents into an `AgentPool`, monitor their status, and collect
 //! results. Uses a simple `MockProvider` that returns "Done" immediately.
 //!
-//! Run: cargo run -p brainwires-agent --example agent_pool
+//! Run: cargo run -p brainwires-inference --example agent_pool
 
 use std::sync::Arc;
 
@@ -17,9 +17,8 @@ use brainwires_agent::brainwires_core::{
     ToolUse, Usage,
 };
 use brainwires_agent::brainwires_tool_runtime::ToolExecutor;
-use brainwires_agent::{
-    AgentMessage, AgentPool, CommunicationHub, FileLockManager, LockType, TaskAgentConfig,
-};
+use brainwires_agent::{AgentMessage, CommunicationHub, FileLockManager, LockType};
+use brainwires_inference::{AgentPool, TaskAgentConfig};
 
 // ── Mock Provider ──────────────────────────────────────────────────────────
 

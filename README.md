@@ -85,8 +85,7 @@ The Brainwires Framework is a workspace of 32 framework crates plus 18 extras (i
 | [**brainwires-reasoning**](crates/brainwires-reasoning/README.md) | Reasoning scorers — complexity, entity enhancer, relevance, retrieval classifier, router, strategy selector, summarizer, validator |
 | [**brainwires-call-policy**](crates/brainwires-call-policy/README.md) | Policies on outbound provider calls — retry with backoff, circuit breaker, budget caps, response cache, error classification |
 | [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, camera/webcam, raw USB |
-| [**brainwires-finetune**](crates/brainwires-finetune/README.md) | Cloud fine-tune APIs (OpenAI, Anthropic, Together, Fireworks, Anyscale, Bedrock, Vertex AI) + dataset pipelines. Local PEFT (LoRA / QLoRA / DoRA) and training-from-scratch live in the sibling `rullama` workspace. |
-| [**brainwires-llama**](crates/brainwires-llama/README.md) | Gemma 4 inference engine — pure Rust + wgpu + WASM, GGUF-native (no candle). Powers the chat-PWA local model path. |
+| [**brainwires-finetune**](crates/brainwires-finetune/README.md) | Cloud fine-tune APIs (OpenAI, Anthropic, Together, Fireworks, Anyscale, Bedrock, Vertex AI) + dataset pipelines. Local PEFT (LoRA / QLoRA / DoRA), training-from-scratch, and the pure-wgpu Gemma 4 inference engine all live in the sibling `rullama` workspace. |
 | [**brainwires-telemetry**](crates/brainwires-telemetry/README.md) | OutcomeMetrics, Prometheus export, anomaly detection, billing-hook trait |
 | [**brainwires-a2a**](crates/brainwires-a2a/README.md) | Agent-to-Agent protocol — JSON-RPC 2.0, HTTP/REST, and gRPC bindings |
 | [**brainwires-sandbox**](crates/brainwires-sandbox/README.md) | Container-backed sandbox executor for untrusted tool code |
@@ -288,10 +287,9 @@ cargo test -p brainwires-core
   │   ├── brainwires-core
   │   ├── brainwires-mcp-client
   │   └── brainwires-a2a (a2a-transport feature)
-  ├── brainwires-finetune          (cloud only — local PEFT moved to rullama-finetune)
+  ├── brainwires-finetune          (cloud only — local PEFT + wgpu Gemma 4 live in rullama)
   │   ├── brainwires-core
   │   └── brainwires-provider (cloud feature)
-  ├── brainwires-llama             (Gemma 4 — pure Rust + wgpu + WASM, GGUF-native)
   ├── brainwires-telemetry
   │   └── brainwires-core
   └── brainwires-hardware

@@ -4,12 +4,12 @@
 //! acquiring file and build locks, checking lock status, handling conflicts,
 //! inspecting statistics, and cleaning up stale/expired locks.
 //!
-//! Run: cargo run -p brainwires-storage --example lock_coordination --features native
+//! Run: cargo run -p brainwires-cli --example lock_coordination
 
 use std::time::Duration;
 
 use anyhow::Result;
-use brainwires_storage::LockStore;
+use brainwires_stores::LockStore;
 
 #[tokio::main]
 async fn main() -> Result<()> {

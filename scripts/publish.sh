@@ -37,7 +37,7 @@ esac
 
 # 21 publishable workspace crates in strict dependency order (leaves → facade).
 # Within each layer, crates have no mutual dependencies.
-# Excluded (publish = false): brainwires-autonomy, brainwires-wasm, brainwires-llama, brainwires-sandbox-proxy
+# Excluded (publish = false): brainwires-autonomy, brainwires-wasm, brainwires-sandbox-proxy
 # Excluded (webrtc git-only dep): brainwires-channels (tombstone only)
 # Retired (deprecated/, picked up by the auto-detect loop below):
 #   brainwires-tools — split into brainwires-tool-runtime + brainwires-tool-builtins.

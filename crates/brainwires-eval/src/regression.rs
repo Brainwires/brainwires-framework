@@ -316,7 +316,7 @@ impl RegressionSuite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::eval::trial::TrialResult;
+    use crate::trial::TrialResult;
 
     fn make_stats(successes: usize, total: usize) -> EvaluationStats {
         let trials: Vec<TrialResult> = (0..total)

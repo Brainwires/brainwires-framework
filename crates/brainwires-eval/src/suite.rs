@@ -222,7 +222,7 @@ impl EvaluationSuite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::eval::case::{AlwaysFailCase, AlwaysPassCase, StochasticCase};
+    use crate::case::{AlwaysFailCase, AlwaysPassCase, StochasticCase};
 
     #[tokio::test]
     async fn test_suite_all_pass() {

@@ -3,12 +3,13 @@
 //! Demonstrates creating a LanceDB-backed `MessageStore`, adding messages,
 //! searching by semantic similarity, and listing messages by conversation.
 //!
-//! Run: cargo run -p brainwires-storage --example message_store --features native
+//! Run: cargo run -p brainwires-cli --example message_store
 
 use std::sync::Arc;
 
 use anyhow::Result;
-use brainwires_storage::{CachedEmbeddingProvider, LanceDatabase, MessageMetadata, MessageStore};
+use brainwires_storage::{CachedEmbeddingProvider, LanceDatabase};
+use brainwires_stores::{MessageMetadata, MessageStore};
 
 #[tokio::main]
 async fn main() -> Result<()> {

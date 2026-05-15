@@ -287,7 +287,7 @@ pub fn long_horizon_stability_suite() -> Vec<std::sync::Arc<dyn EvaluationCase>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::eval::suite::EvaluationSuite;
+    use crate::suite::EvaluationSuite;
 
     #[test]
     fn test_loop_sim_fires_at_correct_step() {

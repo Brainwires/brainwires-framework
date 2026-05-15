@@ -316,9 +316,9 @@ pub fn analyze_suite_for_faults(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::eval::regression::RegressionSuite;
-    use crate::eval::suite::SuiteResult;
-    use crate::eval::trial::{EvaluationStats, TrialResult};
+    use crate::regression::RegressionSuite;
+    use crate::suite::SuiteResult;
+    use crate::trial::{EvaluationStats, TrialResult};
     use std::collections::HashMap;
 
     fn make_suite_result(case_name: &str, successes: usize, total: usize) -> SuiteResult {

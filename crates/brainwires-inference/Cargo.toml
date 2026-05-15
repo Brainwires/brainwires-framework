@@ -56,6 +56,8 @@ otel = ["dep:opentelemetry"]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile = { workspace = true }
 tracing-subscriber = "0.3"
+# Summarization integration test exercises `BuiltinToolExecutor`.
+brainwires-tool-builtins = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true

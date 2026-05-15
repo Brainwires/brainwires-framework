@@ -4,7 +4,7 @@
 //! serves role-appropriate responses in execution order: planner JSON, then
 //! worker "Done" responses, then a judge Complete verdict.
 //!
-//! Run: cargo run -p brainwires-agent --example cycle_orchestrator
+//! Run: cargo run -p brainwires-inference --example cycle_orchestrator
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -19,9 +19,10 @@ use brainwires_agent::brainwires_core::{
     ToolUse, Usage,
 };
 use brainwires_agent::brainwires_tool_runtime::ToolExecutor;
-use brainwires_agent::{
-    CommunicationHub, CycleOrchestrator, CycleOrchestratorConfig, FileLockManager,
-    JudgeAgentConfig, JudgeVerdict, PlannerAgentConfig, TaskAgentConfig,
+use brainwires_agent::{CommunicationHub, FileLockManager};
+use brainwires_inference::{
+    CycleOrchestrator, CycleOrchestratorConfig, JudgeAgentConfig, JudgeVerdict,
+    PlannerAgentConfig, TaskAgentConfig,
 };
 
 // ── Queued Mock Provider ──────────────────────────────────────────────────

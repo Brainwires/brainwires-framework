@@ -4,12 +4,12 @@
 //! `{{variable}}` placeholders, searching/listing templates, and instantiating
 //! them with concrete values.
 //!
-//! Run: cargo run -p brainwires-storage --example plan_templates --features native
+//! Run: cargo run -p brainwires-cli --example plan_templates
 
 use std::collections::HashMap;
 
 use anyhow::Result;
-use brainwires_storage::{PlanTemplate, TemplateStore};
+use brainwires_stores::{PlanTemplate, TemplateStore};
 
 #[tokio::main]
 async fn main() -> Result<()> {

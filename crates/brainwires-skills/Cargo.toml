@@ -60,6 +60,8 @@ registry = ["dep:reqwest"]
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile = { workspace = true }
+# Tool adapter tests use `BuiltinToolExecutor` to exercise SKILL.md → Tool routing.
+brainwires-tool-builtins = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true

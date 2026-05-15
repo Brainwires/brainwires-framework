@@ -7,7 +7,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_agent::ChatAgent;
+use brainwires_inference::ChatAgent;
 use brainwires_inference::summarization::LlmSummarizer;
 use brainwires_core::ToolContext;
 use brainwires_core::{

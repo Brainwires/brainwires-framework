@@ -442,6 +442,58 @@ Migration:
 - New code: `use brainwires_core::confidence::ResponseConfidence;`
 - Existing code: continues to work via the shim until Phase 11g.
 
+#### Pre-release dead-code sweep
+
+Two orphan code paths uncovered by a `cargo check --workspace --all-targets`
+sweep against `--all-targets` were deleted before tagging, alongside a
+handful of stale `use` paths in test/example targets that pointed at modules
+which had been flattened or relocated in this cycle.
+
+- **`crates/brainwires-llama` deleted.** Introduced in `0cdb650` as a port
+  from the `rullama` prototype while debugging Q4_K WGPU drift in the
+  chat-PWA; the actual chat-PWA wasm crate that consumed it lives outside
+  this repo and now points at `rullama` directly. The in-framework copy was
+  `publish = false`, never published to crates.io, and had no workspace
+  reverse deps (`cargo tree -i` confirmed). Removing it (~7,300 LOC across
+  65 files) is invisible to any consumer.
+- **`brainwires-network` MCP-server scaffolding deleted** —
+  `src/{connection,handler,registry,server,mcp_error,mcp_transport}.rs`,
+  `src/middleware/`, plus `tests/{tool_registry,middleware_pipeline}.rs` and
+  `examples/{mcp_server,middleware_chain}.rs`. These ~2,000 LOC were
+  superseded by the standalone `brainwires-mcp-server` crate (split out in
+  `b133a4b`) and never re-declared in `brainwires-network/src/lib.rs`, so
+  the symbols (`McpServer`, `McpToolRegistry`, `AuthMiddleware`,
+  `RequestContext`, etc.) had no public API surface to begin with.
+- **Stale test/example imports fixed** in:
+  - `crates/brainwires-eval/src/{regression,fault_report,stability_tests,suite}.rs`
+    — drop the stale `eval::` prefix (`crate::eval::X` → `crate::X`) left
+    over from a flattened module structure.
+  - `crates/brainwires-seal/src/{learning,reflection,pattern_store}.rs` —
+    same `seal::` prefix flattening, plus `crate::storage::VectorDatabase`
+    → `brainwires_storage::databases::VectorDatabase` and
+    `crate::utils::entity_extraction::EntityType` →
+    `brainwires_core::graph::EntityType`.
+  - `crates/brainwires-inference/{tests,examples}` — agents
+    (`ChatAgent`, `PlannerAgent`, `JudgeAgent`, `JudgeVerdict`,
+    `CycleOrchestrator`, `AgentPool`, `TaskAgentConfig`, etc.) moved from
+    `brainwires-agent` into `brainwires-inference` in `f2eea0c`-era
+    refactors; the tests/examples still imported from the old crate.
+  - `crates/brainwires-inference/src/validation_agent.rs` — `ResourceLockManager`
+    is in `brainwires-agent::resource_locks`, not `brainwires-inference`.
+  - `crates/brainwires/tests/reexports.rs` — `TieredMemory` is re-exported
+    via `brainwires::memory` (not `brainwires::storage`) and is gated by
+    the `tiered` feature.
+  - `extras/brainwires-cli/examples/{plan_templates,message_store,lock_coordination}.rs`
+    — `PlanTemplate`, `TemplateStore`, `MessageStore`, `LockStore` moved
+    from `brainwires-storage` to `brainwires-stores`.
+- **`brainwires-skills` + `brainwires-inference` dev-deps:** add
+  `brainwires-tool-builtins` as a `[dev-dependencies]` entry on both. Their
+  test modules already used `BuiltinToolExecutor` but the crate wasn't
+  declared. Published surface unchanged (dev-only deps).
+
+After this sweep `cargo check --workspace --all-targets` is exit 0, with
+warnings only.
+
 ### Added
 
 #### chat-pwa — Phase 5 perf path live end-to-end

@@ -541,9 +541,8 @@ impl PatternStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::VectorDatabase;
-    use crate::utils::entity_extraction::EntityType;
-    use brainwires_seal::QuestionType;
+    use brainwires_core::graph::EntityType;
+    use brainwires_storage::databases::VectorDatabase;
     use tempfile::TempDir;
 
     async fn create_test_store() -> (PatternStore, TempDir) {

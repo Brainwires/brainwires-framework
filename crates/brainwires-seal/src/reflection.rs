@@ -779,7 +779,7 @@ impl Default for ReflectionModule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::seal::query_core::{QueryExpr, QueryResultValue, QuestionType};
+    use crate::query_core::{QueryExpr, QueryResultValue, QuestionType};
     use brainwires_core::graph::EntityType;
     use brainwires_knowledge::RelationshipGraph;
 
@@ -826,7 +826,7 @@ mod tests {
                 metadata: std::collections::HashMap::new(),
             });
         }
-        let result = crate::seal::query_core::QueryResult::with_values(values);
+        let result = crate::query_core::QueryResult::with_values(values);
         let graph = RelationshipGraph::new();
 
         let report = reflection.analyze(&query, &result, &graph);

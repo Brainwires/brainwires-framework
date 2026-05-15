@@ -628,7 +628,7 @@ impl ValidationSummary {
 mod tests {
     use super::*;
     use brainwires_agent::file_locks::FileLockManager;
-    use crate::resource_locks::ResourceLockManager;
+    use brainwires_agent::resource_locks::ResourceLockManager;
 
     fn create_test_validation_agent() -> ValidationAgent {
         let state_model = Arc::new(ThreeStateModel::new());

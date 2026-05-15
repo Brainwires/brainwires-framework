@@ -1027,7 +1027,7 @@ mod tests {
         // Record some queries
         let core = QueryCore::new(
             QuestionType::Definition,
-            crate::seal::query_core::QueryExpr::var("x"),
+            crate::query_core::QueryExpr::var("x"),
             vec![("main.rs".to_string(), EntityType::File)],
             "What is main.rs?".to_string(),
         );
