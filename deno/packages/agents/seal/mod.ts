@@ -19,7 +19,7 @@
 import type { EntityStoreT, RelationshipGraphT } from "@brainwires/core";
 import {
   CoreferenceResolver,
-  DialogState,
+  type DialogState,
   type ResolvedReference,
 } from "./coreference.ts";
 import { LearningCoordinator } from "./learning.ts";
@@ -32,7 +32,7 @@ import {
   defaultReflectionConfig,
   type Issue,
   ReflectionModule,
-  ReflectionReport,
+  type ReflectionReport,
 } from "./reflection.ts";
 import {
   newSealProcessingResult,

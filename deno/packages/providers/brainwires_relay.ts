@@ -17,7 +17,7 @@ import type {
   StreamChunk,
   Tool,
 } from "@brainwires/core";
-import { ChatOptions } from "@brainwires/core";
+import type { ChatOptions } from "@brainwires/core";
 import { createUsage } from "@brainwires/core";
 import { Message as MessageClass } from "@brainwires/core";
 

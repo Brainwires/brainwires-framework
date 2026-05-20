@@ -44,7 +44,6 @@ pub fn plans_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
 }
 
 /// Arrow schema for the plans table, used by `LanceDatabase` table creation.
-
 pub fn plans_schema() -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
 

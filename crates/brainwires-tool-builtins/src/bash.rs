@@ -105,6 +105,7 @@ pub(crate) struct SandboxedCommand {
     pub command: String,
     /// When true, install the seccomp network-deny filter on the child
     /// before `exec`. Always `false` on non-Linux.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub seccomp_network_deny: bool,
 }
 

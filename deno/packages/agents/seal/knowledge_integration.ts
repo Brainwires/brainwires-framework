@@ -13,7 +13,7 @@
  */
 
 import type { QueryPattern } from "./learning.ts";
-import { type LearningCoordinator, type PatternHint } from "./learning.ts";
+import type { LearningCoordinator, PatternHint } from "./learning.ts";
 import type { QuestionType } from "./query_core.ts";
 import type { ResolvedReference, SealProcessingResult } from "./types.ts";
 

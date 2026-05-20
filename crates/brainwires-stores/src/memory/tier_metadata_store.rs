@@ -122,7 +122,6 @@ impl<B: StorageBackend> TierMetadataStore<B> {
     }
 
     /// Arrow schema for the tier metadata table, used by `LanceDatabase` table creation.
-
     pub fn tier_metadata_schema() -> Arc<arrow_schema::Schema> {
         Arc::new(arrow_schema::Schema::new(vec![
             arrow_schema::Field::new("message_id", arrow_schema::DataType::Utf8, false),

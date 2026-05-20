@@ -442,7 +442,6 @@ impl<B: StorageBackend + 'static> TaskStore<B> {
     }
 
     /// Arrow schema for the tasks table, used by `LanceDatabase` table creation.
-
     pub fn tasks_arrow_schema() -> Arc<arrow_schema::Schema> {
         use arrow_schema::{DataType, Field, Schema};
         Arc::new(Schema::new(vec![
@@ -607,7 +606,6 @@ impl<B: StorageBackend + 'static> AgentStateStore<B> {
     }
 
     /// Arrow schema for the agent_states table, used by `LanceDatabase` table creation.
-
     pub fn agent_states_arrow_schema() -> Arc<arrow_schema::Schema> {
         use arrow_schema::{DataType, Field, Schema};
         Arc::new(Schema::new(vec![

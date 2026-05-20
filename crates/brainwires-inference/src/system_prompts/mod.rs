@@ -86,7 +86,7 @@ pub enum AgentPromptKind<'a> {
 /// # Example
 ///
 /// ```rust
-/// use brainwires_agent::system_prompts::{AgentPromptKind, build_agent_prompt};
+/// use brainwires_inference::system_prompts::{AgentPromptKind, build_agent_prompt};
 /// use brainwires_agent::roles::AgentRole;
 ///
 /// let prompt = build_agent_prompt(
