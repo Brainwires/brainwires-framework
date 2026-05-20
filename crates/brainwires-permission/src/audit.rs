@@ -397,7 +397,10 @@ impl AuditLogger {
     ///
     /// Every event passed to [`Self::log`] will be fed to the detector.
     /// Call [`Self::drain_anomalies`] to retrieve any flagged events.
-    pub fn with_anomaly_detection(mut self, config: brainwires_telemetry::anomaly::AnomalyConfig) -> Self {
+    pub fn with_anomaly_detection(
+        mut self,
+        config: brainwires_telemetry::anomaly::AnomalyConfig,
+    ) -> Self {
         self.anomaly_detector = Some(brainwires_telemetry::anomaly::AnomalyDetector::new(config));
         self
     }

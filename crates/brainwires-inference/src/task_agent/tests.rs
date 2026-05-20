@@ -12,8 +12,8 @@ use futures::stream::BoxStream;
 
 use anyhow::Result;
 
-use brainwires_agent::communication::CommunicationHub;
 use crate::context::AgentContext;
+use brainwires_agent::communication::CommunicationHub;
 use brainwires_agent::file_locks::FileLockManager;
 
 use super::agent::TaskAgent;

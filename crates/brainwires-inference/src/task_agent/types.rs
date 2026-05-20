@@ -2,8 +2,8 @@
 
 use std::path::PathBuf;
 
-use brainwires_agent::execution_graph::{ExecutionGraph, RunTelemetry};
 use crate::validation_loop::ValidationConfig;
+use brainwires_agent::execution_graph::{ExecutionGraph, RunTelemetry};
 
 /// Tool names whose results originate from external / untrusted sources and
 /// must be sanitised before injection into the conversation history.

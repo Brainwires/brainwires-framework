@@ -50,8 +50,8 @@ impl Router for BroadcastRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::identity::AgentIdentity;
     use crate::Payload;
+    use crate::identity::AgentIdentity;
     use uuid::Uuid;
 
     #[tokio::test]

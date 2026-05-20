@@ -163,8 +163,7 @@ async fn plan_store_hierarchy_parent_and_children() {
 
     let kids = store.get_children(&parent_id).await.unwrap();
     assert_eq!(kids.len(), 2, "must surface both children");
-    let names: std::collections::HashSet<_> =
-        kids.iter().map(|p| p.plan_id.clone()).collect();
+    let names: std::collections::HashSet<_> = kids.iter().map(|p| p.plan_id.clone()).collect();
     assert!(names.contains("child-A"));
     assert!(names.contains("child-B"));
 

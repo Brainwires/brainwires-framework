@@ -21,9 +21,7 @@ use anyhow::Result;
 use brainwires_core::{Provider, TaskPriority};
 use brainwires_tool_runtime::ToolExecutor;
 
-use brainwires_agent::communication::{AgentMessage, CommunicationHub};
 use crate::context::AgentContext;
-use brainwires_agent::file_locks::FileLockManager;
 use crate::judge_agent::{
     JudgeAgent, JudgeAgentConfig, JudgeContext, JudgeVerdict, MergeStatus, WorkerResult,
 };
@@ -32,8 +30,10 @@ use crate::planner_agent::{
 };
 use crate::pool::AgentPool;
 use crate::task_agent::{TaskAgentConfig, TaskAgentResult};
-use brainwires_agent::task_manager::TaskManager;
 use crate::task_orchestrator::{FailurePolicy, TaskOrchestratorConfig};
+use brainwires_agent::communication::{AgentMessage, CommunicationHub};
+use brainwires_agent::file_locks::FileLockManager;
+use brainwires_agent::task_manager::TaskManager;
 
 #[cfg(feature = "native")]
 use brainwires_agent::worktree::WorktreeManager;
@@ -577,8 +577,9 @@ impl CycleOrchestrator {
 
             let now = chrono::Utc::now();
             let graph = brainwires_agent::execution_graph::ExecutionGraph::new(String::new(), now);
-            let telemetry =
-                brainwires_agent::execution_graph::RunTelemetry::from_graph(&graph, now, false, 0.0);
+            let telemetry = brainwires_agent::execution_graph::RunTelemetry::from_graph(
+                &graph, now, false, 0.0,
+            );
             worker_results.push(WorkerResult {
                 task_id: task_id.clone(),
                 task_description: description,

@@ -17,26 +17,26 @@
 pub mod confidence;
 /// Content source types for tracking where content originates.
 pub mod content_source;
-/// File chunking + content extraction primitives — `FileContextManager`,
-/// `FileContent`, `FileChunk`. Moved from `brainwires-storage` in Phase 9.
-/// Native-only (uses `tokio::fs`).
-#[cfg(not(target_arch = "wasm32"))]
-pub mod file_context;
-/// Platform-specific path helpers — `PlatformPaths`. Moved from
-/// `brainwires-storage` in Phase 9.
-pub mod paths;
 /// Embedding provider trait for vector operations.
 pub mod embedding;
 /// Framework error types and result aliases.
 pub mod error;
 /// Unified event trait and `EventEnvelope<E>` with trace IDs and sequence numbers.
 pub mod event;
+/// File chunking + content extraction primitives — `FileContextManager`,
+/// `FileContent`, `FileChunk`. Moved from `brainwires-storage` in Phase 9.
+/// Native-only (uses `tokio::fs`).
+#[cfg(not(target_arch = "wasm32"))]
+pub mod file_context;
 /// Knowledge graph types: entities, edges, and trait interfaces.
 pub mod graph;
 /// Lifecycle hooks for intercepting framework events.
 pub mod lifecycle;
 /// Message, role, and streaming types for AI conversations.
 pub mod message;
+/// Platform-specific path helpers — `PlatformPaths`. Moved from
+/// `brainwires-storage` in Phase 9.
+pub mod paths;
 /// Permission mode definitions.
 pub mod permission;
 /// Plan metadata, steps, budgets, and serializable plans.

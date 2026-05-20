@@ -281,7 +281,10 @@ impl HomeServerBuilder {
             // the PairingState itself (it's read on every confirm).
             self.pairing = Some(PairingState::new(
                 p.devices_path().to_path_buf(),
-                Some(CfAccessConfig { client_id, client_secret }),
+                Some(CfAccessConfig {
+                    client_id,
+                    client_secret,
+                }),
                 p.peer_pubkey().to_string(),
             ));
         } else {
@@ -298,8 +301,8 @@ impl HomeServerBuilder {
         let bind = self
             .bind
             .unwrap_or_else(|| DEFAULT_BIND.parse().expect("DEFAULT_BIND parses"));
-        let mut state = AppState::new(self.long_poll_timeout, self.session_ttl)
-            .with_turn(self.turn);
+        let mut state =
+            AppState::new(self.long_poll_timeout, self.session_ttl).with_turn(self.turn);
         if let Some(bridge) = self.bridge {
             state = state.with_bridge(bridge);
         }

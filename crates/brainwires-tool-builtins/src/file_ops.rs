@@ -952,8 +952,8 @@ mod tests {
 
     #[test]
     fn test_write_file_staged_commit() {
-        use brainwires_tool_runtime::TransactionManager;
         use brainwires_core::StagingBackend;
+        use brainwires_tool_runtime::TransactionManager;
         use std::sync::Arc;
 
         let temp_dir = TempDir::new().unwrap();
@@ -985,8 +985,8 @@ mod tests {
 
     #[test]
     fn test_write_file_staged_rollback() {
-        use brainwires_tool_runtime::TransactionManager;
         use brainwires_core::StagingBackend;
+        use brainwires_tool_runtime::TransactionManager;
         use std::sync::Arc;
 
         let temp_dir = TempDir::new().unwrap();
@@ -1106,8 +1106,8 @@ mod tests {
 
     #[test]
     fn test_edit_file_staged_commit() {
-        use brainwires_tool_runtime::TransactionManager;
         use brainwires_core::StagingBackend;
+        use brainwires_tool_runtime::TransactionManager;
         use std::sync::Arc;
 
         let temp_dir = TempDir::new().unwrap();

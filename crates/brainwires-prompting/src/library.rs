@@ -7,8 +7,8 @@
 use super::techniques::{
     ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
 };
-use brainwires_knowledge::knowledge::bks_pks::{BehavioralKnowledgeCache, BehavioralTruth};
 use anyhow::Result;
+use brainwires_knowledge::knowledge::bks_pks::{BehavioralKnowledgeCache, BehavioralTruth};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;

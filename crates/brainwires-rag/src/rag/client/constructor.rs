@@ -124,8 +124,7 @@ impl RagClient {
 
         // Initialize relations provider for code navigation
         let relations_provider = Arc::new(
-            HybridRelationsProvider::new()
-                .context("Failed to initialize relations provider")?,
+            HybridRelationsProvider::new().context("Failed to initialize relations provider")?,
         );
 
         Ok(Self {
@@ -183,8 +182,7 @@ impl RagClient {
 
         // Initialize relations provider for code navigation
         let relations_provider = Arc::new(
-            HybridRelationsProvider::new()
-                .context("Failed to initialize relations provider")?,
+            HybridRelationsProvider::new().context("Failed to initialize relations provider")?,
         );
 
         Ok(Self {

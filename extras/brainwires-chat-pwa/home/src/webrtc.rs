@@ -22,16 +22,14 @@ use anyhow::{Result, anyhow};
 use bytes::BytesMut;
 use serde_json::Value;
 use tokio::sync::broadcast;
-use webrtc::data_channel::{
-    DataChannel as WrtcDataChannel, DataChannelEvent, RTCDataChannelInit,
-};
+use webrtc::data_channel::{DataChannel as WrtcDataChannel, DataChannelEvent, RTCDataChannelInit};
+use webrtc::media_stream::track_remote::TrackRemote;
 use webrtc::peer_connection::{
     MediaEngine, PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler,
     RTCConfigurationBuilder, RTCIceConnectionState, RTCIceServer, RTCPeerConnectionIceEvent,
     RTCPeerConnectionState, RTCSessionDescription, RTCSignalingState, Registry,
     register_default_interceptors,
 };
-use webrtc::media_stream::track_remote::TrackRemote;
 
 use crate::a2a::{self, A2aBridge};
 use crate::binary::{
@@ -86,7 +84,10 @@ impl std::fmt::Debug for PeerEvent {
             Self::ConnectionState(s) => f.debug_tuple("ConnectionState").field(s).finish(),
             Self::IceConnectionState(s) => f.debug_tuple("IceConnectionState").field(s).finish(),
             Self::SignalingState(s) => f.debug_tuple("SignalingState").field(s).finish(),
-            Self::DataChannel(_) => f.debug_tuple("DataChannel").field(&"<dyn DataChannel>").finish(),
+            Self::DataChannel(_) => f
+                .debug_tuple("DataChannel")
+                .field(&"<dyn DataChannel>")
+                .finish(),
         }
     }
 }
@@ -254,7 +255,10 @@ pub async fn wait_connected(peer: &HomePeer) -> Result<()> {
 /// Forward local ICE candidates from `from` into `into.add_ice_candidate`.
 /// Returns a JoinHandle that exits when `from`'s broadcast closes or the peer
 /// reaches Connected/Failed.
-pub fn spawn_ice_relay(from: &HomePeer, into: Arc<dyn PeerConnection>) -> tokio::task::JoinHandle<()> {
+pub fn spawn_ice_relay(
+    from: &HomePeer,
+    into: Arc<dyn PeerConnection>,
+) -> tokio::task::JoinHandle<()> {
     let mut rx = from.subscribe();
     tokio::spawn(async move {
         use webrtc::peer_connection::RTCIceCandidateInit;
@@ -308,10 +312,7 @@ pub async fn build_answerer() -> Result<HomePeer> {
 ///
 /// Local ICE candidates surface via the peer's event broadcast immediately
 /// after step 3. The caller must already be subscribed.
-pub async fn apply_offer_and_create_answer(
-    peer: &HomePeer,
-    offer_sdp: String,
-) -> Result<String> {
+pub async fn apply_offer_and_create_answer(peer: &HomePeer, offer_sdp: String) -> Result<String> {
     let offer = RTCSessionDescription::offer(offer_sdp)
         .map_err(|e| anyhow!("RTCSessionDescription::offer: {e}"))?;
     peer.pc
@@ -373,7 +374,11 @@ pub async fn run_a2a_loop_with_session(
             }
             Ok(_) => continue,
             Err(broadcast::error::RecvError::Lagged(_)) => continue,
-            Err(_) => return Err(anyhow!("peer event stream ended before data channel arrived")),
+            Err(_) => {
+                return Err(anyhow!(
+                    "peer event stream ended before data channel arrived"
+                ));
+            }
         }
     };
 
@@ -384,8 +389,13 @@ pub async fn run_a2a_loop_with_session(
             match pump_dc.poll().await {
                 Some(DataChannelEvent::OnMessage(msg)) => {
                     let text = String::from_utf8_lossy(&msg.data).into_owned();
-                    if let Some(reply) =
-                        dispatch_jsonrpc(&text, bridge.as_deref(), session.as_deref(), sync_store.as_deref()).await
+                    if let Some(reply) = dispatch_jsonrpc(
+                        &text,
+                        bridge.as_deref(),
+                        session.as_deref(),
+                        sync_store.as_deref(),
+                    )
+                    .await
                     {
                         // Push onto the outbox before sending so a successful
                         // send is always reflected in the resume buffer. Worst
@@ -495,9 +505,9 @@ async fn dispatch_jsonrpc(
         // For every other method this returns the original frame text
         // unchanged.
         let resolved = match (parsed_value, session) {
-            (Some(v), Some(s)) => {
-                rewrite_message_send_with_bins(v, s).await.unwrap_or(text.to_string())
-            }
+            (Some(v), Some(s)) => rewrite_message_send_with_bins(v, s)
+                .await
+                .unwrap_or(text.to_string()),
             _ => text.to_string(),
         };
 
@@ -568,11 +578,7 @@ fn binary_error_to_code(err: &BinaryError) -> i32 {
 
 /// Handle one of the three `bin/*` methods. Always returns `Some(reply)`
 /// (never `None`) so the data-channel pump always emits a response.
-async fn handle_bin(
-    method: &str,
-    req: &Value,
-    session: Option<&SessionState>,
-) -> Option<String> {
+async fn handle_bin(method: &str, req: &Value, session: Option<&SessionState>) -> Option<String> {
     let id_value = req.get("id").cloned().unwrap_or(Value::Null);
     let Some(session) = session else {
         // Without a session we can't track buffers. Reply with an
@@ -589,11 +595,13 @@ async fn handle_bin(
         METHOD_BIN_BEGIN => {
             let parsed: BinBeginParams = match serde_json::from_value(params) {
                 Ok(p) => p,
-                Err(e) => return make_error_reply(
-                    &id_value,
-                    brainwires_a2a::error::INVALID_PARAMS,
-                    &format!("bin/begin: malformed params: {e}"),
-                ),
+                Err(e) => {
+                    return make_error_reply(
+                        &id_value,
+                        brainwires_a2a::error::INVALID_PARAMS,
+                        &format!("bin/begin: malformed params: {e}"),
+                    );
+                }
             };
             match session.binaries.handle_begin(parsed).await {
                 Ok(ok) => {
@@ -606,11 +614,13 @@ async fn handle_bin(
         METHOD_BIN_CHUNK => {
             let parsed: BinChunkParams = match serde_json::from_value(params) {
                 Ok(p) => p,
-                Err(e) => return make_error_reply(
-                    &id_value,
-                    brainwires_a2a::error::INVALID_PARAMS,
-                    &format!("bin/chunk: malformed params: {e}"),
-                ),
+                Err(e) => {
+                    return make_error_reply(
+                        &id_value,
+                        brainwires_a2a::error::INVALID_PARAMS,
+                        &format!("bin/chunk: malformed params: {e}"),
+                    );
+                }
             };
             match session.binaries.handle_chunk(parsed).await {
                 Ok(ok) => {
@@ -623,11 +633,13 @@ async fn handle_bin(
         METHOD_BIN_END => {
             let parsed: BinEndParams = match serde_json::from_value(params) {
                 Ok(p) => p,
-                Err(e) => return make_error_reply(
-                    &id_value,
-                    brainwires_a2a::error::INVALID_PARAMS,
-                    &format!("bin/end: malformed params: {e}"),
-                ),
+                Err(e) => {
+                    return make_error_reply(
+                        &id_value,
+                        brainwires_a2a::error::INVALID_PARAMS,
+                        &format!("bin/end: malformed params: {e}"),
+                    );
+                }
             };
             match session.binaries.handle_end(parsed).await {
                 Ok(blob) => {
@@ -712,14 +724,8 @@ fn handle_sync(
                     "sync/pull: device_id required",
                 );
             }
-            let since = params
-                .get("since")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
-            let limit = params
-                .get("limit")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(100) as usize;
+            let since = params.get("since").and_then(|v| v.as_i64()).unwrap_or(0);
+            let limit = params.get("limit").and_then(|v| v.as_i64()).unwrap_or(100) as usize;
             match store.pull(device_id, since, limit) {
                 Ok(result) => {
                     let v = serde_json::json!({
@@ -744,10 +750,7 @@ fn handle_sync(
                     "sync/ack: device_id required",
                 );
             }
-            let seq = params
-                .get("seq")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
+            let seq = params.get("seq").and_then(|v| v.as_i64()).unwrap_or(0);
             match store.ack(device_id, seq) {
                 Ok(()) => make_success_reply(&id_value, serde_json::json!({ "ok": true })),
                 Err(e) => make_error_reply(&id_value, -32000, &format!("sync/ack failed: {e}")),
@@ -859,7 +862,6 @@ async fn handle_resume(req: &Value, session: Option<&SessionState>) -> Option<St
     });
     serde_json::to_string(&resp).ok()
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1003,8 +1005,8 @@ mod tests {
 
     use crate::a2a::A2aBridge;
     use crate::a2a::test_support::echo_chat_agent;
-    use base64::engine::general_purpose::STANDARD as B64;
     use base64::Engine as _;
+    use base64::engine::general_purpose::STANDARD as B64;
     use serde_json::json;
     use sha2::{Digest as _, Sha256};
     use std::sync::Arc;
@@ -1035,8 +1037,11 @@ mod tests {
                 "total_size": payload.len(),
                 "total_chunks": 1
             }
-        }).to_string();
-        let r = dispatch_jsonrpc(&begin, Some(&bridge), Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        let r = dispatch_jsonrpc(&begin, Some(&bridge), Some(&session), None)
+            .await
+            .unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["result"]["ok"], json!(true));
 
@@ -1046,8 +1051,11 @@ mod tests {
             "id": 2,
             "method": "bin/chunk",
             "params": { "bin_id": bin_id, "seq": 0, "data": b64 }
-        }).to_string();
-        let r = dispatch_jsonrpc(&chunk, Some(&bridge), Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        let r = dispatch_jsonrpc(&chunk, Some(&bridge), Some(&session), None)
+            .await
+            .unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["result"]["ok"], json!(true));
 
@@ -1057,8 +1065,11 @@ mod tests {
             "id": 3,
             "method": "bin/end",
             "params": { "bin_id": bin_id, "sha256": sha }
-        }).to_string();
-        let r = dispatch_jsonrpc(&end, Some(&bridge), Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        let r = dispatch_jsonrpc(&end, Some(&bridge), Some(&session), None)
+            .await
+            .unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["result"]["ok"], json!(true));
         assert_eq!(v["result"]["size"].as_u64().unwrap(), payload.len() as u64);
@@ -1083,16 +1094,24 @@ mod tests {
                     ]
                 }
             }
-        }).to_string();
-        let reply = dispatch_jsonrpc(&msg, Some(&bridge), Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        let reply = dispatch_jsonrpc(&msg, Some(&bridge), Some(&session), None)
+            .await
+            .unwrap();
         let reply_v: Value = serde_json::from_str(&reply).unwrap();
-        assert!(reply_v.get("error").is_none(), "message/send should succeed: {reply_v}");
+        assert!(
+            reply_v.get("error").is_none(),
+            "message/send should succeed: {reply_v}"
+        );
 
         // The bin_id should now be consumed (one-shot). A second message/send
         // with the same bin_id should leave the part untouched (no `raw`),
         // because the blob has been taken.
-        assert!(session.binaries.take(bin_id).await.is_none(),
-                "blob must be consumed by message/send");
+        assert!(
+            session.binaries.take(bin_id).await.is_none(),
+            "blob must be consumed by message/send"
+        );
     }
 
     #[tokio::test]
@@ -1103,8 +1122,11 @@ mod tests {
             "id": 9,
             "method": "bin/chunk",
             "params": { "bin_id": "ghost", "seq": 0, "data": "AAA=" }
-        }).to_string();
-        let r = dispatch_jsonrpc(&chunk, None, Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        let r = dispatch_jsonrpc(&chunk, None, Some(&session), None)
+            .await
+            .unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["error"]["code"].as_i64().unwrap(), -32001);
     }
@@ -1115,13 +1137,19 @@ mod tests {
         let begin = json!({
             "jsonrpc":"2.0","id":1,"method":"bin/begin",
             "params": { "bin_id": "ooo", "total_size": 100, "total_chunks": 2 }
-        }).to_string();
-        dispatch_jsonrpc(&begin, None, Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        dispatch_jsonrpc(&begin, None, Some(&session), None)
+            .await
+            .unwrap();
         let chunk = json!({
             "jsonrpc":"2.0","id":2,"method":"bin/chunk",
             "params": { "bin_id":"ooo", "seq":1, "data":"AAA=" }
-        }).to_string();
-        let r = dispatch_jsonrpc(&chunk, None, Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        let r = dispatch_jsonrpc(&chunk, None, Some(&session), None)
+            .await
+            .unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["error"]["code"].as_i64().unwrap(), -32002);
     }
@@ -1132,18 +1160,27 @@ mod tests {
         let begin = json!({
             "jsonrpc":"2.0","id":1,"method":"bin/begin",
             "params": { "bin_id": "h", "total_size": 4, "total_chunks": 1 }
-        }).to_string();
-        dispatch_jsonrpc(&begin, None, Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        dispatch_jsonrpc(&begin, None, Some(&session), None)
+            .await
+            .unwrap();
         let chunk = json!({
             "jsonrpc":"2.0","id":2,"method":"bin/chunk",
             "params": { "bin_id":"h", "seq":0, "data": B64.encode(b"abcd") }
-        }).to_string();
-        dispatch_jsonrpc(&chunk, None, Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        dispatch_jsonrpc(&chunk, None, Some(&session), None)
+            .await
+            .unwrap();
         let end = json!({
             "jsonrpc":"2.0","id":3,"method":"bin/end",
             "params": { "bin_id":"h", "sha256": "00".repeat(32) }
-        }).to_string();
-        let r = dispatch_jsonrpc(&end, None, Some(&session), None).await.unwrap();
+        })
+        .to_string();
+        let r = dispatch_jsonrpc(&end, None, Some(&session), None)
+            .await
+            .unwrap();
         let v: Value = serde_json::from_str(&r).unwrap();
         assert_eq!(v["error"]["code"].as_i64().unwrap(), -32003);
     }
@@ -1154,10 +1191,9 @@ mod tests {
     #[tokio::test]
     async fn rewrite_returns_none_for_unrelated_methods() {
         let session = SessionState::new("sess".to_string());
-        let v: Value = serde_json::from_str(
-            r#"{"jsonrpc":"2.0","id":1,"method":"system/ping","params":{}}"#,
-        )
-        .unwrap();
+        let v: Value =
+            serde_json::from_str(r#"{"jsonrpc":"2.0","id":1,"method":"system/ping","params":{}}"#)
+                .unwrap();
         let out = rewrite_message_send_with_bins(v, &session).await;
         assert!(out.is_none(), "non message/send frames must pass through");
     }
@@ -1204,7 +1240,9 @@ mod tests {
                 ]
             }}
         });
-        let out = rewrite_message_send_with_bins(frame, &session).await.unwrap();
+        let out = rewrite_message_send_with_bins(frame, &session)
+            .await
+            .unwrap();
         let v: Value = serde_json::from_str(&out).unwrap();
         let parts = v["params"]["message"]["parts"].as_array().unwrap();
         assert_eq!(parts.len(), 2);
@@ -1212,8 +1250,12 @@ mod tests {
         assert_eq!(parts[1]["raw"].as_str().unwrap(), B64.encode(b"abcd"));
         assert_eq!(parts[1]["mediaType"], json!("image/jpeg"));
         // bin_id metadata should be stripped after consumption.
-        assert!(parts[1].get("metadata").is_none() ||
-                !parts[1]["metadata"].as_object().unwrap().contains_key("bin_id"));
+        assert!(
+            parts[1].get("metadata").is_none()
+                || !parts[1]["metadata"]
+                    .as_object()
+                    .unwrap()
+                    .contains_key("bin_id")
+        );
     }
 }
-

@@ -16,8 +16,8 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use brainwires_agent::contract_net::TaskBid;
-use brainwires_eval::{EvaluationCase, TrialResult, ndcg_at_k};
 use brainwires_agent::market_allocation::ResourceBid;
+use brainwires_eval::{EvaluationCase, TrialResult, ndcg_at_k};
 
 // ── Case 1: TaskBid scoring ───────────────────────────────────────────────────
 

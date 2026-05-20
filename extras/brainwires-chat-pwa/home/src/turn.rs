@@ -170,7 +170,11 @@ mod tests {
         let cfg = TurnConfig::default();
         let http = reqwest::Client::new();
         let out = mint_ice_servers(&cfg, &http).await;
-        assert_eq!(out.len(), 2, "STUN-only fallback should yield 2 entries: {out:?}");
+        assert_eq!(
+            out.len(),
+            2,
+            "STUN-only fallback should yield 2 entries: {out:?}"
+        );
         assert_eq!(out[0].urls[0], "stun:stun.cloudflare.com:3478");
         assert_eq!(out[1].urls[0], "stun:stun.l.google.com:19302");
         for s in &out {
@@ -202,7 +206,8 @@ mod tests {
 
     #[tokio::test]
     async fn mint_ice_servers_cf_500_falls_back() {
-        let (base, count) = stub_server("HTTP/1.1 500 Internal Server Error", "{\"error\":\"oops\"}").await;
+        let (base, count) =
+            stub_server("HTTP/1.1 500 Internal Server Error", "{\"error\":\"oops\"}").await;
         let cfg = TurnConfig {
             turn_key_id: Some("KEYID".into()),
             api_token: Some("tok".into()),
@@ -211,7 +216,10 @@ mod tests {
         let http = reqwest::Client::new();
         let out = mint_ice_servers_with_base(&cfg, &http, &base).await;
         assert_eq!(out.len(), 2, "5xx must fall back to STUN-only: {out:?}");
-        assert!(count.load(Ordering::SeqCst) >= 1, "stub should have been hit");
+        assert!(
+            count.load(Ordering::SeqCst) >= 1,
+            "stub should have been hit"
+        );
     }
 
     #[tokio::test]
@@ -229,7 +237,11 @@ mod tests {
         let turn = &out[0];
         assert_eq!(turn.username.as_deref(), Some("u"));
         assert_eq!(turn.credential.as_deref(), Some("c"));
-        assert!(turn.urls.iter().any(|u| u.starts_with("turn:")), "TURN entry urls: {:?}", turn.urls);
+        assert!(
+            turn.urls.iter().any(|u| u.starts_with("turn:")),
+            "TURN entry urls: {:?}",
+            turn.urls
+        );
         // STUN fallbacks are still appended.
         assert_eq!(out[1].urls[0], "stun:stun.cloudflare.com:3478");
         assert_eq!(out[2].urls[0], "stun:stun.l.google.com:19302");

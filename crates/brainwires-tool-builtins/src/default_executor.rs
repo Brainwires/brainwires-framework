@@ -119,8 +119,13 @@ impl BuiltinToolExecutor {
 
                 // Validation
                 "check_duplicates" | "verify_build" | "check_syntax" => {
-                    return brainwires_tool_runtime::ValidationTool::execute(tool_use_id, tool_name, input, context)
-                        .await;
+                    return brainwires_tool_runtime::ValidationTool::execute(
+                        tool_use_id,
+                        tool_name,
+                        input,
+                        context,
+                    )
+                    .await;
                 }
 
                 // Web fetching

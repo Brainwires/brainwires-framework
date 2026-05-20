@@ -18,9 +18,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use brainwires_eval::fault_report::analyze_suite_for_faults;
-use brainwires_eval::{
-    EvaluationCase, EvaluationSuite, RegressionSuite, SuiteConfig, SuiteResult,
-};
+use brainwires_eval::{EvaluationCase, EvaluationSuite, RegressionSuite, SuiteConfig, SuiteResult};
 
 use super::config::SelfImprovementConfig;
 use super::controller::SelfImprovementController;

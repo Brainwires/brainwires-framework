@@ -18,13 +18,13 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
-use tower_http::cors::{AllowOrigin, CorsLayer};
 use brainwires_a2a::{
     A2A_PROTOCOL_VERSION, AgentCapabilities, AgentCard, AgentInterface, AgentProvider,
 };
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Notify, RwLock, broadcast};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use uuid::Uuid;
 use webrtc::data_channel::DataChannel as WrtcDataChannel;
 use webrtc::peer_connection::{PeerConnection, RTCIceCandidateInit};
@@ -307,11 +307,8 @@ impl AppState {
                 // Snapshot the surviving sessions then sweep each one's
                 // BinaryStore. The snapshot avoids holding the dashmap
                 // shard locks across the .await.
-                let snapshot: Vec<Arc<SessionState>> = me
-                    .sessions
-                    .iter()
-                    .map(|e| e.value().clone())
-                    .collect();
+                let snapshot: Vec<Arc<SessionState>> =
+                    me.sessions.iter().map(|e| e.value().clone()).collect();
                 for s in snapshot {
                     s.binaries.gc_expired().await;
                 }
@@ -350,7 +347,10 @@ pub struct CorsConfig {
 impl Default for CorsConfig {
     fn default() -> Self {
         Self {
-            origins: DEFAULT_DEV_ORIGINS.iter().map(|s| (*s).to_string()).collect(),
+            origins: DEFAULT_DEV_ORIGINS
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
             permissive: false,
         }
     }
@@ -361,7 +361,11 @@ impl CorsConfig {
     /// [`DEFAULT_DEV_ORIGINS`] defaults on first call — explicit callers
     /// opt in to exactly the origins they list, no surprise loopbacks.
     pub fn allow_origin(mut self, origin: impl Into<String>) -> Self {
-        if self.origins.iter().any(|o| DEFAULT_DEV_ORIGINS.contains(&o.as_str())) {
+        if self
+            .origins
+            .iter()
+            .any(|o| DEFAULT_DEV_ORIGINS.contains(&o.as_str()))
+        {
             // Wipe the dev defaults the first time the caller adds an
             // explicit origin. Otherwise they'd unknowingly inherit
             // `http://localhost:8080` in production.
@@ -381,12 +385,7 @@ impl CorsConfig {
 
     /// Build the [`CorsLayer`] reflecting this config.
     pub fn into_layer(self) -> CorsLayer {
-        let methods = [
-            Method::GET,
-            Method::POST,
-            Method::DELETE,
-            Method::OPTIONS,
-        ];
+        let methods = [Method::GET, Method::POST, Method::DELETE, Method::OPTIONS];
         // Headers the PWA + the M8 pairing flow need to send. Listed
         // explicitly rather than `mirror_request` because some browsers
         // are stricter when credentials are involved.
@@ -555,7 +554,14 @@ async fn post_offer(
     let sync_for_loop = state.sync_store.clone();
     let session_for_loop = s.clone();
     tokio::spawn(async move {
-        match run_a2a_loop_with_session(&peer, bridge_for_loop, Some(session_for_loop), sync_for_loop).await {
+        match run_a2a_loop_with_session(
+            &peer,
+            bridge_for_loop,
+            Some(session_for_loop),
+            sync_for_loop,
+        )
+        .await
+        {
             Ok(dc) => {
                 *session_state.data_channel.write().await = Some(dc);
             }
@@ -713,10 +719,7 @@ async fn get_ice(
     .into_response())
 }
 
-async fn delete_session(
-    State(state): State<AppState>,
-    Path(session): Path<String>,
-) -> StatusCode {
+async fn delete_session(State(state): State<AppState>, Path(session): Path<String>) -> StatusCode {
     state.sessions.remove(&session);
     StatusCode::NO_CONTENT
 }
@@ -782,7 +785,10 @@ mod tests {
 
     async fn body_bytes(resp: axum::response::Response) -> Vec<u8> {
         let body = resp.into_body();
-        to_bytes(body, 1 << 20).await.expect("collect body").to_vec()
+        to_bytes(body, 1 << 20)
+            .await
+            .expect("collect body")
+            .to_vec()
     }
 
     fn empty_request(method: Method, uri: &str) -> Request<Body> {
@@ -823,11 +829,12 @@ mod tests {
         // builder doesn't set Cloudflare creds, so we expect exactly the two
         // public STUN entries.
         let ice = v["ice_servers"].as_array().expect("ice_servers is array");
-        assert_eq!(ice.len(), 2, "STUN-only default should yield 2 entries: {ice:?}");
-        let urls: Vec<&str> = ice
-            .iter()
-            .filter_map(|s| s["urls"][0].as_str())
-            .collect();
+        assert_eq!(
+            ice.len(),
+            2,
+            "STUN-only default should yield 2 entries: {ice:?}"
+        );
+        let urls: Vec<&str> = ice.iter().filter_map(|s| s["urls"][0].as_str()).collect();
         assert!(
             urls.iter().any(|u| u.contains("stun.cloudflare.com")),
             "expected cloudflare STUN entry: {urls:?}"
@@ -838,8 +845,14 @@ mod tests {
         );
         // STUN entries must NOT carry credentials.
         for s in ice {
-            assert!(s.get("username").is_none(), "STUN entry must not carry username");
-            assert!(s.get("credential").is_none(), "STUN entry must not carry credential");
+            assert!(
+                s.get("username").is_none(),
+                "STUN entry must not carry username"
+            );
+            assert!(
+                s.get("credential").is_none(),
+                "STUN entry must not carry credential"
+            );
         }
     }
 
@@ -1049,7 +1062,10 @@ mod tests {
             .uri("/signal/session")
             .header("origin", origin)
             .header("access-control-request-method", "POST")
-            .header("access-control-request-headers", "content-type,authorization")
+            .header(
+                "access-control-request-headers",
+                "content-type,authorization",
+            )
             .body(Body::empty())
             .unwrap()
     }
@@ -1197,7 +1213,10 @@ mod tests {
         }
         // Cursor is older than the retained window (oldest id is 7).
         let (replayed, dropped) = s.resume_from(1).await;
-        assert!(dropped, "cursor predates the outbox tail; dropped must be true");
+        assert!(
+            dropped,
+            "cursor predates the outbox tail; dropped must be true"
+        );
         // Should still return the entire retained window.
         assert_eq!(replayed.len(), OUTBOX_CAPACITY);
         assert_eq!(replayed.first().unwrap(), "frame-7");
@@ -1314,9 +1333,14 @@ mod m3_handshake {
         // so the offer SDP is well-formed for the home parser.
         let pwa = build_peer(vec![]).await?;
         let _dc = open_a2a_channel(&pwa).await?;
-        let offer = pwa.pc.create_offer(None).await
+        let offer = pwa
+            .pc
+            .create_offer(None)
+            .await
             .map_err(|e| anyhow::anyhow!("create_offer: {e}"))?;
-        pwa.pc.set_local_description(offer.clone()).await
+        pwa.pc
+            .set_local_description(offer.clone())
+            .await
             .map_err(|e| anyhow::anyhow!("set_local_description: {e}"))?;
 
         // POST the offer.
@@ -1335,10 +1359,8 @@ mod m3_handshake {
         // synchronously before returning.
         let resp = tokio::time::timeout(
             Duration::from_secs(5),
-            app.clone().oneshot(empty_request(
-                Method::GET,
-                &format!("/signal/answer/{id}"),
-            )),
+            app.clone()
+                .oneshot(empty_request(Method::GET, &format!("/signal/answer/{id}"))),
         )
         .await
         .map_err(|_| anyhow::anyhow!("answer GET timed out"))?
@@ -1348,7 +1370,10 @@ mod m3_handshake {
         assert_eq!(v["type"].as_str().unwrap(), "answer");
         let sdp = v["sdp"].as_str().unwrap();
         assert!(!sdp.is_empty(), "answer SDP should be non-empty");
-        assert!(sdp.starts_with("v=0"), "answer SDP should start with v=0: {sdp}");
+        assert!(
+            sdp.starts_with("v=0"),
+            "answer SDP should start with v=0: {sdp}"
+        );
 
         // Cleanup.
         let _ = pwa.pc.close().await;
@@ -1374,10 +1399,7 @@ mod m3_handshake {
         // Step 2: PWA builds a peer + opens the canonical data channel.
         let pwa = build_peer(vec![]).await?;
         let dc = open_a2a_channel(&pwa).await?;
-        assert_eq!(
-            dc.label().await.unwrap_or_default(),
-            A2A_CHANNEL_LABEL
-        );
+        assert_eq!(dc.label().await.unwrap_or_default(), A2A_CHANNEL_LABEL);
 
         // Step 3: forward PWA local ICE candidates to the home side via
         // `POST /signal/ice/{id}`.
@@ -1496,10 +1518,7 @@ mod m3_handshake {
         // Step 6: GET the answer + apply it.
         let resp = app
             .clone()
-            .oneshot(empty_request(
-                Method::GET,
-                &format!("/signal/answer/{id}"),
-            ))
+            .oneshot(empty_request(Method::GET, &format!("/signal/answer/{id}")))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -1553,7 +1572,11 @@ mod m3_handshake {
         let reply: Value = serde_json::from_str(&reply_text)
             .map_err(|e| anyhow::anyhow!("reply not valid JSON ({e}): {reply_text}"))?;
         assert_eq!(reply["jsonrpc"], "2.0", "reply must be JSON-RPC 2.0");
-        assert_eq!(reply["id"], serde_json::json!(1), "id must echo the request id");
+        assert_eq!(
+            reply["id"],
+            serde_json::json!(1),
+            "id must echo the request id"
+        );
         assert_eq!(
             reply["result"]["ok"].as_bool(),
             Some(true),

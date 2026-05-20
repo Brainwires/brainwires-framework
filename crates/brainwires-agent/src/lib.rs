@@ -200,7 +200,6 @@ pub mod prelude {
 
     // Core components
     pub use super::communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType};
-    pub use brainwires_core::confidence::{ConfidenceFactors, ResponseConfidence};
     pub use super::file_locks::{FileLockManager, LockType};
     pub use super::operation_tracker::OperationTracker;
     pub use super::resource_checker::{ConflictCheck, ResourceChecker};
@@ -210,6 +209,7 @@ pub mod prelude {
     pub use super::task_queue::TaskQueue;
     #[cfg(feature = "native")]
     pub use super::worktree::WorktreeManager;
+    pub use brainwires_core::confidence::{ConfidenceFactors, ResponseConfidence};
 
     // Access control
     pub use super::access_control::{AccessControlManager, ContentionStrategy, LockPersistence};

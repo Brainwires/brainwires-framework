@@ -13,9 +13,9 @@ use tokio::sync::RwLock;
 
 use brainwires_core::{Task, TaskPriority, TaskStatus};
 
-use brainwires_agent::communication::{AgentMessage, CommunicationHub};
 use crate::pool::AgentPool;
 use crate::task_agent::{TaskAgentConfig, TaskAgentResult};
+use brainwires_agent::communication::{AgentMessage, CommunicationHub};
 use brainwires_agent::task_manager::TaskManager;
 use brainwires_agent::task_manager::TaskStats;
 
@@ -452,10 +452,10 @@ impl TaskOrchestrator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_agent::communication::CommunicationHub;
-    use brainwires_agent::file_locks::FileLockManager;
     use crate::pool::AgentPool;
     use crate::task_agent::TaskAgentConfig;
+    use brainwires_agent::communication::CommunicationHub;
+    use brainwires_agent::file_locks::FileLockManager;
 
     use async_trait::async_trait;
     use brainwires_core::{

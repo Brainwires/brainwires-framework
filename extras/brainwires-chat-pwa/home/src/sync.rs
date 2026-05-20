@@ -66,15 +66,16 @@ unsafe impl Sync for SyncStore {}
 
 impl SyncStore {
     pub fn new(path: impl AsRef<Path>) -> Result<Self> {
-        let db_path = path.as_ref().to_str()
+        let db_path = path
+            .as_ref()
+            .to_str()
             .context("sync db path must be valid UTF-8")?
             .to_string();
 
         let vfs = NativeVfs::new();
         let exists = Path::new(&db_path).exists();
         let mut db = if exists {
-            Database::open(&vfs, &db_path)
-                .with_context(|| format!("open sync db at {db_path}"))?
+            Database::open(&vfs, &db_path).with_context(|| format!("open sync db at {db_path}"))?
         } else {
             Database::create(&vfs, &db_path)
                 .with_context(|| format!("create sync db at {db_path}"))?
@@ -117,9 +118,12 @@ impl SyncStore {
             ).context("sync push: insert entry")?;
         }
 
-        let result = db.query("SELECT MAX(id) FROM sync_entries;")
+        let result = db
+            .query("SELECT MAX(id) FROM sync_entries;")
             .context("sync push: query max id")?;
-        let latest_seq = result.rows.first()
+        let latest_seq = result
+            .rows
+            .first()
             .and_then(|r| r.values.first())
             .and_then(|v| match v {
                 Value::Integer(n) => Some(*n),
@@ -143,16 +147,20 @@ impl SyncStore {
         let sql = format!(
             "SELECT id, device_id, table_name, row_key, op, ts, snapshot, received_at FROM sync_entries WHERE device_id != ? AND id > ? ORDER BY id LIMIT {fetch_limit};"
         );
-        let result = db.query_with_params(
-            &sql,
-            vec![
-                Value::Text(device_id.to_string()),
-                Value::Integer(since_seq),
-            ],
-        ).context("sync pull: query entries")?;
+        let result = db
+            .query_with_params(
+                &sql,
+                vec![
+                    Value::Text(device_id.to_string()),
+                    Value::Integer(since_seq),
+                ],
+            )
+            .context("sync pull: query entries")?;
 
-        let mut entries: Vec<StoredSyncEntry> = result.rows.iter().map(|row| {
-            StoredSyncEntry {
+        let mut entries: Vec<StoredSyncEntry> = result
+            .rows
+            .iter()
+            .map(|row| StoredSyncEntry {
                 seq: extract_i64(&row.values, 0),
                 device_id: extract_text(&row.values, 1),
                 table: extract_text(&row.values, 2),
@@ -161,8 +169,8 @@ impl SyncStore {
                 ts: extract_i64(&row.values, 5),
                 snapshot: extract_opt_text(&row.values, 6),
                 received_at: extract_i64(&row.values, 7),
-            }
-        }).collect();
+            })
+            .collect();
 
         let has_more = entries.len() > limit;
         if has_more {
@@ -179,7 +187,11 @@ impl SyncStore {
             "sync pull",
         );
 
-        Ok(PullResult { entries, has_more, latest_seq })
+        Ok(PullResult {
+            entries,
+            has_more,
+            latest_seq,
+        })
     }
 
     pub fn ack(&self, device_id: &str, acked_seq: i64) -> Result<()> {
@@ -191,9 +203,12 @@ impl SyncStore {
 
     pub fn compact(&self) -> Result<usize> {
         let mut db = self.open_db()?;
-        let result = db.query("SELECT MIN(acked_seq) FROM sync_cursors;")
+        let result = db
+            .query("SELECT MIN(acked_seq) FROM sync_cursors;")
             .context("sync compact: query min acked")?;
-        let min_acked = result.rows.first()
+        let min_acked = result
+            .rows
+            .first()
             .and_then(|r| r.values.first())
             .and_then(|v| match v {
                 Value::Integer(n) => Some(*n),
@@ -205,10 +220,12 @@ impl SyncStore {
             return Ok(0);
         }
 
-        let del = db.execute_with_params(
-            "DELETE FROM sync_entries WHERE id <= ?;",
-            vec![Value::Integer(min_acked)],
-        ).context("sync compact: delete")?;
+        let del = db
+            .execute_with_params(
+                "DELETE FROM sync_entries WHERE id <= ?;",
+                vec![Value::Integer(min_acked)],
+            )
+            .context("sync compact: delete")?;
 
         let deleted = del.rows_affected as usize;
         if deleted > 0 {
@@ -224,14 +241,16 @@ fn upsert_cursor(db: &mut Database, device_id: &str, acked_seq: i64) -> Result<(
     db.execute_with_params(
         "DELETE FROM sync_cursors WHERE device_id = ?;",
         vec![Value::Text(device_id.to_string())],
-    ).context("upsert_cursor: delete")?;
+    )
+    .context("upsert_cursor: delete")?;
     db.execute_with_params(
         "INSERT INTO sync_cursors (device_id, acked_seq) VALUES (?, ?);",
         vec![
             Value::Text(device_id.to_string()),
             Value::Integer(acked_seq),
         ],
-    ).context("upsert_cursor: insert")?;
+    )
+    .context("upsert_cursor: insert")?;
     Ok(())
 }
 
@@ -270,16 +289,14 @@ mod tests {
     #[test]
     fn push_and_pull_round_trip() {
         let (_dir, store) = temp_store();
-        let entries = vec![
-            SyncEntry {
-                table: "conversations".into(),
-                row_key: r#"{"id":"c1"}"#.into(),
-                op: "I".into(),
-                ts: 1000,
-                device_id: "dev-a".into(),
-                snapshot: Some(r#"{"id":"c1","title":"Hello"}"#.into()),
-            },
-        ];
+        let entries = vec![SyncEntry {
+            table: "conversations".into(),
+            row_key: r#"{"id":"c1"}"#.into(),
+            op: "I".into(),
+            ts: 1000,
+            device_id: "dev-a".into(),
+            snapshot: Some(r#"{"id":"c1","title":"Hello"}"#.into()),
+        }];
         let seq = store.push("dev-a", &entries).unwrap();
         assert!(seq > 0);
 
@@ -293,14 +310,19 @@ mod tests {
     #[test]
     fn pull_excludes_own_device() {
         let (_dir, store) = temp_store();
-        store.push("dev-a", &[SyncEntry {
-            table: "messages".into(),
-            row_key: r#"{"cid":"c1","mid":"m1"}"#.into(),
-            op: "I".into(),
-            ts: 2000,
-            device_id: "dev-a".into(),
-            snapshot: None,
-        }]).unwrap();
+        store
+            .push(
+                "dev-a",
+                &[SyncEntry {
+                    table: "messages".into(),
+                    row_key: r#"{"cid":"c1","mid":"m1"}"#.into(),
+                    op: "I".into(),
+                    ts: 2000,
+                    device_id: "dev-a".into(),
+                    snapshot: None,
+                }],
+            )
+            .unwrap();
 
         let pulled = store.pull("dev-a", 0, 100).unwrap();
         assert_eq!(pulled.entries.len(), 0);
@@ -310,14 +332,19 @@ mod tests {
     fn pull_pagination() {
         let (_dir, store) = temp_store();
         for i in 0..5 {
-            store.push("dev-a", &[SyncEntry {
-                table: "settings".into(),
-                row_key: format!(r#"{{"key":"k{i}"}}"#),
-                op: "I".into(),
-                ts: 3000 + i,
-                device_id: "dev-a".into(),
-                snapshot: None,
-            }]).unwrap();
+            store
+                .push(
+                    "dev-a",
+                    &[SyncEntry {
+                        table: "settings".into(),
+                        row_key: format!(r#"{{"key":"k{i}"}}"#),
+                        op: "I".into(),
+                        ts: 3000 + i,
+                        device_id: "dev-a".into(),
+                        snapshot: None,
+                    }],
+                )
+                .unwrap();
         }
 
         let page1 = store.pull("dev-b", 0, 3).unwrap();
@@ -332,14 +359,19 @@ mod tests {
     #[test]
     fn ack_and_compact() {
         let (_dir, store) = temp_store();
-        store.push("dev-a", &[SyncEntry {
-            table: "conversations".into(),
-            row_key: r#"{"id":"c1"}"#.into(),
-            op: "I".into(),
-            ts: 4000,
-            device_id: "dev-a".into(),
-            snapshot: None,
-        }]).unwrap();
+        store
+            .push(
+                "dev-a",
+                &[SyncEntry {
+                    table: "conversations".into(),
+                    row_key: r#"{"id":"c1"}"#.into(),
+                    op: "I".into(),
+                    ts: 4000,
+                    device_id: "dev-a".into(),
+                    snapshot: None,
+                }],
+            )
+            .unwrap();
 
         // dev-b pulls and acks
         let pulled = store.pull("dev-b", 0, 100).unwrap();
@@ -358,14 +390,19 @@ mod tests {
     #[test]
     fn compact_respects_unacked_devices() {
         let (_dir, store) = temp_store();
-        store.push("dev-a", &[SyncEntry {
-            table: "conversations".into(),
-            row_key: r#"{"id":"c1"}"#.into(),
-            op: "I".into(),
-            ts: 5000,
-            device_id: "dev-a".into(),
-            snapshot: None,
-        }]).unwrap();
+        store
+            .push(
+                "dev-a",
+                &[SyncEntry {
+                    table: "conversations".into(),
+                    row_key: r#"{"id":"c1"}"#.into(),
+                    op: "I".into(),
+                    ts: 5000,
+                    device_id: "dev-a".into(),
+                    snapshot: None,
+                }],
+            )
+            .unwrap();
 
         // dev-b hasn't acked — register it with acked_seq=0
         store.ack("dev-b", 0).unwrap();

@@ -1,13 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 /// Request to get statistics about the index
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct StatisticsRequest {}
 
 /// Statistics about the indexed codebase
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct StatisticsResponse {
     /// Total number of indexed files
     pub total_files: usize,
@@ -21,8 +19,7 @@ pub struct StatisticsResponse {
     pub language_breakdown: Vec<LanguageStats>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 /// Statistics for a single programming language in the index.
 pub struct LanguageStats {
     /// Language name.
@@ -34,13 +31,11 @@ pub struct LanguageStats {
 }
 
 /// Request to clear the index
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ClearRequest {}
 
 /// Response from clear operation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ClearResponse {
     /// Whether the operation was successful
     pub success: bool,

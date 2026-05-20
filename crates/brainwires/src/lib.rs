@@ -75,12 +75,12 @@ pub mod storage {
 /// (from `brainwires-memory`, when the `tiered` feature is on).
 #[cfg(feature = "memory")]
 pub mod memory {
-    pub use brainwires_stores::*;
     #[cfg(feature = "tiered")]
     pub use brainwires_memory::{
-        CanonicalWriteToken, MultiFactorScore, TieredMemory, TieredMemoryConfig,
-        TieredMemoryStats, TieredSearchResult,
+        CanonicalWriteToken, MultiFactorScore, TieredMemory, TieredMemoryConfig, TieredMemoryStats,
+        TieredSearchResult,
     };
+    pub use brainwires_stores::*;
 }
 
 /// MCP client — connect to external MCP servers and use their tools.

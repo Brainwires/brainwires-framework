@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Request for incremental update
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IncrementalUpdateRequest {
     /// Path to the codebase directory
     pub path: String,
@@ -18,8 +17,7 @@ pub struct IncrementalUpdateRequest {
 }
 
 /// Response from incremental update
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IncrementalUpdateResponse {
     /// Number of files added
     pub files_added: usize,

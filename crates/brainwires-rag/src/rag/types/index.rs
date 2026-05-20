@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 pub(super) const PROJECT_NAME_MAX_LENGTH: usize = 256;
 
 /// Request to index a codebase
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IndexRequest {
     /// Path to the codebase directory to index
     pub path: String,
@@ -29,8 +28,7 @@ pub fn default_max_file_size() -> usize {
 }
 
 /// Indexing mode used
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum IndexingMode {
     /// Full indexing (all files)
@@ -40,8 +38,7 @@ pub enum IndexingMode {
 }
 
 /// Response from indexing operation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IndexResponse {
     /// Indexing mode used (full or incremental)
     pub mode: IndexingMode,

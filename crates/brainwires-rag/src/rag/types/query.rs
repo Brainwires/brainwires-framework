@@ -21,8 +21,7 @@ pub fn default_min_score() -> f32 {
 }
 
 /// Request to query the codebase
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct QueryRequest {
     /// The question or search query
     pub query: String,
@@ -44,8 +43,7 @@ pub struct QueryRequest {
 }
 
 /// Response from query operation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(schemars::JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct QueryResponse {
     /// List of search results, ordered by relevance
     pub results: Vec<SearchResult>,

@@ -38,12 +38,12 @@ use tokio::task::JoinHandle;
 use brainwires_core::{Provider, Task};
 use brainwires_tool_runtime::ToolExecutor;
 
-use brainwires_agent::communication::CommunicationHub;
 use crate::context::AgentContext;
-use brainwires_agent::file_locks::FileLockManager;
 use crate::task_agent::{
     TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus, spawn_task_agent,
 };
+use brainwires_agent::communication::CommunicationHub;
+use brainwires_agent::file_locks::FileLockManager;
 
 // ── Internal handle ────────────────────────────────────────────────────────
 
@@ -367,9 +367,9 @@ pub struct AgentPoolStats {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
     use brainwires_agent::communication::CommunicationHub;
     use brainwires_agent::file_locks::FileLockManager;
-    use async_trait::async_trait;
     use brainwires_core::{
         ChatOptions, ChatResponse, Message, StreamChunk, Tool, ToolContext, ToolResult, ToolUse,
         Usage,

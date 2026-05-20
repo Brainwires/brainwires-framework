@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use brainwires_memory::{
-    MessageMetadata, MessageStore, MemoryTier, TieredMemory, TieredMemoryConfig,
+    MemoryTier, MessageMetadata, MessageStore, TieredMemory, TieredMemoryConfig,
 };
 use brainwires_storage::{CachedEmbeddingProvider, LanceDatabase};
 
@@ -124,9 +124,7 @@ async fn main() -> Result<()> {
     println!("  Total:        {} tracked", stats.total_tracked);
 
     // 9. Identify demotion candidates (lowest retention score)
-    let candidates = tiered
-        .get_demotion_candidates(MemoryTier::Hot, 2)
-        .await?;
+    let candidates = tiered.get_demotion_candidates(MemoryTier::Hot, 2).await?;
     println!("\nDemotion candidates (lowest retention score):");
     for id in &candidates {
         println!("  {}", id);

@@ -181,7 +181,10 @@ impl BinaryStore {
             started_at: Instant::now(),
         };
         self.pending.lock().await.insert(p.bin_id, buf);
-        Ok(BinOk { ok: true, size: None })
+        Ok(BinOk {
+            ok: true,
+            size: None,
+        })
     }
 
     pub async fn handle_chunk(&self, p: BinChunkParams) -> Result<BinOk, BinaryError> {
@@ -210,7 +213,10 @@ impl BinaryStore {
         }
         buffer.buf.extend_from_slice(&decoded);
         buffer.next_seq = buffer.next_seq.saturating_add(1);
-        Ok(BinOk { ok: true, size: None })
+        Ok(BinOk {
+            ok: true,
+            size: None,
+        })
     }
 
     pub async fn handle_end(&self, p: BinEndParams) -> Result<Arc<FinalizedBlob>, BinaryError> {
@@ -335,7 +341,10 @@ mod tests {
             .await
             .expect("end");
         assert_eq!(blob.bytes.as_ref(), original.as_slice());
-        assert_eq!(blob.content_type.as_deref(), Some("application/octet-stream"));
+        assert_eq!(
+            blob.content_type.as_deref(),
+            Some("application/octet-stream")
+        );
     }
 
     #[tokio::test]
@@ -427,7 +436,9 @@ mod tests {
             .await
             .unwrap();
         // Force its started_at into the past beyond PENDING_TTL.
-        store._force_pending_age(PENDING_TTL + Duration::from_secs(1)).await;
+        store
+            ._force_pending_age(PENDING_TTL + Duration::from_secs(1))
+            .await;
         store.gc_expired().await;
         assert_eq!(store.pending_len().await, 0);
     }
@@ -453,7 +464,10 @@ mod tests {
             .await
             .unwrap();
         store
-            .handle_end(BinEndParams { bin_id: "z".to_string(), sha256: None })
+            .handle_end(BinEndParams {
+                bin_id: "z".to_string(),
+                sha256: None,
+            })
             .await
             .unwrap();
         let first = store.take("z").await;

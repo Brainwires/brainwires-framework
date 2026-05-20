@@ -58,8 +58,7 @@ impl App {
                     let allowed = skill.allowed_tools().cloned();
                     let name_s = skill.name().to_string();
                     let desc = skill.description().to_string();
-                    let body =
-                        brainwires_skills::render_template(&skill.instructions, &arg_map);
+                    let body = brainwires_skills::render_template(&skill.instructions, &arg_map);
                     (body, desc, src, mode, allowed, name_s)
                 }
                 Err(e) => {

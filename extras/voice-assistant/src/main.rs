@@ -5,6 +5,7 @@ use std::sync::{
 };
 
 use brainwires_agent::personas::StaticPersonaProvider;
+use brainwires_call_policy::{BudgetConfig, BudgetGuard};
 use brainwires_hardware::audio::{
     api::{OpenAiStt, OpenAiTts},
     assistant::{VoiceAssistant, VoiceAssistantConfig},
@@ -15,7 +16,6 @@ use brainwires_hardware::audio::{
     types::{TtsOptions, Voice},
 };
 use brainwires_provider::{OpenAiChatProvider, OpenAiClient};
-use brainwires_call_policy::{BudgetConfig, BudgetGuard};
 use brainwires_stores::{ArcSessionStore, InMemorySessionStore, SessionId, SqliteSessionStore};
 use clap::Parser;
 use tracing::info;

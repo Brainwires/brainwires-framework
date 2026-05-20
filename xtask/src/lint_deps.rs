@@ -166,7 +166,8 @@ fn collect_packages(
             continue;
         }
         let path = entry.path().to_path_buf();
-        let text = fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+        let text =
+            fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
         let doc: DocumentMut = text
             .parse()
             .map_err(|e| format!("parse {}: {e}", path.display()))?;
@@ -174,10 +175,7 @@ fn collect_packages(
             // Workspace root or virtual manifest — skip.
             continue;
         };
-        let Some(name) = pkg
-            .get("name")
-            .and_then(|v| v.as_str().map(str::to_string))
-        else {
+        let Some(name) = pkg.get("name").and_then(|v| v.as_str().map(str::to_string)) else {
             continue;
         };
         out.insert(
@@ -217,7 +215,9 @@ fn load_workspace_deps(workspace_cargo: &Path) -> Result<HashMap<String, PathBuf
 
 fn extract_path(item: &Item) -> Option<String> {
     match item {
-        Item::Value(Value::InlineTable(t)) => t.get("path").and_then(|v| v.as_str().map(String::from)),
+        Item::Value(Value::InlineTable(t)) => {
+            t.get("path").and_then(|v| v.as_str().map(String::from))
+        }
         Item::Table(t) => t.get("path").and_then(|v| v.as_str().map(String::from)),
         _ => None,
     }
@@ -310,9 +310,7 @@ fn classify_dep(
             .unwrap_or(false),
         _ => false,
     };
-    if is_workspace_dep
-        && let Some(ws_path) = workspace_deps.get(dep_name)
-    {
+    if is_workspace_dep && let Some(ws_path) = workspace_deps.get(dep_name) {
         return tier_of_path(ws_path);
     }
 

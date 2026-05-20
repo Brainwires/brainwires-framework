@@ -365,8 +365,12 @@ pub fn known_models() -> Vec<KnownModel> {
             description: "Gemma 4 E2B (5.1B params, multimodal) — Candle/safetensors.",
             huggingface_revision: "main",
             tokenizer_filename: "tokenizer.json",
-            weights_sha256: Some("76dc84a5a805a2c8b91e9ccc00b8dbf8f4a99bf0d56ab25832f6e6addd4f7f57"),
-            tokenizer_sha256: Some("12bac982b793c44b03d52a250a9f0d0b666813da566b910c24a6da0695fd11e6"),
+            weights_sha256: Some(
+                "76dc84a5a805a2c8b91e9ccc00b8dbf8f4a99bf0d56ab25832f6e6addd4f7f57",
+            ),
+            tokenizer_sha256: Some(
+                "12bac982b793c44b03d52a250a9f0d0b666813da566b910c24a6da0695fd11e6",
+            ),
         },
     ]
 }

@@ -6,11 +6,11 @@ use tokio::sync::{RwLock, broadcast};
 use uuid::Uuid;
 
 use crate::discovery::Discovery;
-use crate::identity::AgentIdentity;
 use crate::event::TransportType;
-use crate::{MessageEnvelope, MessageTarget, NetworkEvent, Payload};
+use crate::identity::AgentIdentity;
 use crate::routing::{BroadcastRouter, ContentRouter, DirectRouter, PeerTable, Router};
 use crate::transport::{Transport, TransportAddress};
+use crate::{MessageEnvelope, MessageTarget, NetworkEvent, Payload};
 
 /// The user-facing API for the networking stack.
 ///

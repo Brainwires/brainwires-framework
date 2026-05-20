@@ -5,10 +5,10 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
+use brainwires_core::{Task, TaskPriority, TaskStatus};
 use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
-use brainwires_core::{Task, TaskPriority, TaskStatus};
 
 const TASK_TABLE: &str = "tasks";
 const AGENT_STATE_TABLE: &str = "agent_states";
@@ -309,7 +309,9 @@ impl TaskMetadata {
 // ── TaskStore ───────────────────────────────────────────────────────────
 
 /// Store for managing tasks
-pub struct TaskStore<B: StorageBackend + 'static = brainwires_storage::databases::lance::LanceDatabase> {
+pub struct TaskStore<
+    B: StorageBackend + 'static = brainwires_storage::databases::lance::LanceDatabase,
+> {
     backend: Arc<B>,
 }
 
@@ -440,7 +442,7 @@ impl<B: StorageBackend + 'static> TaskStore<B> {
     }
 
     /// Arrow schema for the tasks table, used by `LanceDatabase` table creation.
-    
+
     pub fn tasks_arrow_schema() -> Arc<arrow_schema::Schema> {
         use arrow_schema::{DataType, Field, Schema};
         Arc::new(Schema::new(vec![
@@ -490,7 +492,9 @@ pub struct AgentStateMetadata {
 // ── AgentStateStore ─────────────────────────────────────────────────────
 
 /// Store for managing agent state persistence
-pub struct AgentStateStore<B: StorageBackend + 'static = brainwires_storage::databases::lance::LanceDatabase> {
+pub struct AgentStateStore<
+    B: StorageBackend + 'static = brainwires_storage::databases::lance::LanceDatabase,
+> {
     backend: Arc<B>,
 }
 
@@ -603,7 +607,7 @@ impl<B: StorageBackend + 'static> AgentStateStore<B> {
     }
 
     /// Arrow schema for the agent_states table, used by `LanceDatabase` table creation.
-    
+
     pub fn agent_states_arrow_schema() -> Arc<arrow_schema::Schema> {
         use arrow_schema::{DataType, Field, Schema};
         Arc::new(Schema::new(vec![

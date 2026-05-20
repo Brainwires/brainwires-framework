@@ -15,11 +15,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_inference::ChatAgent;
 use brainwires_core::{
     ChatOptions, ChatResponse, ContentBlock, Message, MessageContent, Provider, StreamChunk, Tool,
     ToolContext, ToolInputSchema, ToolResult, ToolUse, Usage,
 };
+use brainwires_inference::ChatAgent;
 use brainwires_tool_runtime::ToolExecutor;
 
 /// Provider that on the first stream_chat emits N tool uses, then on the

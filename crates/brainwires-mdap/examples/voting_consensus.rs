@@ -9,9 +9,7 @@
 use brainwires_mdap::red_flags::{
     OutputFormat, RedFlagConfig, RedFlagValidator, StandardRedFlagValidator,
 };
-use brainwires_mdap::voting::{
-    ResponseMetadata, SampledResponse, VoteResult, VotingMethod,
-};
+use brainwires_mdap::voting::{ResponseMetadata, SampledResponse, VoteResult, VotingMethod};
 use std::collections::HashMap;
 
 fn main() {
@@ -126,10 +124,7 @@ fn main() {
             format!(
                 "FLAGGED: {}",
                 match &result {
-                    brainwires_mdap::red_flags::RedFlagResult::Flagged {
-                        reason,
-                        severity,
-                    } => {
+                    brainwires_mdap::red_flags::RedFlagResult::Flagged { reason, severity } => {
                         format!("{} (severity: {:.2})", reason, severity)
                     }
                     _ => unreachable!(),

@@ -17,12 +17,12 @@ use brainwires_a2a::{
     A2aError, JsonRpcRequest, JsonRpcResponse, Message as A2aMessage, RequestId, Role as A2aRole,
     SendMessageRequest,
 };
-use brainwires_inference::ChatAgent;
 use brainwires_core::{
     ChatOptions, ChatResponse, Message as CoreMessage, Provider, StreamChunk, Tool, ToolContext,
     Usage,
 };
 use brainwires_home::{HomeServer, a2a::A2aBridge};
+use brainwires_inference::ChatAgent;
 use brainwires_tool_builtins::BuiltinToolExecutor;
 use brainwires_tool_runtime::ToolRegistry;
 use futures::stream;
@@ -254,7 +254,10 @@ async fn test_full_handshake_with_a2a() -> Result<()> {
                         }
                         let init = webrtc::peer_connection::RTCIceCandidateInit {
                             candidate: cand_str.to_string(),
-                            sdp_mid: c.get("sdpMid").and_then(|x| x.as_str()).map(|s| s.to_string()),
+                            sdp_mid: c
+                                .get("sdpMid")
+                                .and_then(|x| x.as_str())
+                                .map(|s| s.to_string()),
                             sdp_mline_index: c
                                 .get("sdpMLineIndex")
                                 .and_then(|x| x.as_u64())
@@ -353,7 +356,11 @@ async fn test_full_handshake_with_a2a() -> Result<()> {
     let resp: JsonRpcResponse = serde_json::from_str(&reply_text)
         .map_err(|e| anyhow::anyhow!("reply not a JsonRpcResponse ({e}): {reply_text}"))?;
     assert_eq!(resp.id, RequestId::Number(42));
-    assert!(resp.error.is_none(), "agent returned error: {:?}", resp.error);
+    assert!(
+        resp.error.is_none(),
+        "agent returned error: {:?}",
+        resp.error
+    );
     let agent_msg: A2aMessage =
         serde_json::from_value(resp.result.expect("result")).expect("result is an A2A Message");
     assert_eq!(agent_msg.role, A2aRole::Agent);

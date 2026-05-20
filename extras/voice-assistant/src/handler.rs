@@ -12,14 +12,14 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use brainwires_inference::ChatAgent;
 use brainwires_agent::personas::{PersonaContext, PersonaProvider, blocks_to_system_text};
+use brainwires_call_policy::BudgetGuard;
 use brainwires_core::ToolContext;
 use brainwires_core::{CacheStrategy, ChatOptions, Provider};
 use brainwires_hardware::audio::{
     assistant::VoiceAssistantHandler, error::AudioError, types::Transcript,
 };
-use brainwires_call_policy::BudgetGuard;
+use brainwires_inference::ChatAgent;
 use brainwires_stores::{ArcSessionStore, SessionId};
 use brainwires_tool_builtins::BuiltinToolExecutor;
 use brainwires_tool_runtime::{ToolExecutor, ToolRegistry};

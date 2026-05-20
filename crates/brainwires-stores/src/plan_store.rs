@@ -7,11 +7,11 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use brainwires_core::{PlanMetadata, PlanStatus};
 use brainwires_storage::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 use brainwires_storage::embeddings::CachedEmbeddingProvider;
-use brainwires_core::{PlanMetadata, PlanStatus};
 
 const TABLE_NAME: &str = "plans";
 

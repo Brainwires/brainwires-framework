@@ -6,9 +6,9 @@ use anyhow::Result;
 use tokio::sync::Mutex;
 
 use brainwires_core::Message;
-use brainwires_memory::dream::consolidator::DreamSessionStore;
 use brainwires_knowledge::knowledge::brain_client::BrainClient;
 use brainwires_knowledge::knowledge::types::*;
+use brainwires_memory::dream::consolidator::DreamSessionStore;
 
 /// Adapts BrainClient's thought storage to the DreamSessionStore trait
 /// required by the DreamConsolidator.

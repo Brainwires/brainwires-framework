@@ -125,7 +125,9 @@ mod tests {
     #[tokio::test]
     async fn empty_input_returns_empty_summary_without_provider_call() {
         let provider = CapturingProvider::new("UNREACHABLE");
-        let out = DreamSummarizer::summarize_messages(&[], &provider).await.unwrap();
+        let out = DreamSummarizer::summarize_messages(&[], &provider)
+            .await
+            .unwrap();
         assert_eq!(out, "", "empty input must short-circuit to empty output");
         assert!(
             provider.captured().is_none(),

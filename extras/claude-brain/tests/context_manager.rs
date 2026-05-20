@@ -107,8 +107,8 @@ async fn context_manager_new_with_tempdir() {
 #[tokio::test]
 async fn session_adapter_roundtrips_messages() {
     use brainwires_core::Message;
-    use brainwires_memory::dream::consolidator::DreamSessionStore;
     use brainwires_knowledge::knowledge::brain_client::BrainClient;
+    use brainwires_memory::dream::consolidator::DreamSessionStore;
 
     let dir = TempDir::new().expect("tempdir");
     let cfg = config_in(&dir);

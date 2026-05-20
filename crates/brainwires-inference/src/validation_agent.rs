@@ -14,9 +14,9 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::validation_loop::ValidationSeverity;
 use brainwires_agent::resource_checker::{ConflictCheck, ResourceChecker};
 use brainwires_agent::state_model::{StateModelProposedOperation, StateSnapshot, ThreeStateModel};
-use crate::validation_loop::ValidationSeverity;
 
 /// Type alias for proposed operations used in validation (private to this module)
 type ProposedOperation = StateModelProposedOperation;

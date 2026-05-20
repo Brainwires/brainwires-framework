@@ -17,11 +17,11 @@ use brainwires_core::{
 use brainwires_tool_runtime::{PreHookDecision, wrap_with_content_source};
 
 use crate::agent_hooks::{ConversationView, IterationContext, IterationDecision, ToolDecision};
-use brainwires_agent::communication::AgentMessage;
 use crate::context::AgentContext;
+use crate::validation_loop::{format_validation_feedback, run_validation};
+use brainwires_agent::communication::AgentMessage;
 use brainwires_agent::execution_graph::{ExecutionGraph, RunTelemetry, ToolCallRecord};
 use brainwires_agent::file_locks::LockType;
-use crate::validation_loop::{format_validation_feedback, run_validation};
 
 use super::types::{
     EXTERNAL_CONTENT_TOOLS, FailureCategory, TaskAgentConfig, TaskAgentResult, TaskAgentStatus,

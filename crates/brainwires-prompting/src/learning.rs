@@ -4,10 +4,10 @@
 //! promoting successful patterns to BKS for collective learning.
 
 use super::techniques::PromptingTechnique;
+use anyhow::Result;
 use brainwires_knowledge::knowledge::bks_pks::{
     BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource,
 };
-use anyhow::Result;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

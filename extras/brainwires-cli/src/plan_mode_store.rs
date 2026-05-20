@@ -10,10 +10,10 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use brainwires_storage::LanceDatabase;
 use crate::types::message::Message;
 use crate::types::plan_mode::PlanModeState;
 use brainwires::agent_network::ipc::DisplayMessage;
+use brainwires_storage::LanceDatabase;
 
 /// Store for managing plan mode sessions
 pub struct PlanModeStore {

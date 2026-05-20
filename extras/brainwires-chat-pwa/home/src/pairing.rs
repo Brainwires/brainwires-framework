@@ -45,13 +45,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use axum::{
-    Json, Router,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::post,
-};
+use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::post};
 use chrono::Utc;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -218,8 +212,14 @@ impl PairingState {
             device_name: None,
             expires_at: Instant::now() + OFFER_TTL,
         };
-        self.pending.write().await.insert(one_time_token.clone(), pending);
-        PairingOffer { one_time_token, confirm_code }
+        self.pending
+            .write()
+            .await
+            .insert(one_time_token.clone(), pending);
+        PairingOffer {
+            one_time_token,
+            confirm_code,
+        }
     }
 
     /// Read all stored device records. Returns an empty Vec if the file
@@ -254,9 +254,13 @@ async fn handle_claim(
 
     let mut map = s.pending.write().await;
     let Some(p) = map.get_mut(&req.one_time_token) else {
-        return (StatusCode::NOT_FOUND, Json(serde_json::json!({
-            "error": "unknown or expired one_time_token",
-        }))).into_response();
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "unknown or expired one_time_token",
+            })),
+        )
+            .into_response();
     };
 
     // Trim the operator-supplied label so a malicious PWA can't blow up
@@ -287,26 +291,38 @@ async fn handle_confirm(
     };
 
     let Some(p) = pending else {
-        return (StatusCode::NOT_FOUND, Json(serde_json::json!({
-            "error": "unknown or expired one_time_token",
-        }))).into_response();
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "unknown or expired one_time_token",
+            })),
+        )
+            .into_response();
     };
 
     if !constant_time_eq(p.confirm_code.as_bytes(), req.code.as_bytes()) {
         // Reinsert under a fresh deadline so the user can try again? Not
         // for M8 — wrong-code is a one-shot fail to keep brute-forcing
         // expensive. Operator can run `pair` again to mint a new offer.
-        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
-            "error": "code mismatch",
-        }))).into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "error": "code mismatch",
+            })),
+        )
+            .into_response();
     }
 
     let Some(device_pubkey) = p.device_pubkey else {
         // Confirm came in before claim. Reject — the PWA must claim first
         // so we know which device we're authorising.
-        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
-            "error": "pair not claimed yet",
-        }))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": "pair not claimed yet",
+            })),
+        )
+            .into_response();
     };
     let device_name = p.device_name.unwrap_or_default();
 
@@ -320,9 +336,13 @@ async fn handle_confirm(
 
     if let Err(e) = append_device(&s.devices_path, record) {
         tracing::error!(error = %e, "failed to persist device record");
-        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
-            "error": "failed to persist device record",
-        }))).into_response();
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "error": "failed to persist device record",
+            })),
+        )
+            .into_response();
     }
 
     let resp = ConfirmResp {
@@ -345,8 +365,8 @@ pub fn read_devices(path: &Path) -> Result<Vec<DeviceRecord>> {
     if bytes.is_empty() {
         return Ok(Vec::new());
     }
-    let records: Vec<DeviceRecord> = serde_json::from_slice(&bytes)
-        .with_context(|| format!("parse {}", path.display()))?;
+    let records: Vec<DeviceRecord> =
+        serde_json::from_slice(&bytes).with_context(|| format!("parse {}", path.display()))?;
     Ok(records)
 }
 
@@ -369,8 +389,7 @@ pub fn write_devices(path: &Path, records: &[DeviceRecord]) -> Result<()> {
 
     let tmp = path.with_extension("json.tmp");
     {
-        let mut f = fs::File::create(&tmp)
-            .with_context(|| format!("create {}", tmp.display()))?;
+        let mut f = fs::File::create(&tmp).with_context(|| format!("create {}", tmp.display()))?;
         f.write_all(&json).context("write devices.json.tmp")?;
         f.sync_all().context("sync devices.json.tmp")?;
     }
@@ -401,8 +420,7 @@ pub struct HomeIdentity {
 /// and returns it. Subsequent calls read it back.
 pub fn load_or_create_identity(path: &Path) -> Result<HomeIdentity> {
     if path.exists() {
-        let bytes = fs::read(path)
-            .with_context(|| format!("read {}", path.display()))?;
+        let bytes = fs::read(path).with_context(|| format!("read {}", path.display()))?;
         if !bytes.is_empty() {
             let id: HomeIdentity = serde_json::from_slice(&bytes)
                 .with_context(|| format!("parse {}", path.display()))?;
@@ -421,8 +439,7 @@ pub fn load_or_create_identity(path: &Path) -> Result<HomeIdentity> {
     let json = serde_json::to_vec_pretty(&id).context("serialize identity")?;
     let tmp = path.with_extension("json.tmp");
     {
-        let mut f = fs::File::create(&tmp)
-            .with_context(|| format!("create {}", tmp.display()))?;
+        let mut f = fs::File::create(&tmp).with_context(|| format!("create {}", tmp.display()))?;
         f.write_all(&json).context("write identity.json.tmp")?;
         f.sync_all().context("sync identity.json.tmp")?;
     }
@@ -548,11 +565,15 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let app = router(test_state(&dir));
         let resp = app
-            .oneshot(json_request(Method::POST, "/pair/claim", serde_json::json!({
-                "one_time_token": "nope",
-                "device_pubkey": "abcd",
-                "device_name": "phone",
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/claim",
+                serde_json::json!({
+                    "one_time_token": "nope",
+                    "device_pubkey": "abcd",
+                    "device_name": "phone",
+                }),
+            ))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -569,11 +590,15 @@ mod tests {
         // 1. Claim.
         let resp = app
             .clone()
-            .oneshot(json_request(Method::POST, "/pair/claim", serde_json::json!({
-                "one_time_token": offer.one_time_token,
-                "device_pubkey": "pubkey-hex",
-                "device_name": "Anna's phone",
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/claim",
+                serde_json::json!({
+                    "one_time_token": offer.one_time_token,
+                    "device_pubkey": "pubkey-hex",
+                    "device_name": "Anna's phone",
+                }),
+            ))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -583,10 +608,14 @@ mod tests {
         // 2. Confirm.
         let resp = app
             .clone()
-            .oneshot(json_request(Method::POST, "/pair/confirm", serde_json::json!({
-                "one_time_token": offer.one_time_token,
-                "code": offer.confirm_code,
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/confirm",
+                serde_json::json!({
+                    "one_time_token": offer.one_time_token,
+                    "code": offer.confirm_code,
+                }),
+            ))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -615,18 +644,26 @@ mod tests {
         let offer = state.create_offer().await;
         let _ = app
             .clone()
-            .oneshot(json_request(Method::POST, "/pair/claim", serde_json::json!({
-                "one_time_token": offer.one_time_token,
-                "device_pubkey": "pk",
-                "device_name": "laptop",
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/claim",
+                serde_json::json!({
+                    "one_time_token": offer.one_time_token,
+                    "device_pubkey": "pk",
+                    "device_name": "laptop",
+                }),
+            ))
             .await
             .unwrap();
         let resp = app
-            .oneshot(json_request(Method::POST, "/pair/confirm", serde_json::json!({
-                "one_time_token": offer.one_time_token,
-                "code": offer.confirm_code,
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/confirm",
+                serde_json::json!({
+                    "one_time_token": offer.one_time_token,
+                    "code": offer.confirm_code,
+                }),
+            ))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
@@ -644,19 +681,27 @@ mod tests {
         let offer = state.create_offer().await;
         let _ = app
             .clone()
-            .oneshot(json_request(Method::POST, "/pair/claim", serde_json::json!({
-                "one_time_token": offer.one_time_token,
-                "device_pubkey": "pk",
-                "device_name": "x",
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/claim",
+                serde_json::json!({
+                    "one_time_token": offer.one_time_token,
+                    "device_pubkey": "pk",
+                    "device_name": "x",
+                }),
+            ))
             .await
             .unwrap();
 
         let resp = app
-            .oneshot(json_request(Method::POST, "/pair/confirm", serde_json::json!({
-                "one_time_token": offer.one_time_token,
-                "code": "000000",
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/confirm",
+                serde_json::json!({
+                    "one_time_token": offer.one_time_token,
+                    "code": "000000",
+                }),
+            ))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -669,26 +714,38 @@ mod tests {
         let offer2 = state2.create_offer().await;
         let _ = app2
             .clone()
-            .oneshot(json_request(Method::POST, "/pair/claim", serde_json::json!({
-                "one_time_token": offer2.one_time_token,
-                "device_pubkey": "pk",
-                "device_name": "x",
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/claim",
+                serde_json::json!({
+                    "one_time_token": offer2.one_time_token,
+                    "device_pubkey": "pk",
+                    "device_name": "x",
+                }),
+            ))
             .await
             .unwrap();
         let _ = app2
             .clone()
-            .oneshot(json_request(Method::POST, "/pair/confirm", serde_json::json!({
-                "one_time_token": offer2.one_time_token,
-                "code": "999999",
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/confirm",
+                serde_json::json!({
+                    "one_time_token": offer2.one_time_token,
+                    "code": "999999",
+                }),
+            ))
             .await
             .unwrap();
         let resp = app2
-            .oneshot(json_request(Method::POST, "/pair/confirm", serde_json::json!({
-                "one_time_token": offer2.one_time_token,
-                "code": offer2.confirm_code,
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/confirm",
+                serde_json::json!({
+                    "one_time_token": offer2.one_time_token,
+                    "code": offer2.confirm_code,
+                }),
+            ))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -710,10 +767,14 @@ mod tests {
         }
 
         let resp = app
-            .oneshot(json_request(Method::POST, "/pair/confirm", serde_json::json!({
-                "one_time_token": offer.one_time_token,
-                "code": offer.confirm_code,
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/confirm",
+                serde_json::json!({
+                    "one_time_token": offer.one_time_token,
+                    "code": offer.confirm_code,
+                }),
+            ))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -728,10 +789,14 @@ mod tests {
         let offer = state.create_offer().await;
         // Skip the claim step entirely.
         let resp = app
-            .oneshot(json_request(Method::POST, "/pair/confirm", serde_json::json!({
-                "one_time_token": offer.one_time_token,
-                "code": offer.confirm_code,
-            })))
+            .oneshot(json_request(
+                Method::POST,
+                "/pair/confirm",
+                serde_json::json!({
+                    "one_time_token": offer.one_time_token,
+                    "code": offer.confirm_code,
+                }),
+            ))
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
@@ -748,19 +813,27 @@ mod tests {
             let offer = state.create_offer().await;
             let _ = app
                 .clone()
-                .oneshot(json_request(Method::POST, "/pair/claim", serde_json::json!({
-                    "one_time_token": offer.one_time_token,
-                    "device_pubkey": format!("pubkey-{i}"),
-                    "device_name": format!("device-{i}"),
-                })))
+                .oneshot(json_request(
+                    Method::POST,
+                    "/pair/claim",
+                    serde_json::json!({
+                        "one_time_token": offer.one_time_token,
+                        "device_pubkey": format!("pubkey-{i}"),
+                        "device_name": format!("device-{i}"),
+                    }),
+                ))
                 .await
                 .unwrap();
             let _ = app
                 .clone()
-                .oneshot(json_request(Method::POST, "/pair/confirm", serde_json::json!({
-                    "one_time_token": offer.one_time_token,
-                    "code": offer.confirm_code,
-                })))
+                .oneshot(json_request(
+                    Method::POST,
+                    "/pair/confirm",
+                    serde_json::json!({
+                        "one_time_token": offer.one_time_token,
+                        "code": offer.confirm_code,
+                    }),
+                ))
                 .await
                 .unwrap();
         }

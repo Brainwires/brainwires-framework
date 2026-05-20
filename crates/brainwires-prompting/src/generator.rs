@@ -8,9 +8,9 @@ use super::library::TechniqueLibrary;
 use super::techniques::{
     ComplexityLevel, PromptingTechnique, TechniqueCategory, TechniqueMetadata,
 };
-use brainwires_knowledge::knowledge::bks_pks::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
 use crate::seal::SealProcessingResult;
 use anyhow::{Result, anyhow};
+use brainwires_knowledge::knowledge::bks_pks::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

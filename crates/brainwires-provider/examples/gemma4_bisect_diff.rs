@@ -98,9 +98,8 @@ fn read_dump(path: &Path) -> std::io::Result<CheckpointFile> {
     for chunk in raw.chunks_exact(4) {
         data.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
     }
-    let (step, layer, label) = parse_filename(path).ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::InvalidData, "bad filename")
-    })?;
+    let (step, layer, label) = parse_filename(path)
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "bad filename"))?;
     Ok(CheckpointFile {
         path: path.to_path_buf(),
         step,
@@ -197,7 +196,9 @@ fn main() -> ExitCode {
              Compares two CANDLE_BISECT_DUMP_DIR outputs. Reports the first\n\
              checkpoint where relative L2 difference exceeds the threshold\n\
              (default 0.001 = 0.1%) and the top-5 worst checkpoints.",
-            args.first().map(|s| s.as_str()).unwrap_or("gemma4_bisect_diff"),
+            args.first()
+                .map(|s| s.as_str())
+                .unwrap_or("gemma4_bisect_diff"),
         );
         return ExitCode::from(2);
     }
@@ -289,19 +290,29 @@ fn main() -> ExitCode {
 
     // First divergence (sorted by step, layer, label which is BTreeMap order).
     let first_diverge = diffs.iter().find(|d| d.relative > threshold);
-    println!("\n==> First divergence above threshold (rel L2 > {})", threshold);
+    println!(
+        "\n==> First divergence above threshold (rel L2 > {})",
+        threshold
+    );
     if let Some(d) = first_diverge {
         println!(
             "    step={:4} layer={:3} {:30} | max|Δ|={:.4e} L2_diff={:.4e} rel={:.4e}",
             d.step, d.layer, d.label, d.max_abs_diff, d.l2_diff, d.relative,
         );
     } else {
-        println!("    NO checkpoint diverged above threshold ({}). Devices match within tolerance.", threshold);
+        println!(
+            "    NO checkpoint diverged above threshold ({}). Devices match within tolerance.",
+            threshold
+        );
     }
 
     // Top 10 by relative diff.
     let mut sorted = diffs.clone();
-    sorted.sort_by(|a, b| b.relative.partial_cmp(&a.relative).unwrap_or(std::cmp::Ordering::Equal));
+    sorted.sort_by(|a, b| {
+        b.relative
+            .partial_cmp(&a.relative)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     println!("\n==> Top-10 worst divergences (by relative L2)");
     println!(
         "    {:>4} {:>3} {:30} {:>11} {:>11} {:>11} {:>10} {:>10}",
@@ -324,7 +335,10 @@ fn main() -> ExitCode {
             .push(d.relative);
     }
     println!("\n==> Per-layer summary (max + mean rel L2 across checkpoints in that layer)");
-    println!("    {:>4} {:>3} {:>11} {:>11} {:>5}", "step", "lyr", "max-rel", "mean-rel", "n");
+    println!(
+        "    {:>4} {:>3} {:>11} {:>11} {:>5}",
+        "step", "lyr", "max-rel", "mean-rel", "n"
+    );
     let mut lay_rows: Vec<((u32, u32), f64, f64, usize)> = by_layer
         .iter()
         .map(|((s, l), v)| {
@@ -335,7 +349,10 @@ fn main() -> ExitCode {
         .collect();
     lay_rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     for ((s, l), max, mean, n) in lay_rows.iter().take(15) {
-        println!("    {:>4} {:>3} {:>11.3e} {:>11.3e} {:>5}", s, l, max, mean, n);
+        println!(
+            "    {:>4} {:>3} {:>11.3e} {:>11.3e} {:>5}",
+            s, l, max, mean, n
+        );
     }
 
     // Per-layer chain view: show every checkpoint for one specific

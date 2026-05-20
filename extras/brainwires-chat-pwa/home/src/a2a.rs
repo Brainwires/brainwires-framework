@@ -114,10 +114,7 @@ impl A2aBridge {
             match agent.process_message(&user_text).await {
                 Ok(t) => t,
                 Err(e) => {
-                    return JsonRpcResponse::error(
-                        id,
-                        A2aError::internal(format!("agent: {e}")),
-                    );
+                    return JsonRpcResponse::error(id, A2aError::internal(format!("agent: {e}")));
                 }
             }
         };
@@ -143,10 +140,9 @@ impl A2aBridge {
 
         match serde_json::to_value(&agent_msg) {
             Ok(v) => JsonRpcResponse::success(id, v),
-            Err(e) => JsonRpcResponse::error(
-                id,
-                A2aError::internal(format!("serialize reply: {e}")),
-            ),
+            Err(e) => {
+                JsonRpcResponse::error(id, A2aError::internal(format!("serialize reply: {e}")))
+            }
         }
     }
 
@@ -298,12 +294,15 @@ mod tests {
         let req = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             method: "message/send".to_string(),
-            params: Some(serde_json::to_value(SendMessageRequest {
-                tenant: None,
-                message: A2aMessage::user_text("hello agent"),
-                configuration: None,
-                metadata: None,
-            }).unwrap()),
+            params: Some(
+                serde_json::to_value(SendMessageRequest {
+                    tenant: None,
+                    message: A2aMessage::user_text("hello agent"),
+                    configuration: None,
+                    metadata: None,
+                })
+                .unwrap(),
+            ),
             id: RequestId::Number(1),
         };
         let resp = bridge.dispatch(req).await;
@@ -326,21 +325,21 @@ mod tests {
         let req = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             method: METHOD_MESSAGE_SEND.to_string(),
-            params: Some(serde_json::to_value(SendMessageRequest {
-                tenant: None,
-                message: A2aMessage::user_text("via spec name"),
-                configuration: None,
-                metadata: None,
-            }).unwrap()),
+            params: Some(
+                serde_json::to_value(SendMessageRequest {
+                    tenant: None,
+                    message: A2aMessage::user_text("via spec name"),
+                    configuration: None,
+                    metadata: None,
+                })
+                .unwrap(),
+            ),
             id: RequestId::String("req-A".to_string()),
         };
         let resp = bridge.dispatch(req).await;
         assert!(resp.error.is_none(), "got error: {:?}", resp.error);
         let msg: A2aMessage = serde_json::from_value(resp.result.unwrap()).unwrap();
-        assert_eq!(
-            msg.parts[0].text.as_deref(),
-            Some("echo: via spec name"),
-        );
+        assert_eq!(msg.parts[0].text.as_deref(), Some("echo: via spec name"),);
     }
 
     #[tokio::test]

@@ -8,8 +8,8 @@
 
 use anyhow::{Context, Result};
 use brainwires_home::{
-    pairing::{self, PairingState},
     HomeServer, HomeServerBuilder,
+    pairing::{self, PairingState},
 };
 use clap::{Parser, Subcommand};
 use std::net::SocketAddr;
@@ -23,7 +23,12 @@ struct Cli {
     command: Option<Command>,
 
     /// Bind address for the signaling server.
-    #[arg(long, env = "BRAINWIRES_HOME_BIND", default_value = "127.0.0.1:7878", global = true)]
+    #[arg(
+        long,
+        env = "BRAINWIRES_HOME_BIND",
+        default_value = "127.0.0.1:7878",
+        global = true
+    )]
     bind: SocketAddr,
 
     /// Add an exact-match origin to the CORS allow-list. Repeatable.
@@ -40,15 +45,30 @@ struct Cli {
     cors_permissive: bool,
 
     /// Cloudflare Calls TURN key id (M7).
-    #[arg(long = "cf-turn-key-id", env = "CF_TURN_KEY_ID", value_name = "ID", global = true)]
+    #[arg(
+        long = "cf-turn-key-id",
+        env = "CF_TURN_KEY_ID",
+        value_name = "ID",
+        global = true
+    )]
     cf_turn_key_id: Option<String>,
 
     /// Cloudflare **Calls** API token (M7).
-    #[arg(long = "cf-turn-token", env = "CF_TURN_TOKEN", value_name = "TOKEN", global = true)]
+    #[arg(
+        long = "cf-turn-token",
+        env = "CF_TURN_TOKEN",
+        value_name = "TOKEN",
+        global = true
+    )]
     cf_turn_token: Option<String>,
 
     /// Lifetime of minted TURN credentials in seconds.
-    #[arg(long = "turn-ttl", env = "TURN_TTL", default_value_t = 600, global = true)]
+    #[arg(
+        long = "turn-ttl",
+        env = "TURN_TTL",
+        default_value_t = 600,
+        global = true
+    )]
     turn_ttl: u32,
 
     /// Pre-provisioned Cloudflare Access service-token client id (M8).
@@ -71,16 +91,31 @@ struct Cli {
 
     /// Override the directory used for pairing state. Defaults to
     /// `$HOME/.brainwires/home`.
-    #[arg(long = "state-dir", env = "BRAINWIRES_HOME_STATE_DIR", value_name = "DIR", global = true)]
+    #[arg(
+        long = "state-dir",
+        env = "BRAINWIRES_HOME_STATE_DIR",
+        value_name = "DIR",
+        global = true
+    )]
     state_dir: Option<PathBuf>,
 
     /// Path to the sync database file for cross-device data sync.
     /// Defaults to `$STATE_DIR/sync.db`.
-    #[arg(long = "sync-db", env = "BRAINWIRES_HOME_SYNC_DB", value_name = "PATH", global = true)]
+    #[arg(
+        long = "sync-db",
+        env = "BRAINWIRES_HOME_SYNC_DB",
+        value_name = "PATH",
+        global = true
+    )]
     sync_db: Option<PathBuf>,
 
     /// `tracing-subscriber` env-filter directive.
-    #[arg(long, env = "RUST_LOG", default_value = "brainwires_home=info,info", global = true)]
+    #[arg(
+        long,
+        env = "RUST_LOG",
+        default_value = "brainwires_home=info,info",
+        global = true
+    )]
     log: String,
 }
 
@@ -93,7 +128,11 @@ enum Command {
     Pair {
         /// Tunnel URL the PWA should reach the daemon at. The QR encodes
         /// this so the PWA knows where to send `/pair/claim`.
-        #[arg(long = "tunnel-url", env = "BRAINWIRES_HOME_TUNNEL_URL", value_name = "URL")]
+        #[arg(
+            long = "tunnel-url",
+            env = "BRAINWIRES_HOME_TUNNEL_URL",
+            value_name = "URL"
+        )]
         tunnel_url: String,
 
         /// Friendly name to print alongside the QR. Cosmetic — the PWA
@@ -126,8 +165,7 @@ fn build_pairing(cli: &Cli) -> Result<PairingState> {
         .clone()
         .or_else(pairing::default_state_dir)
         .context("could not resolve state directory: set --state-dir or HOME")?;
-    std::fs::create_dir_all(&dir)
-        .with_context(|| format!("create_dir_all {}", dir.display()))?;
+    std::fs::create_dir_all(&dir).with_context(|| format!("create_dir_all {}", dir.display()))?;
     let identity = pairing::load_or_create_identity(&dir.join("identity.json"))?;
     let cf_access = match (
         cli.cf_access_client_id.as_ref(),
@@ -182,8 +220,13 @@ fn apply_common(mut b: HomeServerBuilder, cli: &Cli) -> HomeServerBuilder {
 
     match (cli.cf_turn_key_id.as_deref(), cli.cf_turn_token.as_deref()) {
         (Some(key_id), Some(token)) => {
-            b = b.with_cloudflare_turn(key_id, token).with_turn_ttl(cli.turn_ttl);
-            tracing::info!(ttl_secs = cli.turn_ttl, "Cloudflare Calls TURN minting enabled");
+            b = b
+                .with_cloudflare_turn(key_id, token)
+                .with_turn_ttl(cli.turn_ttl);
+            tracing::info!(
+                ttl_secs = cli.turn_ttl,
+                "Cloudflare Calls TURN minting enabled"
+            );
         }
         (Some(_), None) | (None, Some(_)) => {
             tracing::warn!(

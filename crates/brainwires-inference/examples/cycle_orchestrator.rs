@@ -21,8 +21,8 @@ use brainwires_agent::brainwires_core::{
 use brainwires_agent::brainwires_tool_runtime::ToolExecutor;
 use brainwires_agent::{CommunicationHub, FileLockManager};
 use brainwires_inference::{
-    CycleOrchestrator, CycleOrchestratorConfig, JudgeAgentConfig, JudgeVerdict,
-    PlannerAgentConfig, TaskAgentConfig,
+    CycleOrchestrator, CycleOrchestratorConfig, JudgeAgentConfig, JudgeVerdict, PlannerAgentConfig,
+    TaskAgentConfig,
 };
 
 // ── Queued Mock Provider ──────────────────────────────────────────────────
