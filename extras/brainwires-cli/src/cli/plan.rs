@@ -12,7 +12,6 @@ use crate::auth::SessionManager;
 use crate::config::{ConfigManager, ModelRegistry, PlatformPaths};
 use crate::providers::ProviderFactory;
 use crate::storage::{CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
-use crate::tools::ToolRegistry;
 use crate::types::agent::{AgentContext, PermissionMode};
 use crate::types::plan::{PlanMetadata, PlanStatus};
 use crate::utils::entity_extraction::EntityExtractor;

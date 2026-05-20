@@ -39,6 +39,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct CheckpointFile {
     path: PathBuf,
     step: u32,
@@ -126,6 +127,7 @@ fn list_dumps(dir: &Path) -> std::io::Result<Vec<CheckpointFile>> {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct Diff {
     step: u32,
     layer: u32,

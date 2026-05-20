@@ -12,7 +12,7 @@ pub use brainwires_tool_runtime::smart_router::*;
 
 use crate::types::message::Message;
 use brainwires::reasoning::LocalRouter;
-use brainwires_tool_runtime::{Tool, ToolCategory, ToolRegistry};
+use brainwires_tool_runtime::{Tool, ToolCategory};
 
 /// Analyze a query using local inference with keyword fallback
 ///

@@ -54,6 +54,9 @@ default = ["native"]
 native = []
 schemars = ["dep:schemars"]
 wasm = ["chrono/wasmbind"]
+# Referenced by src/paths.rs to allow alternate-folder rebrand builds.
+# Empty placeholder so the cfg gates resolve under -Dwarnings.
+alt-folder-name = []
 
 [dev-dependencies]
 serde_json = { workspace = true }

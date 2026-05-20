@@ -15,7 +15,6 @@ use crate::config::ConfigManager;
 use crate::mdap::MdapConfig;
 use crate::providers::ProviderFactory;
 use crate::storage::VectorDatabase;
-use crate::tools::ToolRegistry;
 use crate::types::agent::AgentContext;
 use crate::types::message::{Message, MessageContent, Role};
 use crate::utils::checkpoint::CheckpointManager;

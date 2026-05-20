@@ -982,7 +982,6 @@ impl App {
 
     /// Handle /tools (show current mode)
     fn handle_show_tool_mode(&mut self) {
-        use crate::tools::ToolRegistry;
         use crate::types::tool::ToolMode;
 
         let registry = brainwires_tool_builtins::registry_with_builtins();
@@ -1035,7 +1034,6 @@ impl App {
 
     /// Handle /tools <mode> (set tool mode)
     fn handle_set_tool_mode(&mut self, mode: crate::types::tool::ToolMode) {
-        use crate::tools::ToolRegistry;
         use crate::types::tool::ToolMode;
 
         let registry = brainwires_tool_builtins::registry_with_builtins();
@@ -1082,7 +1080,7 @@ impl App {
 
     /// Handle /tools explicit (open tool picker)
     fn handle_open_tool_picker(&mut self) {
-        use crate::tools::{ToolCategory, ToolRegistry};
+        use crate::tools::ToolCategory;
         use crate::tui::app::state::ToolPickerState;
         use crate::types::tool::ToolMode;
         use std::collections::{HashMap, HashSet};
@@ -1175,7 +1173,6 @@ impl App {
 
     /// Confirm tool selection and apply explicit mode
     pub fn confirm_tool_selection(&mut self) {
-        use crate::tools::ToolRegistry;
         use crate::types::tool::ToolMode;
 
         if let Some(state) = &self.tool_picker_state {

@@ -1005,7 +1005,6 @@ mod tests {
 
     use crate::a2a::A2aBridge;
     use crate::a2a::test_support::echo_chat_agent;
-    use base64::Engine as _;
     use base64::engine::general_purpose::STANDARD as B64;
     use serde_json::json;
     use sha2::{Digest as _, Sha256};

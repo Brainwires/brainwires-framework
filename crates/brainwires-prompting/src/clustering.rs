@@ -5,7 +5,9 @@
 
 use super::techniques::{ComplexityLevel, PromptingTechnique};
 use crate::seal::SealProcessingResult;
-use anyhow::{Context as _, Result, anyhow};
+#[cfg(feature = "prompting")]
+use anyhow::Context as _;
+use anyhow::{Result, anyhow};
 #[cfg(feature = "prompting")]
 use linfa::prelude::*;
 #[cfg(feature = "prompting")]
@@ -396,6 +398,7 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 }
 
 /// Compute Euclidean distance between two vectors
+#[allow(dead_code)]
 fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() {
         return f32::INFINITY;
@@ -409,6 +412,7 @@ fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
 }
 
 /// Compute centroid of a set of embeddings
+#[allow(dead_code)]
 fn compute_centroid(embeddings: &[Vec<f32>]) -> Vec<f32> {
     if embeddings.is_empty() {
         return Vec::new();

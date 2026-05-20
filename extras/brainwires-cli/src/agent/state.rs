@@ -15,7 +15,7 @@ use crate::commands::CommandExecutor;
 use crate::mdap::MdapConfig;
 use crate::providers::{Provider, ProviderFactory};
 use crate::storage::{LockStore, TaskStore, VectorDatabase};
-use crate::tools::{ToolExecutor, ToolRegistry};
+use crate::tools::ToolExecutor;
 use crate::types::agent::PermissionMode;
 use crate::types::message::{Message, MessageContent, Role};
 use crate::types::plan_mode::{PlanModeState, SavedMainContext};

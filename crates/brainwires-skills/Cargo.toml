@@ -56,6 +56,12 @@ default = []
 signing = ["dep:ed25519-dalek", "dep:rand_core"]
 # Remote skills-registry client (HTTP)
 registry = ["dep:reqwest"]
+# Source uses `skills-registry` / `skills-signing` cfg names as the
+# externally-visible "skills.X" feature gate, distinct from this crate's
+# internal `registry` / `signing` features above. Empty placeholders so
+# the cfg gates resolve under -Dwarnings.
+skills-registry = []
+skills-signing = []
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

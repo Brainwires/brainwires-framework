@@ -6,7 +6,6 @@ use crate::agents::AgentManager;
 use crate::auth::SessionManager;
 use crate::config::{ConfigManager, ModelRegistry};
 use crate::providers::ProviderFactory;
-use crate::tools::ToolRegistry;
 use crate::types::agent::{AgentContext, PermissionMode};
 use crate::utils::logger::Logger;
 use crate::utils::rich_output::RichOutput;

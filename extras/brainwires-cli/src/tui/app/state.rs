@@ -8,7 +8,7 @@ use crate::commands::CommandExecutor;
 use crate::mdap::MdapConfig;
 use crate::providers::{Provider, ProviderFactory};
 use crate::storage::{TaskStore, VectorDatabase};
-use crate::tools::{ToolExecutor, ToolRegistry};
+use crate::tools::ToolExecutor;
 use crate::tui::hotkey_content::HotkeyCategory;
 use crate::types::agent::PermissionMode;
 use crate::types::message::{Message, MessageContent, Role};

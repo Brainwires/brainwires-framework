@@ -14,7 +14,6 @@ use crate::agents::{CommunicationHub, FileLockManager, TaskAgent, TaskAgentConfi
 use crate::config::PlatformPaths;
 use crate::providers::Provider;
 use crate::storage::{CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
-use crate::tools::ToolRegistry;
 use crate::types::agent::{AgentContext, PermissionMode, Task};
 use crate::types::plan::{PlanMetadata, PlanStatus};
 use crate::types::tool::{Tool, ToolInputSchema, ToolResult};

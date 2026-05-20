@@ -51,6 +51,10 @@ wasm = ["brainwires-core/wasm", "brainwires-call-policy/wasm", "brainwires-agent
 
 # OpenTelemetry span export
 otel = ["dep:opentelemetry"]
+# Source uses `telemetry` cfg name in task_agent/* for the analytics
+# integration hook. Empty placeholder so the cfg gates resolve under
+# -Dwarnings; tracing is conditionally wired when this feature is on.
+telemetry = []
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

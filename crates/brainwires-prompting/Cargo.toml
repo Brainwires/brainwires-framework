@@ -56,6 +56,9 @@ storage = ["dep:rusqlite"]
 # techniques, seal) work without it. Default-on because the typical
 # consumer wants the full surface.
 knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
+# Referenced by src/clustering.rs cfg gates that toggle k-means helpers.
+# Empty placeholder so the cfg gates resolve under -Dwarnings.
+prompting = []
 
 [package.metadata.docs.rs]
 all-features = true

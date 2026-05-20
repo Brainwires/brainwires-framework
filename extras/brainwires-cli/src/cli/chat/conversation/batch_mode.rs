@@ -10,7 +10,6 @@ use crate::auth::SessionManager;
 use crate::cli::chat::streaming::process_chat_stream;
 use crate::config::ConfigManager;
 use crate::providers::ProviderFactory;
-use crate::tools::ToolRegistry;
 use crate::types::agent::AgentContext;
 use crate::types::message::{Message, MessageContent, Role};
 use crate::utils::logger::Logger;
