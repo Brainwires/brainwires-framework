@@ -21,7 +21,7 @@ brainwires-tool-runtime = { workspace = true }
 brainwires-tool-builtins = { workspace = true }
 
 # Async runtime
-tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
+tokio = { workspace = true, features = ["sync", "time", "rt", "macros", "process"] }
 
 # Serialization
 serde = { workspace = true }
