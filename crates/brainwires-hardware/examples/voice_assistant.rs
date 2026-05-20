@@ -10,7 +10,7 @@
 //! ```
 //!
 //! Optional flags:
-//!   --wake-word <path.rpw>   — enable wake word detection (requires wake-word feature)
+//!   --wake-word              — show the wake-word-demo pointer (see wake_word_demo example)
 //!   --silence-db <dB>        — silence threshold, default -40
 //!   --silence-ms <ms>        — silence duration to end utterance, default 800
 
@@ -80,14 +80,18 @@ async fn main() -> anyhow::Result<()> {
         .with_playback(playback)
         .with_config(config);
 
-    // Wake word support
-    #[cfg(feature = "wake-word-rustpotter")]
-    if let Some(model_path) = find_arg_str(&args, "--wake-word") {
-        use brainwires_hardware::audio::wake_word::RustpotterDetector;
-        println!("Loading wake word model: {model_path}");
-        let detector = RustpotterDetector::from_model_file(model_path, 0.5)?;
-        builder = builder.with_wake_word(Box::new(detector));
-        println!("Wake word detection enabled — say the keyword to start recording.");
+    // Wake word support (in-house DTW + MFCC, speaker-dependent).
+    // The DTW detector requires per-user enrollment recordings, which this
+    // demo doesn't expose — use `cargo run --example wake_word_demo
+    // --features wake-word-dtw` for the interactive enrollment ceremony.
+    // Build with `--features wake-word-dtw` here to compile in the detector;
+    // the enrollment-and-attach hook is intentionally stubbed out below.
+    #[cfg(feature = "wake-word-dtw")]
+    if find_arg_str(&args, "--wake-word").is_some() {
+        eprintln!(
+            "note: voice_assistant example does not enroll a wake word — see the \
+             wake_word_demo example for the interactive enrollment flow."
+        );
     }
 
     let mut assistant = builder.build();

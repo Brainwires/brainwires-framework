@@ -64,15 +64,10 @@ image = { version = "0.25", optional = true, default-features = false, features 
 # Raw USB device access (pure Rust, no libusb system dependency)
 nusb = { version = "0.1", optional = true }
 
-# Wake word detection — rustpotter (wake-word-rustpotter feature)
-# NOTE: workspace root patches `rustpotter` to the Brainwires fork at
-# https://github.com/Brainwires/rustpotter (branch `candle-0.10`), which
-# bumps `candle-core`/`candle-nn` to 0.10. The fork ships as the prerelease
-# `3.0.3-candle-0.10`; cargo only resolves prereleases when the version
-# requirement explicitly names that prerelease tag, hence the exact pin
-# below. If the patch is removed in the future, this requirement should be
-# bumped to whatever stable `3.x` (or newer) crates.io publishes.
-rustpotter = { version = "3.0.3-candle-0.10", optional = true }
+# In-house wake-word detector (DTW over MFCC features). Pure-Rust, no
+# third-party wake-word library, no ML framework. Speaker-dependent —
+# callers enroll 3+ reference recordings before inference.
+rustfft = { version = "6", optional = true }
 
 # Voice Activity Detection — WebRTC VAD (vad feature)
 webrtc-vad = { version = "0.4", optional = true }
@@ -113,10 +108,10 @@ vad = ["dep:webrtc-vad", "audio"]
 # Wake word detection — WakeWordDetector trait + EnergyTriggerDetector (no extra deps)
 wake-word = ["audio"]
 
-# Wake word detection via rustpotter (pure Rust, Apache 2.0)
-# NOTE: rustpotter 3.0.x has a candle-core/rand_distr dep conflict as of 2026-03.
-# Enable when the upstream issue is resolved.
-wake-word-rustpotter = ["dep:rustpotter", "wake-word"]
+# In-house wake-word detector (DTW + MFCC, speaker-dependent). Pure-Rust,
+# no third-party wake-word library or ML framework. Caller enrolls 3+
+# reference recordings via `DtwWakeWordDetector::enroll_template`.
+wake-word-dtw = ["dep:rustfft", "wake-word"]
 
 # Full voice assistant pipeline (capture → wake word → VAD → STT → handler → TTS → playback)
 voice-assistant = ["audio", "vad", "wake-word"]
@@ -145,7 +140,7 @@ required-features = ["bluetooth"]
 
 [[example]]
 name = "wake_word_demo"
-required-features = ["wake-word-rustpotter"]
+required-features = ["wake-word-dtw"]
 
 [[example]]
 name = "voice_assistant"

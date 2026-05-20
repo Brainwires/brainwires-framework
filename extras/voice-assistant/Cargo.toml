@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [features]
 wake-word = ["brainwires-hardware/wake-word"]
-wake-word-rustpotter = ["brainwires-hardware/wake-word-rustpotter"]
+wake-word-dtw = ["brainwires-hardware/wake-word-dtw"]
 
 [dependencies]
 brainwires-hardware = { workspace = true, features = ["voice-assistant"] }

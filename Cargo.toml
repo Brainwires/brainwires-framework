@@ -354,15 +354,3 @@ lto = false
 codegen-units = 256
 debug = "line-tables-only"
 
-# ── Patches ─────────────────────────────────────────────────────────────────
-#
-# `rustpotter` patch survives the candle removal because
-# `brainwires-hardware` pins `version = "3.0.3-candle-0.10"`, a prerelease
-# that only exists in the Brainwires fork. The patch redirects to that
-# fork. The fork still uses upstream `candle 0.10.x` internally, but no
-# workspace crate consumes those candle symbols directly anymore, so the
-# candle-core / candle-nn / candle-transformers patches that previously
-# lived here are gone.
-[patch.crates-io]
-rustpotter = { git = "https://github.com/Brainwires/rustpotter", rev = "4dbd6fd55a7c198cedb7c5e2574497343fd620a7" }
-

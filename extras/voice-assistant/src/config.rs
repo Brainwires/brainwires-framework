@@ -18,8 +18,11 @@ pub struct VaConfig {
     /// TTS voice. Default: "alloy".
     pub tts_voice: String,
 
-    /// Path to a rustpotter `.rpw` wake word model file.
-    /// If not set, the assistant listens continuously.
+    /// Reserved — the in-house `DtwWakeWordDetector` is speaker-dependent
+    /// and enrolled at runtime, so there's no model file to point at.
+    /// Left as `Option<String>` for backwards-compat with existing config
+    /// files; ignored by the current pipeline. If unset, the assistant
+    /// listens continuously.
     pub wake_word_model: Option<String>,
 
     /// Wake word detection threshold (0.0–1.0). Default: 0.5.

@@ -37,7 +37,7 @@ Useful flags:
 | Flag | Description |
 |------|-------------|
 | `wake-word` | Enable wake-word detection (engine auto-selected) |
-| `wake-word-rustpotter` | Use Rustpotter for wake-word detection |
+| `wake-word-dtw` | Use Rustpotter for wake-word detection |
 
 ## Configuration
 
@@ -105,7 +105,7 @@ Neither `openai_api_key` nor `OPENAI_API_KEY` was set. Add one to the config fil
 ### "Wake word model not found" / wake word never fires
 
 - The `wake_word_model` path does not exist. Confirm with `ls -l` and use an absolute path.
-- The binary was built without the `wake-word` (or `wake-word-rustpotter`) feature flag.
+- The binary was built without the `wake-word` (or `wake-word-dtw`) feature flag.
 - `wake_word_threshold` is too high. Try lowering to `0.4` and watch debug logs (`-v`).
 
 ### Microphone not detected / wrong device picked up

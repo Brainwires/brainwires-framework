@@ -1,91 +1,88 @@
-//! Demonstrate wake word detection from the default microphone.
+//! Demonstrate the in-house DTW + MFCC wake-word detector.
 //!
-//! Requires a `.rpw` model file (create one with `rustpotter-cli`).
+//! Speaker-dependent: you record the wake phrase 3 times (the "enrollment"
+//! ceremony) and the detector then listens for an utterance that matches
+//! any of those reference recordings via DTW.
 //!
 //! Run with:
 //! ```bash
 //! cargo run -p brainwires-hardware --example wake_word_demo \
-//!     --features wake-word-rustpotter -- --model hey_assistant.rpw
+//!     --features wake-word-dtw
 //! ```
+//!
+//! The demo:
+//!   1. Records 3 × 1.2 s enrollment clips (you say the wake phrase each time)
+//!   2. Switches into live-listen mode and prints `[score] wake!` on a match
 //!
 //! Press Ctrl-C to stop.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use brainwires_hardware::audio::{
     capture::AudioCapture,
     hardware::cpal_capture::CpalCapture,
     types::AudioConfig,
     vad::pcm_to_i16_mono,
-    wake_word::{RustpotterDetector, WakeWordDetector},
+    wake_word::{DtwWakeWordDetector, WakeWordDetector},
 };
 use futures::StreamExt;
 
-#[derive(Debug)]
-struct Args {
-    model: PathBuf,
-    threshold: f32,
-}
+const ENROLL_CLIP_MS: u64 = 1_200;
+const ENROLLMENTS_NEEDED: usize = 3;
 
-fn parse_args() -> Args {
-    let args: Vec<String> = std::env::args().collect();
-    let mut model = PathBuf::from("wake_word.rpw");
-    let mut threshold = 0.5f32;
+async fn record_clip_ms(
+    capture: &CpalCapture,
+    config: &AudioConfig,
+    millis: u64,
+) -> anyhow::Result<Vec<i16>> {
+    let mut stream = capture.start_capture(None, config)?;
+    let mut buf: Vec<i16> = Vec::new();
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(millis);
 
-    let mut i = 1;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--model" | "-m" => {
-                i += 1;
-                if let Some(v) = args.get(i) {
-                    model = PathBuf::from(v);
-                }
-            }
-            "--threshold" | "-t" => {
-                i += 1;
-                if let Some(v) = args.get(i) {
-                    threshold = v.parse().unwrap_or(0.5);
-                }
-            }
-            _ => {}
+    while tokio::time::Instant::now() < deadline {
+        match tokio::time::timeout_at(deadline, stream.next()).await {
+            Ok(Some(Ok(audio_buf))) => buf.extend_from_slice(&pcm_to_i16_mono(&audio_buf)),
+            Ok(Some(Err(e))) => eprintln!("capture error: {e}"),
+            Ok(None) => break,
+            Err(_) => break,
         }
-        i += 1;
     }
-
-    Args { model, threshold }
+    Ok(buf)
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
-    let args = parse_args();
-
-    println!("Loading wake word model: {}", args.model.display());
-    let mut detector = RustpotterDetector::from_model_file(&args.model, args.threshold)?;
-    println!(
-        "Wake word detector ready — frame size: {} samples ({}ms at 16kHz)",
-        detector.frame_size(),
-        detector.frame_size() * 1000 / 16000
-    );
 
     let capture = CpalCapture;
-    let config = AudioConfig::speech(); // 16kHz mono i16
+    let config = AudioConfig::speech(); // 16 kHz mono i16
 
+    let mut detector = DtwWakeWordDetector::new();
+    println!(
+        "Wake-word demo — DTW + MFCC, speaker-dependent. Each enrollment is {ENROLL_CLIP_MS} ms."
+    );
+    println!("You'll say the wake phrase {ENROLLMENTS_NEEDED} times to enroll, then it listens.\n");
+
+    for i in 1..=ENROLLMENTS_NEEDED {
+        println!("Enrollment {i}/{ENROLLMENTS_NEEDED}: say your wake phrase NOW...");
+        let clip = record_clip_ms(&capture, &config, ENROLL_CLIP_MS).await?;
+        detector.enroll_template(&clip)?;
+        println!("  recorded {} samples — enrolled.", clip.len());
+    }
+
+    println!("\nListening for wake word... (Ctrl-C to stop)");
     let mut stream = capture.start_capture(None, &config)?;
-
     let running = Arc::new(AtomicBool::new(true));
     let r = Arc::clone(&running);
     ctrlc::set_handler(move || r.store(false, Ordering::Relaxed)).unwrap_or_default();
 
-    println!("Listening for wake word... (Ctrl-C to stop)");
-
-    let frame_size = detector.frame_size();
     let mut sample_buf: Vec<i16> = Vec::new();
+    let frame_size = detector.frame_size();
 
     while running.load(Ordering::Relaxed) {
-        match tokio::time::timeout(std::time::Duration::from_millis(100), stream.next()).await {
+        match tokio::time::timeout(Duration::from_millis(100), stream.next()).await {
             Ok(Some(Ok(audio_buf))) => {
                 let mono = pcm_to_i16_mono(&audio_buf);
                 sample_buf.extend_from_slice(&mono);
@@ -94,17 +91,18 @@ async fn main() -> anyhow::Result<()> {
                     let frame: Vec<i16> = sample_buf.drain(..frame_size).collect();
                     if let Some(det) = detector.process_frame(&frame) {
                         println!(
-                            "[{:.1}s] Wake word detected: \"{}\" (score: {:.3})",
+                            "[{:.1}s] wake! score={:.3} keyword=\"{}\"",
                             det.timestamp_ms as f64 / 1000.0,
-                            det.keyword,
                             det.score,
+                            det.keyword,
                         );
+                        detector.reset_window();
                     }
                 }
             }
-            Ok(Some(Err(e))) => eprintln!("Capture error: {e}"),
+            Ok(Some(Err(e))) => eprintln!("capture error: {e}"),
             Ok(None) => break,
-            Err(_) => {} // timeout — check running flag
+            Err(_) => {}
         }
     }
 

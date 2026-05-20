@@ -43,14 +43,14 @@ brainwires-hardware = { version = "0.11", features = ["full"] }
 | `local-stt` | Local Whisper STT inference via whisper-rs (heavy dep, opt-in) |
 | `vad` | WebRTC VAD algorithm (`EnergyVad` is always available with `audio`) |
 | `wake-word` | Wake word detection — `EnergyTriggerDetector` (zero deps) |
-| `wake-word-rustpotter` | `RustpotterDetector` — pure-Rust ML wake word (opt-in, see notes) |
+| `wake-word-dtw` | `DtwWakeWordDetector` — in-house DTW+MFCC wake word (speaker-dependent, see notes) |
 | `voice-assistant` | Full pipeline: capture → wake word → VAD → STT → handler → TTS |
 | `gpio` | GPIO pin control via Linux character device API (`gpio-cdev`) |
 | `bluetooth` | BLE scanning and adapter enumeration via `btleplug` |
 | `network` | NIC enumeration, IP config, ARP discovery, port scanning |
 | `camera` | Webcam/camera capture via nokhwa (V4L2/AVFoundation/MSMF) |
 | `usb` | Raw USB device access and transfers via nusb (no libusb) |
-| `full` | All features (except `local-stt`, `wake-word-rustpotter`) |
+| `full` | All features (except `local-stt`, `wake-word-dtw`) |
 
 ## Audio
 
@@ -143,12 +143,12 @@ if let Some(detection) = detector.process_frame(&frame) {
 }
 ```
 
-> **Note on `wake-word-rustpotter`.** The workspace `[patch.crates-io]` table
-> redirects `rustpotter` to
-> [Brainwires/rustpotter@`candle-0.10`](https://github.com/Brainwires/rustpotter)
-> (the prerelease `3.0.3-candle-0.10`), which bumps `candle-core`/`candle-nn`
-> to 0.10 so the dep aligns with the rest of the workspace. With that patch
-> in place `cargo … --all-features` builds clean, including this crate.
+> **Note on `wake-word-dtw`.** This is an in-house clean-room implementation —
+> classical DTW over MFCC features, pure-Rust DSP, no ML framework, no
+> third-party wake-word library. Speaker-dependent: the caller records the
+> wake phrase ≥3 times via `DtwWakeWordDetector::enroll_template`, and the
+> detector then compares incoming audio against those references. See
+> `examples/wake_word_demo.rs` for the interactive enrollment ceremony.
 
 ## Voice Assistant Pipeline
 

@@ -26,7 +26,7 @@ use brainwires_tool_runtime::{ToolExecutor, ToolRegistry};
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
-#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+#[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
 use brainwires_hardware::audio::wake_word::WakeWordDetection;
 
 /// Voice handler that routes transcripts through a [`ChatAgent`].
@@ -109,7 +109,7 @@ impl LlmHandler {
 
 #[async_trait]
 impl VoiceAssistantHandler for LlmHandler {
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+    #[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
     async fn on_wake_word(&self, detection: &WakeWordDetection) {
         info!(
             keyword = %detection.keyword,

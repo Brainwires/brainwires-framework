@@ -21,7 +21,7 @@ use crate::audio::{
     types::{AudioBuffer, AudioConfig, SampleFormat, SttOptions, TtsOptions},
 };
 
-#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+#[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
 use crate::audio::wake_word::{WakeWordDetection, WakeWordDetector};
 
 // ── State enum ────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ impl Default for VoiceAssistantConfig {
 pub trait VoiceAssistantHandler: Send + Sync {
     /// Called when a wake word fires (before listening begins).
     /// Override to provide feedback (e.g. a chime sound or LED flash).
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+    #[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
     async fn on_wake_word(&self, _detection: &WakeWordDetection) {}
 
     /// Called with the completed transcript.
@@ -115,7 +115,7 @@ pub struct VoiceAssistantBuilder {
     stt: Arc<dyn SpeechToText>,
     playback: Option<Arc<dyn AudioPlayback>>,
     tts: Option<Arc<dyn TextToSpeech>>,
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+    #[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
     wake_word: Option<Box<dyn WakeWordDetector>>,
     vad: Option<Box<dyn VoiceActivityDetector>>,
     config: VoiceAssistantConfig,
@@ -129,7 +129,7 @@ impl VoiceAssistantBuilder {
             stt,
             playback: None,
             tts: None,
-            #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+            #[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
             wake_word: None,
             vad: None,
             config: VoiceAssistantConfig::default(),
@@ -149,7 +149,7 @@ impl VoiceAssistantBuilder {
     }
 
     /// Set the wake word detector used to activate the listening phase.
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+    #[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
     pub fn with_wake_word(mut self, detector: Box<dyn WakeWordDetector>) -> Self {
         self.wake_word = Some(detector);
         self
@@ -179,7 +179,7 @@ impl VoiceAssistantBuilder {
             playback: self.playback,
             stt: self.stt,
             tts: self.tts,
-            #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+            #[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
             wake_word: self.wake_word,
             vad,
             state: Arc::new(AtomicU8::new(STATE_IDLE)),
@@ -201,7 +201,7 @@ pub struct VoiceAssistant {
     playback: Option<Arc<dyn AudioPlayback>>,
     stt: Arc<dyn SpeechToText>,
     tts: Option<Arc<dyn TextToSpeech>>,
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+    #[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
     wake_word: Option<Box<dyn WakeWordDetector>>,
     vad: Box<dyn VoiceActivityDetector>,
     state: Arc<AtomicU8>,
@@ -272,7 +272,7 @@ impl VoiceAssistant {
             }
 
             // ── Wake word phase ───────────────────────────────────────────────
-            #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+            #[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
             {
                 // Take detector out to avoid simultaneous &self borrow conflict.
                 let mut detector = self.wake_word.take();
@@ -463,7 +463,7 @@ impl VoiceAssistant {
 
     /// Block until the wake word fires, returning the detection.
     /// Static to avoid borrow conflicts when `wake_word` is taken out of self.
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
+    #[cfg(any(feature = "wake-word", feature = "wake-word-dtw"))]
     async fn wait_for_wake_word_inner(
         capture: &Arc<dyn AudioCapture>,
         cfg: &VoiceAssistantConfig,
