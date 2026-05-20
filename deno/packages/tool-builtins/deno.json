@@ -1,0 +1,14 @@
+{
+  "name": "@brainwires/tool-builtins",
+  "license": "MIT",
+  "version": "0.11.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./bash": "./bash.ts",
+    "./file-ops": "./file_ops.ts",
+    "./git": "./git.ts",
+    "./web": "./web.ts",
+    "./search": "./search.ts",
+    "./semantic-search": "./semantic_search.ts"
+  }
+}

@@ -65,7 +65,9 @@ async function main(): Promise<void> {
   };
 
   console.log(`  Agent: ${card.name} v${card.version}`);
-  console.log(`  Skills: ${card.skills.map((s: { id: string }) => s.id).join(", ")}`);
+  console.log(
+    `  Skills: ${card.skills.map((s: { id: string }) => s.id).join(", ")}`,
+  );
   console.log(`  Streaming: ${card.capabilities.streaming}`);
   console.log();
 
@@ -83,7 +85,9 @@ async function main(): Promise<void> {
   const taskId = crypto.randomUUID();
   const contextId = userMsg.contextId ?? crypto.randomUUID();
 
-  const agentReply: Message = createAgentMessage(`Echo: ${userMsg.parts[0]?.text}`);
+  const agentReply: Message = createAgentMessage(
+    `Echo: ${userMsg.parts[0]?.text}`,
+  );
   agentReply.contextId = contextId;
   agentReply.taskId = taskId;
 
@@ -121,7 +125,9 @@ async function main(): Promise<void> {
     console.log(`  Agent reply:      ${text}`);
   }
   if (response.task?.artifacts) {
-    console.log(`  Artifacts:        ${response.task.artifacts.length} item(s)`);
+    console.log(
+      `  Artifacts:        ${response.task.artifacts.length} item(s)`,
+    );
   }
   console.log();
 
@@ -132,7 +138,9 @@ async function main(): Promise<void> {
 
   const fetched = tasks.get(taskId);
   if (fetched) {
-    console.log(`  Fetched task: ${fetched.id} (state=${fetched.status.state})`);
+    console.log(
+      `  Fetched task: ${fetched.id} (state=${fetched.status.state})`,
+    );
   } else {
     console.log("  Task not found");
   }
@@ -159,7 +167,9 @@ async function main(): Promise<void> {
   if (toCancel) {
     toCancel.status.state = "TASK_STATE_CANCELED";
     toCancel.status.timestamp = new Date().toISOString();
-    console.log(`  Canceled task: ${toCancel.id} (state=${toCancel.status.state})`);
+    console.log(
+      `  Canceled task: ${toCancel.id} (state=${toCancel.status.state})`,
+    );
   }
   console.log();
 
@@ -174,11 +184,15 @@ async function main(): Promise<void> {
 
   console.log("  Available client methods:");
   console.log("    client.sendMessage(req)           -- send a message");
-  console.log("    client.streamMessage(req)         -- stream a message (SSE)");
+  console.log(
+    "    client.streamMessage(req)         -- stream a message (SSE)",
+  );
   console.log("    client.getTask(req)               -- get task by ID");
   console.log("    client.listTasks(req)             -- list tasks");
   console.log("    client.cancelTask(req)            -- cancel a task");
-  console.log("    client.subscribeToTask(req)       -- subscribe to task updates");
+  console.log(
+    "    client.subscribeToTask(req)       -- subscribe to task updates",
+  );
   console.log("    A2aClient.discover(baseUrl)       -- discover agent card");
   console.log();
 
@@ -203,16 +217,22 @@ async function main(): Promise<void> {
   console.log("--- 8. Error Handling ---");
 
   const notFoundErr = A2aError.taskNotFound("missing-task-id");
-  console.log(`  Task not found error: code=${notFoundErr.code}, message="${notFoundErr.message}"`);
+  console.log(
+    `  Task not found error: code=${notFoundErr.code}, message="${notFoundErr.message}"`,
+  );
 
   const unsupErr = A2aError.unsupportedOperation("streaming not enabled");
-  console.log(`  Unsupported error:    code=${unsupErr.code}, message="${unsupErr.message}"`);
+  console.log(
+    `  Unsupported error:    code=${unsupErr.code}, message="${unsupErr.message}"`,
+  );
 
   const jsonErr = notFoundErr.toJSON();
   console.log(`  Serialized to JSON:   ${JSON.stringify(jsonErr)}`);
 
   const roundTripped = A2aError.fromJSON(jsonErr);
-  console.log(`  Round-tripped:        code=${roundTripped.code}, message="${roundTripped.message}"`);
+  console.log(
+    `  Round-tripped:        code=${roundTripped.code}, message="${roundTripped.message}"`,
+  );
 
   console.log("\nDone.");
 }

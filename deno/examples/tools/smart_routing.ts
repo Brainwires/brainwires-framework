@@ -5,14 +5,14 @@
 
 import { Message } from "@brainwires/core";
 import {
-  analyzeQuery,
   analyzeMessages,
-  getContextForAnalysis,
-  getToolsForCategories,
-  getSmartTools,
-  getSmartToolsWithMcp,
+  analyzeQuery,
   BashTool,
   FileOpsTool,
+  getContextForAnalysis,
+  getSmartTools,
+  getSmartToolsWithMcp,
+  getToolsForCategories,
   GitTool,
   SearchTool,
   ToolRegistry,
@@ -73,14 +73,16 @@ async function main() {
   const detailedConversation = [
     Message.user(
       "Please read the file src/config.ts, search for any deprecated API calls, " +
-      "then edit the file to replace them with the new API. After that, run the tests " +
-      "to make sure everything works and commit the changes with a descriptive message.",
+        "then edit the file to replace them with the new API. After that, run the tests " +
+        "to make sure everything works and commit the changes with a descriptive message.",
     ),
   ];
 
   const detailedContext = getContextForAnalysis(detailedConversation);
   const detailedCategories = analyzeMessages(detailedConversation);
-  console.log(`  Detailed prompt context: "${detailedContext.substring(0, 80)}..."`);
+  console.log(
+    `  Detailed prompt context: "${detailedContext.substring(0, 80)}..."`,
+  );
   console.log(`  Detected categories: [${detailedCategories.join(", ")}]\n`);
 
   // 4. Get smart-routed tools for a conversation
@@ -114,17 +116,29 @@ async function main() {
     {
       name: "mcp_database_query",
       description: "Execute a SQL query against the database",
-      input_schema: { type: "object", properties: { sql: { type: "string" } }, required: ["sql"] },
+      input_schema: {
+        type: "object",
+        properties: { sql: { type: "string" } },
+        required: ["sql"],
+      },
     },
     {
       name: "mcp_docker_exec",
       description: "Execute a command in a Docker container",
-      input_schema: { type: "object", properties: { cmd: { type: "string" } }, required: ["cmd"] },
+      input_schema: {
+        type: "object",
+        properties: { cmd: { type: "string" } },
+        required: ["cmd"],
+      },
     },
     {
       name: "mcp_slack_send",
       description: "Send a message to a Slack channel",
-      input_schema: { type: "object", properties: { msg: { type: "string" } }, required: ["msg"] },
+      input_schema: {
+        type: "object",
+        properties: { msg: { type: "string" } },
+        required: ["msg"],
+      },
     },
   ];
 
@@ -147,7 +161,9 @@ async function main() {
   const fallbackCategories = analyzeQuery(ambiguousQuery);
   console.log(`  Query: "${ambiguousQuery}"`);
   console.log(`  Fallback categories: [${fallbackCategories.join(", ")}]`);
-  console.log("  (FileOps, Search, Bash are used as defaults when nothing matches)");
+  console.log(
+    "  (FileOps, Search, Bash are used as defaults when nothing matches)",
+  );
 
   console.log("\nDone.");
 }

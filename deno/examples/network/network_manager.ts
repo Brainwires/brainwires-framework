@@ -5,26 +5,26 @@
 // Run: deno run deno/examples/agent-network/network_manager.ts
 
 import {
-  createAgentIdentity,
   type AgentIdentity,
-  defaultAgentCard,
-  hasCapability,
-  supportsProtocol,
-  ManualDiscovery,
-  directEnvelope,
   broadcastEnvelope,
-  topicEnvelope,
-  replyEnvelope,
-  withTtl,
-  withCorrelation,
-  textPayload,
-  jsonPayload,
-  PeerTable,
-  type TransportAddress,
-  displayTransportAddress,
-  DirectRouter,
   BroadcastRouter,
   ContentRouter,
+  createAgentIdentity,
+  defaultAgentCard,
+  directEnvelope,
+  DirectRouter,
+  displayTransportAddress,
+  hasCapability,
+  jsonPayload,
+  ManualDiscovery,
+  PeerTable,
+  replyEnvelope,
+  supportsProtocol,
+  textPayload,
+  topicEnvelope,
+  type TransportAddress,
+  withCorrelation,
+  withTtl,
 } from "@brainwires/network";
 
 async function main(): Promise<void> {
@@ -48,8 +48,12 @@ async function main(): Promise<void> {
   };
   console.log(
     `  ${orchestrator.name} (id=${orchestrator.id})` +
-      `\n    capabilities: ${JSON.stringify(orchestrator.agentCard.capabilities)}` +
-      `\n    protocols:    ${JSON.stringify(orchestrator.agentCard.supportedProtocols)}` +
+      `\n    capabilities: ${
+        JSON.stringify(orchestrator.agentCard.capabilities)
+      }` +
+      `\n    protocols:    ${
+        JSON.stringify(orchestrator.agentCard.supportedProtocols)
+      }` +
       `\n    endpoint:     ${orchestrator.agentCard.endpoint}`,
   );
 
@@ -92,7 +96,9 @@ async function main(): Promise<void> {
   console.log("--- Capability & Protocol Checks ---");
 
   console.log(
-    `  orchestrator has "task-routing": ${hasCapability(orchestrator.agentCard, "task-routing")}`,
+    `  orchestrator has "task-routing": ${
+      hasCapability(orchestrator.agentCard, "task-routing")
+    }`,
   );
   console.log(
     `  workerA supports "mcp": ${supportsProtocol(workerA.agentCard, "mcp")}`,
@@ -119,7 +125,9 @@ async function main(): Promise<void> {
   console.log(`  Discovered ${peers.length} peer(s):`);
   for (const peer of peers) {
     console.log(
-      `    ${peer.name} — protocols: ${JSON.stringify(peer.agentCard.supportedProtocols)}, ` +
+      `    ${peer.name} — protocols: ${
+        JSON.stringify(peer.agentCard.supportedProtocols)
+      }, ` +
         `endpoint: ${peer.agentCard.endpoint ?? "none"}`,
     );
   }
@@ -168,7 +176,11 @@ async function main(): Promise<void> {
   );
 
   // Reply to the direct message
-  const reply = replyEnvelope(direct, workerA.id, textPayload("Handler generated!"));
+  const reply = replyEnvelope(
+    direct,
+    workerA.id,
+    textPayload("Handler generated!"),
+  );
   console.log(
     `  Reply:     sender=${reply.sender.slice(0, 8)}..., ` +
       `correlationId=${reply.correlationId?.slice(0, 8)}...`,
@@ -193,8 +205,14 @@ async function main(): Promise<void> {
 
   const peerTable = new PeerTable();
 
-  const workerAAddr: TransportAddress = { type: "unix", path: "/tmp/worker-a.sock" };
-  const workerBAddr: TransportAddress = { type: "tcp", address: "127.0.0.1:9091" };
+  const workerAAddr: TransportAddress = {
+    type: "unix",
+    path: "/tmp/worker-a.sock",
+  };
+  const workerBAddr: TransportAddress = {
+    type: "tcp",
+    address: "127.0.0.1:9091",
+  };
 
   peerTable.upsert(workerA, [workerAAddr]);
   peerTable.upsert(workerB, [workerBAddr]);
@@ -211,10 +229,14 @@ async function main(): Promise<void> {
   peerTable.subscribe(workerB.id, "build-events");
   peerTable.subscribe(workerB.id, "review-events");
   console.log(
-    `  Subscribers to "build-events": ${peerTable.subscribers("build-events").length}`,
+    `  Subscribers to "build-events": ${
+      peerTable.subscribers("build-events").length
+    }`,
   );
   console.log(
-    `  Subscribers to "review-events": ${peerTable.subscribers("review-events").length}`,
+    `  Subscribers to "review-events": ${
+      peerTable.subscribers("review-events").length
+    }`,
   );
   console.log();
 
@@ -225,26 +247,38 @@ async function main(): Promise<void> {
 
   // Direct routing
   const directRouter = new DirectRouter();
-  console.log(`  DirectRouter strategy: ${JSON.stringify(directRouter.strategy())}`);
+  console.log(
+    `  DirectRouter strategy: ${JSON.stringify(directRouter.strategy())}`,
+  );
   const directAddrs = await directRouter.route(direct, peerTable);
   console.log(
-    `    Route direct msg -> ${directAddrs.map(displayTransportAddress).join(", ")}`,
+    `    Route direct msg -> ${
+      directAddrs.map(displayTransportAddress).join(", ")
+    }`,
   );
 
   // Broadcast routing
   const broadcastRouter = new BroadcastRouter();
-  console.log(`  BroadcastRouter strategy: ${JSON.stringify(broadcastRouter.strategy())}`);
+  console.log(
+    `  BroadcastRouter strategy: ${JSON.stringify(broadcastRouter.strategy())}`,
+  );
   const broadcastAddrs = await broadcastRouter.route(broadcast, peerTable);
   console.log(
-    `    Route broadcast -> ${broadcastAddrs.map(displayTransportAddress).join(", ")}`,
+    `    Route broadcast -> ${
+      broadcastAddrs.map(displayTransportAddress).join(", ")
+    }`,
   );
 
   // Content-based routing
   const contentRouter = new ContentRouter();
-  console.log(`  ContentRouter strategy: ${JSON.stringify(contentRouter.strategy())}`);
+  console.log(
+    `  ContentRouter strategy: ${JSON.stringify(contentRouter.strategy())}`,
+  );
   const topicAddrs = await contentRouter.route(topic, peerTable);
   console.log(
-    `    Route topic "build-events" -> ${topicAddrs.map(displayTransportAddress).join(", ")}`,
+    `    Route topic "build-events" -> ${
+      topicAddrs.map(displayTransportAddress).join(", ")
+    }`,
   );
 
   console.log("\nDone.");

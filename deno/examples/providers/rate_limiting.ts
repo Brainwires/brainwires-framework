@@ -3,7 +3,7 @@
 // throughput using the token-bucket algorithm.
 // Run: deno run deno/examples/providers/rate_limiting.ts
 
-import { RateLimitedClient, RateLimiter } from "@brainwires/providers";
+import { RateLimitedClient, RateLimiter } from "@brainwires/provider";
 
 async function main() {
   console.log("=== Rate-Limited Client Example ===\n");
@@ -17,14 +17,18 @@ async function main() {
   // Acquire tokens directly
   for (let i = 1; i <= 5; i++) {
     await limiter.acquire();
-    console.log(`  Acquired token ${i} -> remaining: ${limiter.availableTokens()}`);
+    console.log(
+      `  Acquired token ${i} -> remaining: ${limiter.availableTokens()}`,
+    );
   }
   console.log();
 
   // 2. Try non-blocking acquisition
   console.log("--- Non-Blocking tryAcquire ---");
   const smallLimiter = new RateLimiter(3);
-  console.log(`  Created limiter with 3 RPM, tokens: ${smallLimiter.availableTokens()}`);
+  console.log(
+    `  Created limiter with 3 RPM, tokens: ${smallLimiter.availableTokens()}`,
+  );
 
   for (let i = 1; i <= 5; i++) {
     const acquired = smallLimiter.tryAcquire();
@@ -40,7 +44,10 @@ async function main() {
 
   // Simulate an API call
   let callCount = 0;
-  async function mockApiCall(endpoint: string, payload: string): Promise<string> {
+  async function mockApiCall(
+    endpoint: string,
+    payload: string,
+  ): Promise<string> {
     callCount++;
     return `Response #${callCount} from ${endpoint}: processed "${payload}"`;
   }
@@ -87,7 +94,9 @@ async function main() {
     );
   }
 
-  console.log("\nDone! In a real application, RateLimitedClient wraps your API");
+  console.log(
+    "\nDone! In a real application, RateLimitedClient wraps your API",
+  );
   console.log("calls to respect provider rate limits automatically.");
 }
 

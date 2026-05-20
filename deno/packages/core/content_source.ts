@@ -1,6 +1,10 @@
 /** Trust level / origin of content injected into an agent's context.
  * Equivalent to Rust's `ContentSource` in brainwires-core. */
-export type ContentSource = "system_prompt" | "user_input" | "agent_reasoning" | "external_content";
+export type ContentSource =
+  | "system_prompt"
+  | "user_input"
+  | "agent_reasoning"
+  | "external_content";
 
 /** Trust level numeric values (lower = more trusted). */
 const TRUST_ORDER: Record<ContentSource, number> = {
@@ -16,6 +20,9 @@ export function requiresSanitization(source: ContentSource): boolean {
 }
 
 /** Returns true if `source` is allowed to override `other`. */
-export function canOverride(source: ContentSource, other: ContentSource): boolean {
+export function canOverride(
+  source: ContentSource,
+  other: ContentSource,
+): boolean {
   return TRUST_ORDER[source] < TRUST_ORDER[other];
 }

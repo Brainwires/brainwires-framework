@@ -57,7 +57,14 @@ export function tokensEvent(
   total_tokens: number,
   cost_usd: number,
 ): UsageEvent {
-  return { kind: "tokens", agent_id, model, total_tokens, cost_usd, timestamp: nowIso() };
+  return {
+    kind: "tokens",
+    agent_id,
+    model,
+    total_tokens,
+    cost_usd,
+    timestamp: nowIso(),
+  };
 }
 
 /** Create a tool_call event with zero cost (most built-ins). */
@@ -71,7 +78,13 @@ export function toolCallPaidEvent(
   tool_name: string,
   cost_usd: number,
 ): UsageEvent {
-  return { kind: "tool_call", agent_id, tool_name, cost_usd, timestamp: nowIso() };
+  return {
+    kind: "tool_call",
+    agent_id,
+    tool_name,
+    cost_usd,
+    timestamp: nowIso(),
+  };
 }
 
 export function sandboxSecondsEvent(
@@ -80,7 +93,14 @@ export function sandboxSecondsEvent(
   seconds: number,
   cost_usd: number,
 ): UsageEvent {
-  return { kind: "sandbox_seconds", agent_id, provider, seconds, cost_usd, timestamp: nowIso() };
+  return {
+    kind: "sandbox_seconds",
+    agent_id,
+    provider,
+    seconds,
+    cost_usd,
+    timestamp: nowIso(),
+  };
 }
 
 export function apiCallEvent(

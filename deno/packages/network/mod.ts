@@ -1,40 +1,19 @@
 /**
  * @module @brainwires/network
  *
- * Agent networking layer for the Brainwires Agent Framework.
- * Provides an MCP server framework, middleware pipeline, agent communication,
- * routing, discovery, and client connectivity.
+ * Agent-to-agent networking layer for the Brainwires Agent Framework.
+ * Provides identity, routing, discovery, peer table, agent management, remote
+ * bridge, and client connectivity.
  *
- * Equivalent to Rust's `brainwires-network` crate.
+ * In v0.11.0 the MCP server framework (McpServer, McpToolRegistry, middleware,
+ * transport) moved to `@brainwires/mcp-server` to mirror Rust's standalone
+ * `brainwires-mcp-server` crate. The transitional re-export below keeps the
+ * old import paths working; remove it in 0.12.0.
  */
 
-// =============================================================================
-// MCP Server Framework
-// =============================================================================
-
-export { McpServer, RequestContext, type ClientInfo } from "./server.ts";
-export type { McpHandler } from "./handler.ts";
-export { McpToolRegistry, type McpToolDef, type ToolHandler } from "./registry.ts";
-
-// Error types
-export { AgentNetworkError, ErrorCode } from "./error.ts";
-
-// Transport
-export type { ServerTransport } from "./transport/mod.ts";
-export { StdioServerTransport } from "./transport/mod.ts";
-
-// Middleware
-export {
-  MiddlewareChain,
-  type Middleware,
-  type MiddlewareResult,
-  middlewareContinue,
-  middlewareReject,
-} from "./middleware/mod.ts";
-export { AuthMiddleware } from "./middleware/auth.ts";
-export { LoggingMiddleware } from "./middleware/logging.ts";
-export { RateLimitMiddleware } from "./middleware/rate_limit.ts";
-export { ToolFilterMiddleware, type FilterMode } from "./middleware/tool_filter.ts";
+// MCP server framework (moved to @brainwires/mcp-server in v0.11.0).
+// Includes AgentNetworkError + ErrorCode + transport + middleware.
+export * from "@brainwires/mcp-server";
 
 // =============================================================================
 // Identity Layer
@@ -43,11 +22,11 @@ export { ToolFilterMiddleware, type FilterMode } from "./middleware/tool_filter.
 export {
   type AgentCard,
   type AgentIdentity,
-  type ProtocolId,
   createAgentIdentity,
   createAgentIdentityWithId,
   defaultAgentCard,
   hasCapability,
+  type ProtocolId,
   supportsProtocol,
 } from "./identity.ts";
 
@@ -56,18 +35,18 @@ export {
 // =============================================================================
 
 export {
+  binaryPayload,
+  broadcastEnvelope,
+  directEnvelope,
+  jsonPayload,
   type MessageEnvelope,
   type MessageTarget,
   type Payload,
-  directEnvelope,
-  broadcastEnvelope,
-  topicEnvelope,
   replyEnvelope,
-  withTtl,
-  withCorrelation,
   textPayload,
-  jsonPayload,
-  binaryPayload,
+  topicEnvelope,
+  withCorrelation,
+  withTtl,
 } from "./envelope.ts";
 
 // =============================================================================
@@ -75,17 +54,17 @@ export {
 // =============================================================================
 
 export {
-  type Router,
-  type RoutingStrategy,
-  DirectRouter,
   BroadcastRouter,
   ContentRouter,
+  DirectRouter,
+  type Router,
+  type RoutingStrategy,
 } from "./routing.ts";
 
 export {
+  displayTransportAddress,
   PeerTable,
   type TransportAddress,
-  displayTransportAddress,
 } from "./peer_table.ts";
 
 // =============================================================================
@@ -103,10 +82,10 @@ export {
 // =============================================================================
 
 export {
-  type AgentManager,
-  type SpawnConfig,
   type AgentInfo,
+  type AgentManager,
   type AgentResult,
+  type SpawnConfig,
 } from "./agent_manager.ts";
 
 export { AgentToolRegistry } from "./agent_tools.ts";
@@ -116,9 +95,9 @@ export { AgentToolRegistry } from "./agent_tools.ts";
 // =============================================================================
 
 export {
+  type AgentConfig,
   AgentNetworkClient,
   AgentNetworkClientError,
-  type AgentConfig,
 } from "./client.ts";
 
 // =============================================================================
@@ -126,61 +105,61 @@ export {
 // =============================================================================
 
 export {
-  // Protocol
-  PROTOCOL_VERSION,
-  MIN_PROTOCOL_VERSION,
-  SUPPORTED_VERSIONS,
-  NegotiatedProtocol,
   allSupportedCapabilities,
-  defaultProtocolHello,
-  defaultProtocolAccept,
-  PRIORITY_ORDER,
-  defaultRetryPolicy,
+  assessConnectionQuality,
   // Command queue
   CommandQueue,
-  QueueEntry,
-  QueueError,
+  defaultBridgeConfig,
+  defaultProtocolAccept,
+  defaultProtocolHello,
+  defaultRetryPolicy,
+  displayBridgeStatus,
   // Heartbeat & telemetry
   HeartbeatCollector,
+  MIN_PROTOCOL_VERSION,
+  NegotiatedProtocol,
+  PRIORITY_ORDER,
+  // Protocol
+  PROTOCOL_VERSION,
   ProtocolMetrics,
-  assessConnectionQuality,
+  QueueEntry,
+  QueueError,
   // Bridge
   RemoteBridge,
-  defaultBridgeConfig,
   // Manager
   RemoteBridgeManager,
-  displayBridgeStatus,
+  SUPPORTED_VERSIONS,
 } from "./remote/mod.ts";
 
 export type {
-  // Protocol types
-  ProtocolCapability,
-  CommandPriority,
-  RetryPolicy,
-  PrioritizedCommand,
-  ProtocolHello,
-  ProtocolAccept,
-  RemoteMessage,
-  BackendCommand,
-  CompressionAlgorithm,
-  RemoteAgentInfo,
-  AgentEventType,
-  StreamChunkType,
-  QueueStats,
-  // Heartbeat types
-  HeartbeatData,
   AgentEvent,
+  AgentEventType,
   AgentInfoProvider,
-  MetricsSnapshot,
-  ConnectionQuality,
+  BackendCommand,
   // Bridge types
   BridgeConfig,
+  BridgeConfigProvider,
   BridgeState,
-  ConnectionMode,
   CommandHandler,
-  StateChangeHandler,
+  CommandPriority,
+  CompressionAlgorithm,
+  ConnectionMode,
+  ConnectionQuality,
+  // Heartbeat types
+  HeartbeatData,
+  MetricsSnapshot,
+  PrioritizedCommand,
+  ProtocolAccept,
+  // Protocol types
+  ProtocolCapability,
+  ProtocolHello,
+  QueueStats,
+  RemoteAgentInfo,
   // Manager types
   RemoteBridgeConfig,
-  BridgeConfigProvider,
   RemoteBridgeStatus,
+  RemoteMessage,
+  RetryPolicy,
+  StateChangeHandler,
+  StreamChunkType,
 } from "./remote/mod.ts";

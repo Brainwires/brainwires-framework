@@ -7,7 +7,11 @@
  * @module
  */
 
-import type { ChunkMetadata, DatabaseStats, SearchResult } from "@brainwires/core";
+import type {
+  ChunkMetadata,
+  DatabaseStats,
+  SearchResult,
+} from "@brainwires/core";
 import type { VectorDatabase } from "../traits.ts";
 
 const BATCH_SIZE = 100;
@@ -263,8 +267,18 @@ export class PineconeDatabase implements VectorDatabase {
     pathPatterns?: string[],
   ): Promise<SearchResult[]> {
     const extra = (pathPatterns && pathPatterns.length > 0) ? 3 : 1;
-    const filter = buildMetadataFilter(project, rootPath, fileExtensions, languages);
-    const body = buildQueryBody(queryVector, limit * extra, this.namespace, filter);
+    const filter = buildMetadataFilter(
+      project,
+      rootPath,
+      fileExtensions,
+      languages,
+    );
+    const body = buildQueryBody(
+      queryVector,
+      limit * extra,
+      this.namespace,
+      filter,
+    );
 
     const data = await this.request("/query", "POST", body);
     const matches = (data.matches as Record<string, unknown>[]) ?? [];

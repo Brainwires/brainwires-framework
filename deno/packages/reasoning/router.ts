@@ -35,11 +35,15 @@ export function routeFromFallback(categories: ToolCategory[]): RouteResult {
   return { categories, confidence: 0.5, used_local_llm: false };
 }
 
-export function routeFromLocal(categories: ToolCategory[], confidence: number): RouteResult {
+export function routeFromLocal(
+  categories: ToolCategory[],
+  confidence: number,
+): RouteResult {
   return { categories, confidence, used_local_llm: true };
 }
 
-const SYSTEM_PROMPT = `You are a tool category classifier. Given a user query, output the relevant tool categories.
+const SYSTEM_PROMPT =
+  `You are a tool category classifier. Given a user query, output the relevant tool categories.
 
 Available categories:
 - FileOps: File operations (read, write, edit, create, delete, list files/directories)
@@ -106,13 +110,18 @@ export class LocalRouter {
   }
 
   async classify(query: string): Promise<RouteResult | null> {
-    const user = `Classify this query into tool categories. Output ONLY the category names, comma-separated.
+    const user =
+      `Classify this query into tool categories. Output ONLY the category names, comma-separated.
 
 Query: ${query}`;
     const options = ChatOptions.deterministic(50);
     options.setSystem(SYSTEM_PROMPT);
     try {
-      const resp = await this.provider.chat([Message.user(user)], undefined, options);
+      const resp = await this.provider.chat(
+        [Message.user(user)],
+        undefined,
+        options,
+      );
       const text = resp.message.textOrSummary();
       const cats = parseCategories(text);
       if (cats.length === 0) return null;

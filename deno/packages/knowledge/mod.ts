@@ -1,78 +1,15 @@
 /**
  * @module @brainwires/knowledge
  *
- * Unified intelligence layer for the Brainwires Agent Framework.
+ * Knowledge layer (BrainClient + entity/relationship/thought graph + BKS/PKS)
+ * for the Brainwires Agent Framework.
  *
- * ## Prompting
- * - 15 prompting techniques from the adaptive selection paper
- * - Technique metadata with SEAL quality integration
- *
- * ## Knowledge
- * - BrainClient interface for persistent thought storage
- * - Entity, Relationship, and Thought types
- *
- * ## RAG
- * - RagClient interface for semantic code search
- * - Index, Query, and AdvancedSearch request/response types
- *
- * ## Code Analysis
- * - Regex-based symbol extraction (functions, classes, types, variables)
- * - Call graph generation and reference tracking
- * - Repository map formatting
- * - Supports TypeScript, JavaScript, Python, and Rust
+ * In v0.11.0 prompting moved to `@brainwires/prompting`, and RAG +
+ * code_analysis moved to `@brainwires/rag` (to mirror Rust's
+ * `brainwires-prompting` + `brainwires-rag` extraction). Both are re-exported
+ * here through the 0.11.x window as a back-compat shim; remove these imports
+ * by 0.12.0.
  */
-
-// ── Prompting ─────────────────────────────────────────────────────────────
-export {
-  ALL_CATEGORIES,
-  ALL_COMPLEXITY_LEVELS,
-  ALL_TASK_CHARACTERISTICS,
-  ALL_TECHNIQUES,
-  bestTechnique,
-  computeCentroid,
-  cosineSimilarity,
-  countByComplexity,
-  createTaskCluster,
-  createTechniqueStats,
-  createTemperaturePerformance,
-  euclideanDistance,
-  getAllTechniqueMetadata,
-  getTechniqueMetadata,
-  getTechniquesByCategory,
-  getTechniquesByComplexity,
-  getTechniquesBySealQuality,
-  inferRoleAndDomain,
-  inferTaskType,
-  parseTechniqueId,
-  promotableTechniques,
-  PromptGenerator,
-  PromptingLearningCoordinator,
-  statsReliability,
-  statsTotalUses,
-  TaskClusterManager,
-  TECHNIQUE_METADATA,
-  techniqueToId,
-  TemperatureOptimizer,
-  temperatureScore,
-  updateClusterSealMetrics,
-  updateTechniqueStats,
-  updateTemperaturePerformance,
-} from "./prompting/mod.ts";
-
-export type {
-  ClusterSummary,
-  ComplexityLevel,
-  GeneratedPrompt,
-  PromptingTechnique,
-  TaskCharacteristic,
-  TaskCluster,
-  TaskClusterInit,
-  TechniqueCategory,
-  TechniqueEffectivenessRecord,
-  TechniqueMetadata,
-  TechniqueStats,
-  TemperaturePerformance,
-} from "./prompting/mod.ts";
 
 // ── Knowledge ─────────────────────────────────────────────────────────────
 export {
@@ -114,57 +51,6 @@ export type {
   ThoughtSummary,
 } from "./knowledge/mod.ts";
 
-// ── RAG ───────────────────────────────────────────────────────────────────
-export {
-  DEFAULT_LIMIT,
-  DEFAULT_MAX_FILE_SIZE,
-  DEFAULT_MIN_SCORE,
-} from "./rag/mod.ts";
-
-export type {
-  AdvancedSearchRequest,
-  ChunkMetadata,
-  ClearResponse,
-  GitSearchResult,
-  IndexingMode,
-  IndexRequest,
-  IndexResponse,
-  LanguageStats,
-  QueryRequest,
-  QueryResponse,
-  RagClient,
-  SearchGitHistoryRequest,
-  SearchGitHistoryResponse,
-  SearchResult,
-  StatisticsResponse,
-} from "./rag/mod.ts";
-
-// ── Code Analysis ────────────────────────────────────────────────────────────
-export {
-  buildCallGraph,
-  CallGraph,
-  createSymbolId,
-  definitionToStorageId,
-  determineReferenceKind,
-  findReferences,
-  referenceToStorageId,
-  RepoMap,
-  symbolIdToStorageId,
-  symbolKindDisplayName,
-  visibilityFromKeywords,
-} from "./code_analysis/mod.ts";
-
-export type {
-  CallEdge,
-  CallGraphNode,
-  ExtractOptions,
-  LanguageStats as CodeAnalysisLanguageStats,
-  Reference as CodeAnalysisReference,
-  ReferenceKind,
-  SymbolId,
-  SymbolKind,
-  Visibility,
-} from "./code_analysis/mod.ts";
-
-// Re-export Definition with a qualified name to avoid ambiguity
-export type { Definition as CodeAnalysisDefinition } from "./code_analysis/mod.ts";
+// ── Transitional re-exports (moved to dedicated packages in v0.11.0) ──────
+export * from "@brainwires/prompting";
+export * from "@brainwires/rag";

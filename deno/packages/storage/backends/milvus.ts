@@ -7,7 +7,11 @@
  * @module
  */
 
-import type { ChunkMetadata, DatabaseStats, SearchResult } from "@brainwires/core";
+import type {
+  ChunkMetadata,
+  DatabaseStats,
+  SearchResult,
+} from "@brainwires/core";
 import type { VectorDatabase } from "../traits.ts";
 
 const DEFAULT_URL = "http://localhost:19530";
@@ -195,7 +199,9 @@ export class MilvusDatabase implements VectorDatabase {
     const code = parsed.code as number | undefined;
     if (code !== undefined && code !== 0 && code !== 200) {
       const message = (parsed.message as string) ?? "unknown error";
-      throw new Error(`Milvus API error on ${path}: code=${code}, message=${message}`);
+      throw new Error(
+        `Milvus API error on ${path}: code=${code}, message=${message}`,
+      );
     }
 
     return parsed;

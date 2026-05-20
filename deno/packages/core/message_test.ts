@@ -81,7 +81,10 @@ Deno.test("Message.textOrSummary with blocks", () => {
     role: "assistant",
     content: [
       { type: "text", text: "Let me check." },
-      { type: "image", source: { type: "base64", media_type: "image/png", data: "..." } },
+      {
+        type: "image",
+        source: { type: "base64", media_type: "image/png", data: "..." },
+      },
     ],
   });
   assertEquals(msg.textOrSummary(), "Let me check.\n[Image]");

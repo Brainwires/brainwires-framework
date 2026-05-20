@@ -13,7 +13,7 @@ import {
   withAgent,
   withOutcome,
   withTarget,
-} from "@brainwires/permissions";
+} from "@brainwires/permission";
 
 async function main() {
   console.log("=== Trust & Audit Example ===\n");
@@ -48,7 +48,9 @@ async function main() {
   const level = trust.getTrustLevel("agent-A");
   const factor = trust.get("agent-A")!;
   console.log(
-    `  After 10 successes: level=${level}, score=${factor.score.toFixed(2)}, ops=${factor.total_ops}`,
+    `  After 10 successes: level=${level}, score=${
+      factor.score.toFixed(2)
+    }, ops=${factor.total_ops}`,
   );
 
   // 3. Record a violation and observe trust decrease
@@ -68,7 +70,9 @@ async function main() {
   const factorAfter = trust.get("agent-A")!;
   console.log(`  Score before violation: ${scoreBefore.toFixed(2)}`);
   console.log(
-    `  Score after violation:  ${factorAfter.score.toFixed(2)}  (level: ${factorAfter.level})`,
+    `  Score after violation:  ${
+      factorAfter.score.toFixed(2)
+    }  (level: ${factorAfter.level})`,
   );
 
   // 4. Query audit log

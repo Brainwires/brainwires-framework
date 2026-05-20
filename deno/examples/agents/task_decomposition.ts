@@ -10,10 +10,10 @@ import {
   defaultDecomposeContext,
   estimateCallCost,
   estimateMdap,
-  MODEL_COSTS,
   type MdapSubtask,
+  MODEL_COSTS,
   type ModelCosts,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 
 async function main() {
   console.log("=== Task Decomposition & MDAP Cost Estimation ===\n");
@@ -75,12 +75,13 @@ async function main() {
   console.log();
 
   for (const subtask of result.subtasks) {
-    const deps =
-      subtask.dependsOn.length === 0
-        ? "none"
-        : subtask.dependsOn.join(", ");
+    const deps = subtask.dependsOn.length === 0
+      ? "none"
+      : subtask.dependsOn.join(", ");
     console.log(
-      `  [${subtask.id}] ${subtask.description} (complexity: ${subtask.complexityEstimate.toFixed(2)}, depends on: ${deps})`,
+      `  [${subtask.id}] ${subtask.description} (complexity: ${
+        subtask.complexityEstimate.toFixed(2)
+      }, depends on: ${deps})`,
     );
   }
 
@@ -103,18 +104,31 @@ async function main() {
     ["Simple (5 steps, p=0.95)", 5, 0.95, 0.90, 0.003, 0.95],
     ["Moderate (10 steps, p=0.85)", 10, 0.85, 0.85, 0.003, 0.95],
     ["Complex (20 steps, p=0.75)", 20, 0.75, 0.80, 0.003, 0.95],
-    ["High-reliability (10 steps, p=0.90, t=0.99)", 10, 0.90, 0.90, 0.003, 0.99],
+    [
+      "High-reliability (10 steps, p=0.90, t=0.99)",
+      10,
+      0.90,
+      0.90,
+      0.003,
+      0.99,
+    ],
   ];
 
   console.log(
-    `  ${"Scenario".padEnd(45)} ${"k".padStart(5)} ${"Calls".padStart(8)} ${"Cost ($)".padStart(10)} ${"P(success)".padStart(8)}`,
+    `  ${"Scenario".padEnd(45)} ${"k".padStart(5)} ${"Calls".padStart(8)} ${
+      "Cost ($)".padStart(10)
+    } ${"P(success)".padStart(8)}`,
   );
   console.log(`  ${"-".repeat(80)}`);
 
   for (const [name, steps, p, v, cost, target] of scenarios) {
     const estimate = estimateMdap(steps, p, v, cost, target);
     console.log(
-      `  ${name.padEnd(45)} ${String(estimate.recommendedK).padStart(5)} ${String(estimate.expectedApiCalls).padStart(8)} ${estimate.expectedCostUsd.toFixed(4).padStart(10)} ${(estimate.successProbability * 100).toFixed(1).padStart(7)}%`,
+      `  ${name.padEnd(45)} ${String(estimate.recommendedK).padStart(5)} ${
+        String(estimate.expectedApiCalls).padStart(8)
+      } ${estimate.expectedCostUsd.toFixed(4).padStart(10)} ${
+        (estimate.successProbability * 100).toFixed(1).padStart(7)
+      }%`,
     );
   }
 
@@ -132,14 +146,18 @@ async function main() {
   const outputTokens = 200;
 
   console.log(
-    `  ${"Model".padEnd(16)} ${"Input/1K".padStart(12)} ${"Output/1K".padStart(12)} ${"Per Call Cost".padStart(14)}`,
+    `  ${"Model".padEnd(16)} ${"Input/1K".padStart(12)} ${
+      "Output/1K".padStart(12)
+    } ${"Per Call Cost".padStart(14)}`,
   );
   console.log(`  ${"-".repeat(58)}`);
 
   for (const [name, costs] of models) {
     const callCost = estimateCallCost(costs, inputTokens, outputTokens);
     console.log(
-      `  ${name.padEnd(16)} ${costs.inputPer1k.toFixed(5).padStart(11)}$ ${costs.outputPer1k.toFixed(5).padStart(11)}$ ${callCost.toFixed(6).padStart(13)}$`,
+      `  ${name.padEnd(16)} ${costs.inputPer1k.toFixed(5).padStart(11)}$ ${
+        costs.outputPer1k.toFixed(5).padStart(11)
+      }$ ${callCost.toFixed(6).padStart(13)}$`,
     );
   }
 
@@ -154,15 +172,25 @@ async function main() {
   const projTarget = 0.95;
 
   console.log(
-    `  ${"Model".padEnd(16)} ${"Per Call ($)".padStart(14)} ${"Est. Calls".padStart(10)} ${"Total ($)".padStart(12)}`,
+    `  ${"Model".padEnd(16)} ${"Per Call ($)".padStart(14)} ${
+      "Est. Calls".padStart(10)
+    } ${"Total ($)".padStart(12)}`,
   );
   console.log(`  ${"-".repeat(56)}`);
 
   for (const [name, costs] of models) {
     const callCost = estimateCallCost(costs, inputTokens, outputTokens);
-    const estimate = estimateMdap(projSteps, projP, projV, callCost, projTarget);
+    const estimate = estimateMdap(
+      projSteps,
+      projP,
+      projV,
+      callCost,
+      projTarget,
+    );
     console.log(
-      `  ${name.padEnd(16)} ${callCost.toFixed(6).padStart(14)} ${String(estimate.expectedApiCalls).padStart(10)} ${estimate.expectedCostUsd.toFixed(4).padStart(12)}`,
+      `  ${name.padEnd(16)} ${callCost.toFixed(6).padStart(14)} ${
+        String(estimate.expectedApiCalls).padStart(10)
+      } ${estimate.expectedCostUsd.toFixed(4).padStart(12)}`,
     );
   }
 

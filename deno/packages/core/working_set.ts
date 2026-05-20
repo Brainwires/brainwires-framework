@@ -140,14 +140,20 @@ export class WorkingSet {
   /** Pin a file to prevent eviction. */
   pin(path: string): boolean {
     const entry = this.entries.get(path);
-    if (entry) { entry.pinned = true; return true; }
+    if (entry) {
+      entry.pinned = true;
+      return true;
+    }
     return false;
   }
 
   /** Unpin a file. */
   unpin(path: string): boolean {
     const entry = this.entries.get(path);
-    if (entry) { entry.pinned = false; return true; }
+    if (entry) {
+      entry.pinned = false;
+      return true;
+    }
     return false;
   }
 
@@ -206,7 +212,10 @@ export class WorkingSet {
   }
 
   private evictStale(): void {
-    const threshold = Math.max(0, this._currentTurn - this.config.stale_after_turns);
+    const threshold = Math.max(
+      0,
+      this._currentTurn - this.config.stale_after_turns,
+    );
     const before = this.entries.size;
     for (const [key, entry] of this.entries) {
       if (!entry.pinned && entry.last_access_turn <= threshold) {

@@ -7,7 +7,7 @@
  * Equivalent to Rust's `brainwires-network::remote::manager`.
  */
 
-import { RemoteBridge, type BridgeConfig } from "./bridge.ts";
+import { type BridgeConfig, RemoteBridge } from "./bridge.ts";
 import type { AgentInfoProvider } from "./heartbeat.ts";
 
 // ============================================================================

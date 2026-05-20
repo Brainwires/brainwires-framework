@@ -7,10 +7,10 @@
 import { assertEquals } from "@std/assert";
 import {
   buildMetadataFilter,
-  buildUpsertBody,
   buildQueryBody,
-  parseMatch,
+  buildUpsertBody,
   extractFilePathsFromIds,
+  parseMatch,
 } from "./pinecone.ts";
 import type { ChunkMetadata } from "@brainwires/core";
 
@@ -34,7 +34,9 @@ Deno.test("buildMetadataFilter - root_path only", () => {
 });
 
 Deno.test("buildMetadataFilter - multiple conditions uses $and", () => {
-  const filter = buildMetadataFilter("proj", "/root", ["ts", "rs"], ["TypeScript"]);
+  const filter = buildMetadataFilter("proj", "/root", ["ts", "rs"], [
+    "TypeScript",
+  ]);
   assertEquals(filter, {
     $and: [
       { project: { $eq: "proj" } },
@@ -66,7 +68,13 @@ Deno.test("buildUpsertBody - single vector", () => {
     file_hash: "abc123",
     indexed_at: 1000,
   };
-  const body = buildUpsertBody([[1, 2, 3]], [meta], ["fn main() {}"], "/project", "ns1");
+  const body = buildUpsertBody(
+    [[1, 2, 3]],
+    [meta],
+    ["fn main() {}"],
+    "/project",
+    "ns1",
+  );
   assertEquals(body.namespace, "ns1");
   assertEquals(body.vectors.length, 1);
   const vec = body.vectors[0] as Record<string, unknown>;
@@ -150,7 +158,12 @@ Deno.test("parseMatch - score below minScore returns null", () => {
   const match = {
     id: "x",
     score: 0.3,
-    metadata: { file_path: "/a.rs", content: "hello", start_line: 0, end_line: 1 },
+    metadata: {
+      file_path: "/a.rs",
+      content: "hello",
+      start_line: 0,
+      end_line: 1,
+    },
   };
   assertEquals(parseMatch(match, 0.5), null);
 });

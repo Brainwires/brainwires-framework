@@ -23,7 +23,12 @@ Deno.test("InMemory roundtrip", async () => {
 
 Deno.test("InMemory mark step and skip", async () => {
   const store = new InMemoryWorkflowStateStore();
-  const effect = newSideEffectRecord("use-1", "write_file", "src/main.ts", true);
+  const effect = newSideEffectRecord(
+    "use-1",
+    "write_file",
+    "src/main.ts",
+    true,
+  );
   await store.markStepComplete("t2", "use-1", effect);
 
   const cp = await store.loadCheckpoint("t2");

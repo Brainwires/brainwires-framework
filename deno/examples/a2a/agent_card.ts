@@ -54,8 +54,7 @@ async function main(): Promise<void> {
       {
         id: "suggest-fix",
         name: "Suggest Fix",
-        description:
-          "Generates code fix suggestions for identified issues.",
+        description: "Generates code fix suggestions for identified issues.",
         tags: ["code-generation", "refactoring"],
         inputModes: ["text/plain"],
         outputModes: ["text/plain", "application/json"],
@@ -134,19 +133,29 @@ async function main(): Promise<void> {
     `${pad("name", 20)} ${pad(fullCard.name, 25)} ${pad(minimalCard.name, 25)}`,
   );
   console.log(
-    `${pad("version", 20)} ${pad(fullCard.version, 25)} ${pad(minimalCard.version, 25)}`,
+    `${pad("version", 20)} ${pad(fullCard.version, 25)} ${
+      pad(minimalCard.version, 25)
+    }`,
   );
   console.log(
-    `${pad("skills", 20)} ${pad(String(fullCard.skills.length), 25)} ${pad(String(minimalCard.skills.length), 25)}`,
+    `${pad("skills", 20)} ${pad(String(fullCard.skills.length), 25)} ${
+      pad(String(minimalCard.skills.length), 25)
+    }`,
   );
   console.log(
-    `${pad("streaming", 20)} ${pad(String(fullCard.capabilities.streaming), 25)} ${pad(String(minimalCard.capabilities.streaming), 25)}`,
+    `${pad("streaming", 20)} ${
+      pad(String(fullCard.capabilities.streaming), 25)
+    } ${pad(String(minimalCard.capabilities.streaming), 25)}`,
   );
   console.log(
-    `${pad("provider", 20)} ${pad(fullCard.provider?.organization ?? "None", 25)} ${pad(minimalCard.provider?.organization ?? "None", 25)}`,
+    `${pad("provider", 20)} ${
+      pad(fullCard.provider?.organization ?? "None", 25)
+    } ${pad(minimalCard.provider?.organization ?? "None", 25)}`,
   );
   console.log(
-    `${pad("securitySchemes", 20)} ${pad(String(fullCard.securitySchemes !== undefined), 25)} ${pad(String(minimalCard.securitySchemes !== undefined), 25)}`,
+    `${pad("securitySchemes", 20)} ${
+      pad(String(fullCard.securitySchemes !== undefined), 25)
+    } ${pad(String(minimalCard.securitySchemes !== undefined), 25)}`,
   );
 
   console.log("\nDone.");

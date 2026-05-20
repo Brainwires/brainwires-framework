@@ -21,7 +21,8 @@ import { recordGet } from "./types.ts";
  * where persistence is not needed.
  */
 export class InMemoryStorageBackend implements StorageBackend {
-  private tables: Map<string, { schema: FieldDef[]; records: Record[] }> = new Map();
+  private tables: Map<string, { schema: FieldDef[]; records: Record[] }> =
+    new Map();
 
   async ensureTable(tableName: string, schema: FieldDef[]): Promise<void> {
     if (!this.tables.has(tableName)) {

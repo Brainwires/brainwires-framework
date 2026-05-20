@@ -56,7 +56,11 @@ Deno.test("load returns a defensive copy", async () => {
   first.push(Message.user("mutated"));
   const second = await store.load(id);
   assert(second);
-  assertEquals(second.length, 1, "mutating the returned array must not affect store");
+  assertEquals(
+    second.length,
+    1,
+    "mutating the returned array must not affect store",
+  );
 });
 
 Deno.test("listPaginated slices results", async () => {

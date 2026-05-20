@@ -14,12 +14,7 @@
  */
 
 // Core types
-export type {
-  Artifact,
-  Message,
-  Part,
-  Role,
-} from "./types.ts";
+export type { Artifact, Message, Part, Role } from "./types.ts";
 
 export { createAgentMessage, createUserMessage } from "./types.ts";
 

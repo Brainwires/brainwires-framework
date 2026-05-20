@@ -13,7 +13,7 @@ import {
   marketBidScore,
   type ResourceBid,
   type UrgencyContext,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 
 async function main() {
   console.log("=== Market-Based Resource Allocation ===\n");
@@ -92,7 +92,9 @@ async function main() {
 
   for (const bid of bids) {
     console.log(
-      `  ${bid.agentId}: priority=${bid.basePriority}, urgency=${bid.urgencyMultiplier}x, effective=${effectivePriority(bid).toFixed(1)}, score=${marketBidScore(bid).toFixed(3)}, maxBid=${bid.maxBid}`,
+      `  ${bid.agentId}: priority=${bid.basePriority}, urgency=${bid.urgencyMultiplier}x, effective=${
+        effectivePriority(bid).toFixed(1)
+      }, score=${marketBidScore(bid).toFixed(3)}, maxBid=${bid.maxBid}`,
     );
     market.submitBid(bid);
   }
@@ -138,7 +140,9 @@ async function main() {
 
   const configResult = market.allocate("config.json");
   if (isAllocated(configResult)) {
-    console.log(`  Winner: ${configResult.agentId}, price: ${configResult.price}`);
+    console.log(
+      `  Winner: ${configResult.agentId}, price: ${configResult.price}`,
+    );
   }
 
   // 8. Release and re-allocate
@@ -162,7 +166,9 @@ async function main() {
   console.log("\n--- 8. Remaining Budgets ---");
   for (const agentId of ["agent-alpha", "agent-beta", "agent-gamma"]) {
     const budget = market.getBudget(agentId)!;
-    console.log(`  ${agentId}: available=${budget.available}/${budget.totalBudget}`);
+    console.log(
+      `  ${agentId}: available=${budget.available}/${budget.totalBudget}`,
+    );
   }
 
   console.log("\nMarket coordination demo complete.");

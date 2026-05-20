@@ -4,16 +4,16 @@
 // Run: deno run deno/examples/agents/voting_consensus.ts
 
 import {
-  relaxedRedFlagConfig,
-  StandardRedFlagValidator,
-  strictRedFlagConfig,
-  type OutputFormat,
   type MdapRedFlagResult,
+  type OutputFormat,
+  relaxedRedFlagConfig,
   type ResponseMetadata,
   type SampledResponse,
+  StandardRedFlagValidator,
+  strictRedFlagConfig,
   type VoteResult,
   type VotingMethod,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 
 async function main() {
   console.log("=== MAKER Voting Consensus Building Blocks ===\n");
@@ -75,7 +75,11 @@ async function main() {
   for (let i = 0; i < responses.length; i++) {
     const resp = responses[i];
     console.log(
-      `  Response ${i + 1}: value="${resp.value}", tokens=${resp.metadata.tokenCount}, confidence=${resp.confidence.toFixed(2)}, model=${resp.metadata.model ?? "unknown"}`,
+      `  Response ${
+        i + 1
+      }: value="${resp.value}", tokens=${resp.metadata.tokenCount}, confidence=${
+        resp.confidence.toFixed(2)
+      }, model=${resp.metadata.model ?? "unknown"}`,
     );
   }
 
@@ -118,7 +122,9 @@ async function main() {
     );
     const status = result.valid
       ? "VALID"
-      : `FLAGGED: ${result.reason.kind} (severity: ${result.severity.toFixed(2)})`;
+      : `FLAGGED: ${result.reason.kind} (severity: ${
+        result.severity.toFixed(2)
+      })`;
     console.log(`  Response ${i + 1}: ${status}`);
   }
 
@@ -159,16 +165,28 @@ async function main() {
   };
 
   console.log(
-    `  JSON validator on '${jsonResponse}': ${jsonValidator.validate(jsonResponse, jsonMeta).valid ? "VALID" : "FLAGGED"}`,
+    `  JSON validator on '${jsonResponse}': ${
+      jsonValidator.validate(jsonResponse, jsonMeta).valid ? "VALID" : "FLAGGED"
+    }`,
   );
   console.log(
-    `  JSON validator on '${plainResponse}': ${jsonValidator.validate(plainResponse, jsonMeta).valid ? "VALID" : "FLAGGED"}`,
+    `  JSON validator on '${plainResponse}': ${
+      jsonValidator.validate(plainResponse, jsonMeta).valid
+        ? "VALID"
+        : "FLAGGED"
+    }`,
   );
   console.log(
-    `  OneOf validator on '${plainResponse}': ${oneOfValidator.validate(plainResponse, jsonMeta).valid ? "VALID" : "FLAGGED"}`,
+    `  OneOf validator on '${plainResponse}': ${
+      oneOfValidator.validate(plainResponse, jsonMeta).valid
+        ? "VALID"
+        : "FLAGGED"
+    }`,
   );
   console.log(
-    `  OneOf validator on 'Tokyo': ${oneOfValidator.validate("Tokyo", jsonMeta).valid ? "VALID" : "FLAGGED"}`,
+    `  OneOf validator on 'Tokyo': ${
+      oneOfValidator.validate("Tokyo", jsonMeta).valid ? "VALID" : "FLAGGED"
+    }`,
   );
 
   // 6. Show VoteResult structure
@@ -201,11 +219,15 @@ async function main() {
   console.log(`  Red-flagged: ${voteResult.redFlaggedCount}`);
   console.log(`  Confidence: ${(voteResult.confidence * 100).toFixed(0)}%`);
   console.log(
-    `  Weighted confidence: ${((voteResult.weightedConfidence ?? 0) * 100).toFixed(0)}%`,
+    `  Weighted confidence: ${
+      ((voteResult.weightedConfidence ?? 0) * 100).toFixed(0)
+    }%`,
   );
   console.log(`  Early stopped: ${voteResult.earlyStopped}`);
   console.log("  Vote distribution:");
-  for (const [candidate, votes] of Object.entries(voteResult.voteDistribution)) {
+  for (
+    const [candidate, votes] of Object.entries(voteResult.voteDistribution)
+  ) {
     console.log(`    ${candidate}: ${votes} votes`);
   }
   console.log("  Red-flag reasons:");

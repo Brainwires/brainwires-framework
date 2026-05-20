@@ -7,12 +7,12 @@ import { InMemoryStorageBackend } from "./memory_backend.ts";
 import {
   type FieldDef,
   FieldTypes,
+  fieldValueAsStr,
   FieldValues,
   Filters,
-  recordGet,
-  fieldValueAsStr,
-  requiredField,
   optionalField,
+  recordGet,
+  requiredField,
 } from "./types.ts";
 
 function testSchema(): FieldDef[] {
@@ -111,7 +111,10 @@ Deno.test("InMemoryStorageBackend - count", async () => {
   ]);
 
   assertEquals(await backend.count("items"), 2);
-  assertEquals(await backend.count("items", Filters.Eq("id", FieldValues.Utf8("1"))), 1);
+  assertEquals(
+    await backend.count("items", Filters.Eq("id", FieldValues.Utf8("1"))),
+    1,
+  );
 });
 
 Deno.test("InMemoryStorageBackend - vector search returns sorted by similarity", async () => {

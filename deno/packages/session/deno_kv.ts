@@ -80,7 +80,9 @@ export class DenoKvSessionStore implements SessionStore {
 
   async list(): Promise<SessionRecord[]> {
     const out: SessionRecord[] = [];
-    for await (const entry of this.kv.list<KvRow>({ prefix: [...KEY_PREFIX] })) {
+    for await (
+      const entry of this.kv.list<KvRow>({ prefix: [...KEY_PREFIX] })
+    ) {
       const idStr = String(entry.key[entry.key.length - 1]);
       out.push({
         id: new SessionId(idStr),

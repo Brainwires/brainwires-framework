@@ -118,7 +118,10 @@ export function fieldValueAsVector(fv: FieldValue): number[] | undefined {
 export type Record = [string, FieldValue][];
 
 /** Look up a field in a Record by name. */
-export function recordGet(record: Record, name: string): FieldValue | undefined {
+export function recordGet(
+  record: Record,
+  name: string,
+): FieldValue | undefined {
   const entry = record.find(([n]) => n === name);
   return entry ? entry[1] : undefined;
 }
@@ -150,15 +153,43 @@ export type Filter =
 
 /** Convenience constructors for Filter. */
 export const Filters = {
-  Eq: (field: string, value: FieldValue): Filter => ({ kind: "Eq", field, value }),
-  Ne: (field: string, value: FieldValue): Filter => ({ kind: "Ne", field, value }),
-  Lt: (field: string, value: FieldValue): Filter => ({ kind: "Lt", field, value }),
-  Lte: (field: string, value: FieldValue): Filter => ({ kind: "Lte", field, value }),
-  Gt: (field: string, value: FieldValue): Filter => ({ kind: "Gt", field, value }),
-  Gte: (field: string, value: FieldValue): Filter => ({ kind: "Gte", field, value }),
+  Eq: (field: string, value: FieldValue): Filter => ({
+    kind: "Eq",
+    field,
+    value,
+  }),
+  Ne: (field: string, value: FieldValue): Filter => ({
+    kind: "Ne",
+    field,
+    value,
+  }),
+  Lt: (field: string, value: FieldValue): Filter => ({
+    kind: "Lt",
+    field,
+    value,
+  }),
+  Lte: (field: string, value: FieldValue): Filter => ({
+    kind: "Lte",
+    field,
+    value,
+  }),
+  Gt: (field: string, value: FieldValue): Filter => ({
+    kind: "Gt",
+    field,
+    value,
+  }),
+  Gte: (field: string, value: FieldValue): Filter => ({
+    kind: "Gte",
+    field,
+    value,
+  }),
   NotNull: (field: string): Filter => ({ kind: "NotNull", field }),
   IsNull: (field: string): Filter => ({ kind: "IsNull", field }),
-  In: (field: string, values: FieldValue[]): Filter => ({ kind: "In", field, values }),
+  In: (field: string, values: FieldValue[]): Filter => ({
+    kind: "In",
+    field,
+    values,
+  }),
   And: (filters: Filter[]): Filter => ({ kind: "And", filters }),
   Or: (filters: Filter[]): Filter => ({ kind: "Or", filters }),
   Raw: (expression: string): Filter => ({ kind: "Raw", expression }),

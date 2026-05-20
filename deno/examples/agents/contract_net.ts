@@ -5,14 +5,14 @@
 // Run: deno run deno/examples/agents/contract_net.ts
 
 import {
+  type BidEvaluationStrategy,
   bidScore,
   ContractNetManager,
   defaultTaskRequirements,
   isBiddingOpen,
-  type BidEvaluationStrategy,
   type TaskAnnouncement,
   type TaskBid,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 
 async function main() {
   console.log("=== Contract-Net Bidding Protocol ===\n");
@@ -36,7 +36,9 @@ async function main() {
 
   console.log(`Task announced: ${announcement.description}`);
   console.log(
-    `  Requirements: [${announcement.requirements.capabilities.join(", ")}], complexity=${announcement.requirements.complexity}`,
+    `  Requirements: [${
+      announcement.requirements.capabilities.join(", ")
+    }], complexity=${announcement.requirements.complexity}`,
   );
   console.log(`  Bidding open: ${isBiddingOpen(announcement)}\n`);
 
@@ -77,7 +79,11 @@ async function main() {
   console.log("--- Bid Scores (default weights) ---");
   for (const bid of bids) {
     console.log(
-      `  ${bid.agentId}: score=${bidScore(bid).toFixed(3)}  (capability=${bid.capabilityScore.toFixed(2)}, load=${bid.currentLoad.toFixed(2)}, duration=${bid.estimatedDurationMs / 1000}s)`,
+      `  ${bid.agentId}: score=${bidScore(bid).toFixed(3)}  (capability=${
+        bid.capabilityScore.toFixed(2)
+      }, load=${bid.currentLoad.toFixed(2)}, duration=${
+        bid.estimatedDurationMs / 1000
+      }s)`,
     );
   }
   console.log();

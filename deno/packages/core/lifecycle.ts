@@ -4,14 +4,53 @@
  * Equivalent to Rust's `LifecycleEvent` in brainwires-core. */
 export type LifecycleEvent =
   | { type: "agent_started"; agent_id: string; task_description: string }
-  | { type: "agent_completed"; agent_id: string; iterations: number; summary: string }
-  | { type: "agent_failed"; agent_id: string; error: string; iterations: number }
-  | { type: "tool_before_execute"; agent_id?: string; tool_name: string; args: any }
-  | { type: "tool_after_execute"; agent_id?: string; tool_name: string; success: boolean; duration_ms: number }
-  | { type: "provider_request"; agent_id?: string; provider: string; model: string }
-  | { type: "provider_response"; agent_id?: string; provider: string; model: string; input_tokens: number; output_tokens: number; duration_ms: number }
+  | {
+    type: "agent_completed";
+    agent_id: string;
+    iterations: number;
+    summary: string;
+  }
+  | {
+    type: "agent_failed";
+    agent_id: string;
+    error: string;
+    iterations: number;
+  }
+  | {
+    type: "tool_before_execute";
+    agent_id?: string;
+    tool_name: string;
+    args: any;
+  }
+  | {
+    type: "tool_after_execute";
+    agent_id?: string;
+    tool_name: string;
+    success: boolean;
+    duration_ms: number;
+  }
+  | {
+    type: "provider_request";
+    agent_id?: string;
+    provider: string;
+    model: string;
+  }
+  | {
+    type: "provider_response";
+    agent_id?: string;
+    provider: string;
+    model: string;
+    input_tokens: number;
+    output_tokens: number;
+    duration_ms: number;
+  }
   | { type: "validation_started"; agent_id: string; checks: string[] }
-  | { type: "validation_completed"; agent_id: string; passed: boolean; issues: string[] };
+  | {
+    type: "validation_completed";
+    agent_id: string;
+    passed: boolean;
+    issues: string[];
+  };
 
 /** Get the event type name. */
 export function eventType(event: LifecycleEvent): string {
@@ -25,7 +64,9 @@ export function eventAgentId(event: LifecycleEvent): string | undefined {
 
 /** Get the tool name from an event, if any. */
 export function eventToolName(event: LifecycleEvent): string | undefined {
-  if (event.type === "tool_before_execute" || event.type === "tool_after_execute") {
+  if (
+    event.type === "tool_before_execute" || event.type === "tool_after_execute"
+  ) {
     return event.tool_name;
   }
   return undefined;
@@ -48,12 +89,21 @@ export interface EventFilter {
 
 /** Create a default EventFilter that matches everything. */
 export function defaultEventFilter(): EventFilter {
-  return { agent_ids: new Set(), event_types: new Set(), tool_names: new Set() };
+  return {
+    agent_ids: new Set(),
+    event_types: new Set(),
+    tool_names: new Set(),
+  };
 }
 
 /** Check if a filter matches an event. */
-export function filterMatches(filter: EventFilter, event: LifecycleEvent): boolean {
-  if (filter.event_types.size > 0 && !filter.event_types.has(event.type)) return false;
+export function filterMatches(
+  filter: EventFilter,
+  event: LifecycleEvent,
+): boolean {
+  if (filter.event_types.size > 0 && !filter.event_types.has(event.type)) {
+    return false;
+  }
   if (filter.agent_ids.size > 0) {
     const agentId = eventAgentId(event);
     if (!agentId || !filter.agent_ids.has(agentId)) return false;

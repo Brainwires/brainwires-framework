@@ -5,15 +5,15 @@
 
 import {
   FieldTypes,
+  fieldValueAsI64,
+  fieldValueAsStr,
   FieldValues,
   Filters,
   InMemoryStorageBackend,
+  optionalField,
+  type Record,
   recordGet,
   requiredField,
-  optionalField,
-  fieldValueAsStr,
-  fieldValueAsI64,
-  type Record,
 } from "@brainwires/storage";
 
 // -- Lock helpers built on top of InMemoryStorageBackend ---------------------
@@ -68,7 +68,9 @@ class SimpleLockStore {
 
     const now = Math.floor(Date.now() / 1000);
     const lockId = `lock-${this.nextId++}`;
-    const expiresAt = ttlMs !== undefined ? now + Math.floor(ttlMs / 1000) : null;
+    const expiresAt = ttlMs !== undefined
+      ? now + Math.floor(ttlMs / 1000)
+      : null;
 
     await this.backend.insert(LOCKS_TABLE, [
       [
@@ -83,7 +85,10 @@ class SimpleLockStore {
     return true;
   }
 
-  async isLocked(lockType: string, resourcePath: string): Promise<LockInfo | undefined> {
+  async isLocked(
+    lockType: string,
+    resourcePath: string,
+  ): Promise<LockInfo | undefined> {
     const filter = Filters.And([
       Filters.Eq("lock_type", FieldValues.Utf8(lockType)),
       Filters.Eq("resource_path", FieldValues.Utf8(resourcePath)),
@@ -93,7 +98,11 @@ class SimpleLockStore {
     return parseLockRecord(records[0]);
   }
 
-  async release(lockType: string, resourcePath: string, agentId: string): Promise<boolean> {
+  async release(
+    lockType: string,
+    resourcePath: string,
+    agentId: string,
+  ): Promise<boolean> {
     const filter = Filters.And([
       Filters.Eq("lock_type", FieldValues.Utf8(lockType)),
       Filters.Eq("resource_path", FieldValues.Utf8(resourcePath)),
@@ -155,9 +164,15 @@ async function main() {
   console.log("SimpleLockStore created (backed by InMemoryStorageBackend)\n");
 
   // 2. Acquire a file-write lock
-  const acquired = await store.tryAcquire("file_write", "/src/main.ts", "agent-alpha");
+  const acquired = await store.tryAcquire(
+    "file_write",
+    "/src/main.ts",
+    "agent-alpha",
+  );
   console.log(
-    `Acquire file_write on /src/main.ts (agent-alpha): ${acquired ? "OK" : "BLOCKED"}`,
+    `Acquire file_write on /src/main.ts (agent-alpha): ${
+      acquired ? "OK" : "BLOCKED"
+    }`,
   );
 
   // 3. Check lock status
@@ -168,13 +183,25 @@ async function main() {
   console.log();
 
   // 4. Demonstrate idempotent re-acquisition (same agent)
-  const reacquired = await store.tryAcquire("file_write", "/src/main.ts", "agent-alpha");
-  console.log(`Re-acquire same lock (idempotent): ${reacquired ? "OK" : "BLOCKED"}`);
+  const reacquired = await store.tryAcquire(
+    "file_write",
+    "/src/main.ts",
+    "agent-alpha",
+  );
+  console.log(
+    `Re-acquire same lock (idempotent): ${reacquired ? "OK" : "BLOCKED"}`,
+  );
 
   // 5. Demonstrate conflict — a different agent cannot take the same lock
-  const conflict = await store.tryAcquire("file_write", "/src/main.ts", "agent-beta");
+  const conflict = await store.tryAcquire(
+    "file_write",
+    "/src/main.ts",
+    "agent-beta",
+  );
   console.log(
-    `Acquire same resource as agent-beta: ${conflict ? "OK" : "BLOCKED (expected)"}`,
+    `Acquire same resource as agent-beta: ${
+      conflict ? "OK" : "BLOCKED (expected)"
+    }`,
   );
   console.log();
 
@@ -187,7 +214,9 @@ async function main() {
   const locks = await store.listLocks();
   console.log(`\nActive locks (${locks.length}):`);
   for (const l of locks) {
-    console.log(`  [${l.lockType}] ${l.resourcePath} -> ${l.lockId} (agent=${l.agentId})`);
+    console.log(
+      `  [${l.lockType}] ${l.resourcePath} -> ${l.lockId} (agent=${l.agentId})`,
+    );
   }
   console.log();
 
@@ -203,7 +232,11 @@ async function main() {
   console.log(`Cleaned up ${cleaned} expired lock(s)`);
 
   // 10. Release a specific lock
-  const released = await store.release("file_write", "/src/main.ts", "agent-alpha");
+  const released = await store.release(
+    "file_write",
+    "/src/main.ts",
+    "agent-alpha",
+  );
   console.log(
     `\nReleased file_write on /src/main.ts: ${released ? "OK" : "NOT FOUND"}`,
   );

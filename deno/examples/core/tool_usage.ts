@@ -3,15 +3,15 @@
 // Run: deno run deno/examples/core/tool_usage.ts
 
 import {
+  defaultToolInputSchema,
   IdempotencyRegistry,
   Message,
-  ToolContext,
-  ToolResult,
-  defaultToolInputSchema,
   objectSchema,
   type Tool,
+  ToolContext,
   type ToolMode,
   toolModeDisplayName,
+  ToolResult,
 } from "@brainwires/core";
 
 async function main() {
@@ -26,7 +26,11 @@ async function main() {
     input_schema: objectSchema(
       {
         path: { type: "string", description: "Absolute path to the file" },
-        encoding: { type: "string", description: "File encoding", default: "utf-8" },
+        encoding: {
+          type: "string",
+          description: "File encoding",
+          default: "utf-8",
+        },
       },
       ["path"],
     ),
@@ -38,8 +42,15 @@ async function main() {
     input_schema: objectSchema(
       {
         query: { type: "string", description: "Search query or regex pattern" },
-        file_glob: { type: "string", description: "Glob pattern to filter files" },
-        max_results: { type: "number", description: "Maximum results to return", default: 10 },
+        file_glob: {
+          type: "string",
+          description: "Glob pattern to filter files",
+        },
+        max_results: {
+          type: "number",
+          description: "Maximum results to return",
+          default: 10,
+        },
       },
       ["query"],
     ),
@@ -71,18 +82,30 @@ async function main() {
   for (const tool of tools) {
     const required = tool.input_schema.required ?? [];
     const approval = tool.requires_approval ? " [requires approval]" : "";
-    console.log(`  ${tool.name}: ${required.length} required params${approval}`);
+    console.log(
+      `  ${tool.name}: ${required.length} required params${approval}`,
+    );
   }
 
   // 2. Create tool execution results
   console.log("\n=== Tool Results ===");
 
-  const successResult = ToolResult.success("call-001", "File contents: export function main() { ... }");
-  console.log(`Success result: tool_use_id=${successResult.tool_use_id}, is_error=${successResult.is_error}`);
+  const successResult = ToolResult.success(
+    "call-001",
+    "File contents: export function main() { ... }",
+  );
+  console.log(
+    `Success result: tool_use_id=${successResult.tool_use_id}, is_error=${successResult.is_error}`,
+  );
   console.log(`  Content: ${successResult.content.slice(0, 60)}...`);
 
-  const errorResult = ToolResult.error("call-002", "ENOENT: file not found — /src/missing.ts");
-  console.log(`Error result: tool_use_id=${errorResult.tool_use_id}, is_error=${errorResult.is_error}`);
+  const errorResult = ToolResult.error(
+    "call-002",
+    "ENOENT: file not found — /src/missing.ts",
+  );
+  console.log(
+    `Error result: tool_use_id=${errorResult.tool_use_id}, is_error=${errorResult.is_error}`,
+  );
   console.log(`  Content: ${errorResult.content}`);
 
   // 3. Tool context with idempotency
@@ -118,7 +141,9 @@ async function main() {
     console.log(`  [cached] ${key1} => ${cached.cached_result}`);
   }
 
-  console.log(`  Registry size: ${registry.length}, empty: ${registry.isEmpty()}`);
+  console.log(
+    `  Registry size: ${registry.length}, empty: ${registry.isEmpty()}`,
+  );
 
   // 4. Tool modes
   console.log("\n=== Tool Modes ===");
@@ -133,7 +158,9 @@ async function main() {
 
   for (const mode of modes) {
     const display = toolModeDisplayName(mode);
-    const detail = mode.type === "explicit" ? ` (${mode.tools.join(", ")})` : "";
+    const detail = mode.type === "explicit"
+      ? ` (${mode.tools.join(", ")})`
+      : "";
     console.log(`  ${display}${detail}`);
   }
 
@@ -144,15 +171,25 @@ async function main() {
     role: "assistant",
     content: [
       { type: "text", text: "Let me read that file for you." },
-      { type: "tool_use", id: "call-003", name: "read_file", input: { path: "/src/main.ts" } },
+      {
+        type: "tool_use",
+        id: "call-003",
+        name: "read_file",
+        input: { path: "/src/main.ts" },
+      },
     ],
   });
   console.log(`Assistant message: ${assistantMsg.textOrSummary()}`);
 
-  const toolResultMsg = Message.toolResult("call-003", "export function main() { console.log('hello'); }");
+  const toolResultMsg = Message.toolResult(
+    "call-003",
+    "export function main() { console.log('hello'); }",
+  );
   console.log(`Tool result message role: ${toolResultMsg.role}`);
 
-  console.log("\nDone! Define tools with JSON Schema and let the AI agent use them.");
+  console.log(
+    "\nDone! Define tools with JSON Schema and let the AI agent use them.",
+  );
 }
 
 await main();

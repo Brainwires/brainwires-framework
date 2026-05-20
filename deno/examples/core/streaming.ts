@@ -4,9 +4,9 @@
 
 import {
   ChatOptions,
-  Message,
-  createUsage,
   type ChatResponse,
+  createUsage,
+  Message,
   type Provider,
   type StreamChunk,
   type Tool,
@@ -44,10 +44,27 @@ class StreamingDemoProvider implements Provider {
 
     // Simulate streaming word by word
     const words = [
-      "The", "Brainwires", "framework", "provides", "a", "modular",
-      "architecture", "for", "building", "AI", "agent", "systems",
-      "with", "full", "control", "over", "providers,", "tools,",
-      "and", "lifecycle", "events.",
+      "The",
+      "Brainwires",
+      "framework",
+      "provides",
+      "a",
+      "modular",
+      "architecture",
+      "for",
+      "building",
+      "AI",
+      "agent",
+      "systems",
+      "with",
+      "full",
+      "control",
+      "over",
+      "providers,",
+      "tools,",
+      "and",
+      "lifecycle",
+      "events.",
     ];
 
     for (const word of words) {
@@ -94,8 +111,16 @@ class ToolStreamingProvider implements Provider {
     yield { type: "tool_use", id: "call-001", name: "search_codebase" };
 
     // Stream the tool input as incremental JSON deltas
-    yield { type: "tool_input_delta", id: "call-001", partial_json: '{"query":' };
-    yield { type: "tool_input_delta", id: "call-001", partial_json: ' "authentication"}' };
+    yield {
+      type: "tool_input_delta",
+      id: "call-001",
+      partial_json: '{"query":',
+    };
+    yield {
+      type: "tool_input_delta",
+      id: "call-001",
+      partial_json: ' "authentication"}',
+    };
 
     yield { type: "usage", usage: createUsage(20, 15) };
     yield { type: "done" };
@@ -137,7 +162,9 @@ async function main() {
 
   const encoder = new TextEncoder();
   await Deno.stdout.write(encoder.encode("  "));
-  for await (const chunk of textProvider.streamChat(messages, undefined, options)) {
+  for await (
+    const chunk of textProvider.streamChat(messages, undefined, options)
+  ) {
     allChunks.push(chunk);
     switch (chunk.type) {
       case "text":
@@ -163,7 +190,9 @@ async function main() {
   const toolProvider = new ToolStreamingProvider();
   const toolChunks: StreamChunk[] = [];
 
-  for await (const chunk of toolProvider.streamChat(messages, undefined, options)) {
+  for await (
+    const chunk of toolProvider.streamChat(messages, undefined, options)
+  ) {
     toolChunks.push(chunk);
     switch (chunk.type) {
       case "text":
@@ -173,7 +202,9 @@ async function main() {
         console.log(`  [tool_use] id=${chunk.id}, name=${chunk.name}`);
         break;
       case "tool_input_delta":
-        console.log(`  [tool_input_delta] id=${chunk.id}, json=${chunk.partial_json}`);
+        console.log(
+          `  [tool_input_delta] id=${chunk.id}, json=${chunk.partial_json}`,
+        );
         break;
       case "usage":
         console.log(`  [usage] ${chunk.usage.total_tokens} total tokens`);
@@ -197,11 +228,17 @@ async function main() {
 
   // 6. Compare streaming vs non-streaming
   console.log("\n=== Streaming vs Non-Streaming ===");
-  const nonStreamResponse = await textProvider.chat(messages, undefined, options);
+  const nonStreamResponse = await textProvider.chat(
+    messages,
+    undefined,
+    options,
+  );
   console.log(`Non-streaming: "${nonStreamResponse.message.text()}"`);
   console.log(`Streaming collected: "${fullText.trim()}"`);
 
-  console.log("\nDone! Use streamChat() for real-time token delivery in interactive UIs.");
+  console.log(
+    "\nDone! Use streamChat() for real-time token delivery in interactive UIs.",
+  );
 }
 
 await main();

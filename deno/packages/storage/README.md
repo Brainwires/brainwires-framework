@@ -1,6 +1,8 @@
 # @brainwires/storage
 
-Backend-agnostic persistent storage for the Brainwires Agent Framework. Provides storage interfaces, an in-memory backend, domain-specific stores, and a tiered memory hierarchy.
+Backend-agnostic persistent storage for the Brainwires Agent Framework. Provides
+storage interfaces, an in-memory backend, domain-specific stores, and a tiered
+memory hierarchy.
 
 Equivalent to the Rust `brainwires-storage` crate.
 
@@ -14,11 +16,11 @@ deno add @brainwires/storage
 
 ```ts
 import {
+  FieldTypes,
+  InMemoryMessageStore,
   InMemoryStorageBackend,
   MessageStore,
-  InMemoryMessageStore,
   requiredField,
-  FieldTypes,
 } from "@brainwires/storage";
 
 // Use the in-memory backend directly
@@ -48,15 +50,15 @@ console.log(messages);
 
 ## Key Exports
 
-| Export | Description |
-|--------|-------------|
-| `StorageBackend` | Interface for table-based key-value storage |
-| `VectorDatabase` | Interface for vector similarity search |
-| `InMemoryStorageBackend` | In-memory implementation for testing |
-| `MessageStore` / `InMemoryMessageStore` | Message persistence |
-| `ConversationStore` / `InMemoryConversationStore` | Conversation metadata |
-| `TaskStore` / `InMemoryTaskStore` | Task persistence |
-| `PlanStore` / `InMemoryPlanStore` | Plan persistence |
-| `TemplateStore` | Plan template storage and instantiation |
-| `TieredMemory` | Hot/warm/cold memory hierarchy with retention scoring |
-| `CachedEmbeddingProvider` | Embedding provider with caching layer |
+| Export                                            | Description                                           |
+| ------------------------------------------------- | ----------------------------------------------------- |
+| `StorageBackend`                                  | Interface for table-based key-value storage           |
+| `VectorDatabase`                                  | Interface for vector similarity search                |
+| `InMemoryStorageBackend`                          | In-memory implementation for testing                  |
+| `MessageStore` / `InMemoryMessageStore`           | Message persistence                                   |
+| `ConversationStore` / `InMemoryConversationStore` | Conversation metadata                                 |
+| `TaskStore` / `InMemoryTaskStore`                 | Task persistence                                      |
+| `PlanStore` / `InMemoryPlanStore`                 | Plan persistence                                      |
+| `TemplateStore`                                   | Plan template storage and instantiation               |
+| `TieredMemory`                                    | Hot/warm/cold memory hierarchy with retention scoring |
+| `CachedEmbeddingProvider`                         | Embedding provider with caching layer                 |

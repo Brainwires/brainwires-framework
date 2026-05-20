@@ -78,7 +78,11 @@ export class ChatOptions {
 
   /** Low-temperature factual generation. */
   static factual(maxTokens: number): ChatOptions {
-    return new ChatOptions({ temperature: 0.1, max_tokens: maxTokens, top_p: 0.9 });
+    return new ChatOptions({
+      temperature: 0.1,
+      max_tokens: maxTokens,
+      top_p: 0.9,
+    });
   }
 
   /** Creative generation with moderate temperature. */

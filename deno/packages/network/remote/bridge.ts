@@ -13,8 +13,8 @@ import type {
   RemoteMessage,
 } from "./protocol.ts";
 import {
-  NegotiatedProtocol as NegotiatedProtocolClass,
   defaultProtocolHello,
+  NegotiatedProtocol as NegotiatedProtocolClass,
 } from "./protocol.ts";
 import { HeartbeatCollector } from "./heartbeat.ts";
 import type { AgentInfoProvider } from "./heartbeat.ts";
@@ -434,7 +434,9 @@ export class RemoteBridge {
         break;
 
       case "disconnect":
-        console.log(`[RemoteBridge] Backend requested disconnect: ${cmd.reason}`);
+        console.log(
+          `[RemoteBridge] Backend requested disconnect: ${cmd.reason}`,
+        );
         this.shutdown();
         break;
 

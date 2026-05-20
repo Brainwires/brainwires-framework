@@ -6,21 +6,24 @@
  * Also tests JSON-RPC request/response creation and parsing.
  */
 
-import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  createJsonRpcRequest,
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
   createJsonRpcNotification,
-  parseJsonRpcMessage,
-  isJsonRpcResponse,
+  createJsonRpcRequest,
   isJsonRpcNotification,
-  parseNotification,
-  type McpTool,
-  type McpResource,
-  type McpPrompt,
+  isJsonRpcResponse,
   type JsonRpcRequest,
   type JsonRpcResponse,
+  type McpPrompt,
+  type McpResource,
+  type McpTool,
+  parseJsonRpcMessage,
+  parseNotification,
   type PromptArgument,
-} from "@brainwires/mcp";
+} from "@brainwires/mcp-client";
 
 // ---------------------------------------------------------------------------
 // McpTool roundtrip

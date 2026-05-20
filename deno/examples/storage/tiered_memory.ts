@@ -51,9 +51,15 @@ async function main() {
   const now = Math.floor(Date.now() / 1000);
 
   const entries: [string, number][] = [
-    ["Architecture decision: we will use an event-driven design with CQRS.", 0.95],
+    [
+      "Architecture decision: we will use an event-driven design with CQRS.",
+      0.95,
+    ],
     ["Let me check the test output... all 42 tests pass.", 0.2],
-    ["The database schema has three main tables: users, projects, and events.", 0.85],
+    [
+      "The database schema has three main tables: users, projects, and events.",
+      0.85,
+    ],
     ["Can you add a newline at the end of that file?", 0.05],
     ["We decided to use PostgreSQL with pgvector for production storage.", 0.9],
   ];
@@ -92,7 +98,9 @@ async function main() {
     if (meta && msg) {
       console.log(
         `  ${id}: score=${retentionScore(meta).toFixed(3)}, ` +
-          `importance=${meta.importance.toFixed(2)} -- "${msg.content.slice(0, 50)}..."`,
+          `importance=${meta.importance.toFixed(2)} -- "${
+            msg.content.slice(0, 50)
+          }..."`,
       );
     }
   }
@@ -120,7 +128,9 @@ async function main() {
   }
 
   const statsAfter = tiered.getStats();
-  console.log(`\n  Stats after demotion: hot=${statsAfter.hotCount}, warm=${statsAfter.warmCount}`);
+  console.log(
+    `\n  Stats after demotion: hot=${statsAfter.hotCount}, warm=${statsAfter.warmCount}`,
+  );
   console.log();
 
   // 7. Record access and promote
@@ -136,10 +146,14 @@ async function main() {
   console.log("--- Tier Navigation ---");
   console.log(`  hot  -> demote -> ${demoteTier("hot") ?? "none"}`);
   console.log(`  warm -> demote -> ${demoteTier("warm") ?? "none"}`);
-  console.log(`  cold -> demote -> ${demoteTier("cold") ?? "none (already coldest)"}`);
+  console.log(
+    `  cold -> demote -> ${demoteTier("cold") ?? "none (already coldest)"}`,
+  );
   console.log(`  cold -> promote -> ${promoteTier("cold") ?? "none"}`);
   console.log(`  warm -> promote -> ${promoteTier("warm") ?? "none"}`);
-  console.log(`  hot  -> promote -> ${promoteTier("hot") ?? "none (already hottest)"}`);
+  console.log(
+    `  hot  -> promote -> ${promoteTier("hot") ?? "none (already hottest)"}`,
+  );
   console.log();
 
   // 9. Multi-factor scoring
@@ -152,7 +166,9 @@ async function main() {
   for (const s of scores) {
     const mf = computeMultiFactorScore(s.similarity, s.recency, s.importance);
     console.log(
-      `  sim=${s.similarity.toFixed(2)} rec=${s.recency.toFixed(3)} imp=${s.importance.toFixed(2)} -> combined=${mf.combined.toFixed(3)}`,
+      `  sim=${s.similarity.toFixed(2)} rec=${s.recency.toFixed(3)} imp=${
+        s.importance.toFixed(2)
+      } -> combined=${mf.combined.toFixed(3)}`,
     );
   }
   console.log();
@@ -161,14 +177,26 @@ async function main() {
   console.log("--- Retention Score Comparison ---");
   const highImportance = createTierMetadata("important-msg", 0.95);
   const lowImportance = createTierMetadata("trivial-msg", 0.05);
-  console.log(`  High importance (0.95): retention=${retentionScore(highImportance).toFixed(3)}`);
-  console.log(`  Low importance  (0.05): retention=${retentionScore(lowImportance).toFixed(3)}`);
+  console.log(
+    `  High importance (0.95): retention=${
+      retentionScore(highImportance).toFixed(3)
+    }`,
+  );
+  console.log(
+    `  Low importance  (0.05): retention=${
+      retentionScore(lowImportance).toFixed(3)
+    }`,
+  );
 
   // Simulate access boosting retention
   recordAccess(highImportance);
   recordAccess(highImportance);
   recordAccess(highImportance);
-  console.log(`  High importance after 3 accesses: retention=${retentionScore(highImportance).toFixed(3)}`);
+  console.log(
+    `  High importance after 3 accesses: retention=${
+      retentionScore(highImportance).toFixed(3)
+    }`,
+  );
 
   console.log("\nDone.");
 }

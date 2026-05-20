@@ -37,7 +37,7 @@ async function main() {
     const supported = RepoMap.supportsExtension(ext);
     const language = RepoMap.languageForExtension(ext) ?? "(none)";
     console.log(
-      `${ext.padEnd(12)} ${(supported ? "yes" : "no").padEnd(12)} ${language}`
+      `${ext.padEnd(12)} ${(supported ? "yes" : "no").padEnd(12)} ${language}`,
     );
   }
   console.log();
@@ -95,7 +95,9 @@ function main() {
 
   console.log(`Found ${definitions.length} definitions in src/server.ts:\n`);
   console.log(
-    `${"Line".padEnd(6)} ${"Name".padEnd(22)} ${"Kind".padEnd(12)} ${"Visibility".padEnd(12)} Signature`
+    `${"Line".padEnd(6)} ${"Name".padEnd(22)} ${"Kind".padEnd(12)} ${
+      "Visibility".padEnd(12)
+    } Signature`,
   );
   console.log("-".repeat(90));
 
@@ -106,10 +108,10 @@ function main() {
 
     console.log(
       `${String(def.symbolId.startLine).padEnd(6)} ` +
-      `${def.symbolId.name.padEnd(22)} ` +
-      `${symbolKindDisplayName(def.symbolId.kind).padEnd(12)} ` +
-      `${def.visibility.padEnd(12)} ` +
-      `${sigPreview}`
+        `${def.symbolId.name.padEnd(22)} ` +
+        `${symbolKindDisplayName(def.symbolId.kind).padEnd(12)} ` +
+        `${def.visibility.padEnd(12)} ` +
+        `${sigPreview}`,
     );
   }
   console.log();
@@ -134,16 +136,16 @@ function main() {
 
   console.log(`Found ${references.length} references:\n`);
   console.log(
-    `${"Line".padEnd(6)} ${"Col".padEnd(8)} ${"Kind".padEnd(18)} Target`
+    `${"Line".padEnd(6)} ${"Col".padEnd(8)} ${"Kind".padEnd(18)} Target`,
   );
   console.log("-".repeat(60));
 
   for (const ref of references) {
     console.log(
       `${String(ref.startLine).padEnd(6)} ` +
-      `${String(ref.startCol).padEnd(8)} ` +
-      `${ref.referenceKind.padEnd(18)} ` +
-      `${ref.targetSymbolId}`
+        `${String(ref.startCol).padEnd(8)} ` +
+        `${ref.referenceKind.padEnd(18)} ` +
+        `${ref.targetSymbolId}`,
     );
   }
   console.log();
@@ -151,9 +153,27 @@ function main() {
   // 4. Symbol identification
   console.log("--- Step 4: Symbol Identification ---\n");
 
-  const symConfig = createSymbolId("src/server.ts", "Config", "interface", 5, 0);
-  const symCreate = createSymbolId("src/server.ts", "createConfig", "function", 12, 0);
-  const symProcess = createSymbolId("src/server.ts", "processRequest", "function", 30, 0);
+  const symConfig = createSymbolId(
+    "src/server.ts",
+    "Config",
+    "interface",
+    5,
+    0,
+  );
+  const symCreate = createSymbolId(
+    "src/server.ts",
+    "createConfig",
+    "function",
+    12,
+    0,
+  );
+  const symProcess = createSymbolId(
+    "src/server.ts",
+    "processRequest",
+    "function",
+    30,
+    0,
+  );
 
   console.log("Symbol IDs (for storage/lookup):");
   console.log(`  Config:          ${symbolIdToStorageId(symConfig)}`);
@@ -183,7 +203,9 @@ function main() {
   files.set("src/server.ts", tsSource);
 
   const callGraph = buildCallGraph(definitions, files);
-  console.log(`Call graph: ${callGraph.nodes.size} nodes, ${callGraph.edges.length} edges`);
+  console.log(
+    `Call graph: ${callGraph.nodes.size} nodes, ${callGraph.edges.length} edges`,
+  );
   console.log();
 
   console.log("Call edges:");
@@ -191,7 +213,7 @@ function main() {
     const callerName = edge.callerId.split(":")[1] ?? edge.callerId;
     const calleeName = edge.calleeId.split(":")[1] ?? edge.calleeId;
     console.log(
-      `  ${callerName} (line ${edge.callSiteLine}) -> ${calleeName}`
+      `  ${callerName} (line ${edge.callSiteLine}) -> ${calleeName}`,
     );
   }
   console.log();
@@ -219,7 +241,9 @@ function main() {
 function printCallTree(node: CallGraphNode, depth: number): void {
   const indent = "  ".repeat(depth);
   console.log(
-    `${indent}${node.name} (${symbolKindDisplayName(node.kind)}) -- ${node.filePath}:${node.line}`
+    `${indent}${node.name} (${
+      symbolKindDisplayName(node.kind)
+    }) -- ${node.filePath}:${node.line}`,
   );
   for (const child of node.children) {
     printCallTree(child, depth + 1);

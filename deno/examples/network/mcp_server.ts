@@ -5,24 +5,24 @@
 // Run: deno run deno/examples/agent-network/mcp_server.ts
 
 import {
-  McpServer,
-  McpToolRegistry,
-  type McpToolDef,
-  type ToolHandler,
-  type McpHandler,
-  RequestContext,
-  MiddlewareChain,
   AuthMiddleware,
   LoggingMiddleware,
+  type McpHandler,
+  McpServer,
+  type McpToolDef,
+  McpToolRegistry,
+  MiddlewareChain,
   RateLimitMiddleware,
+  RequestContext,
   ToolFilterMiddleware,
+  type ToolHandler,
 } from "@brainwires/network";
 
 import type {
   CallToolResult,
   ServerCapabilities,
   ServerInfo,
-} from "@brainwires/mcp";
+} from "@brainwires/mcp-client";
 
 async function main(): Promise<void> {
   console.log("=== MCP Server Example ===\n");
@@ -119,7 +119,11 @@ async function main(): Promise<void> {
   console.log("  Dispatching 'echo':");
   try {
     const result = await registry.dispatch("echo", { message: "hello" }, ctx);
-    console.log(`    Result: OK — ${result.content[0]?.type === "text" ? result.content[0].text : "?"}`);
+    console.log(
+      `    Result: OK — ${
+        result.content[0]?.type === "text" ? result.content[0].text : "?"
+      }`,
+    );
   } catch (e) {
     console.log(`    Result: Error — ${e}`);
   }
@@ -127,7 +131,11 @@ async function main(): Promise<void> {
   console.log("  Dispatching 'get_time':");
   try {
     const result = await registry.dispatch("get_time", {}, ctx);
-    console.log(`    Result: OK — ${result.content[0]?.type === "text" ? result.content[0].text : "?"}`);
+    console.log(
+      `    Result: OK — ${
+        result.content[0]?.type === "text" ? result.content[0].text : "?"
+      }`,
+    );
   } catch (e) {
     console.log(`    Result: Error — ${e}`);
   }
@@ -155,7 +163,11 @@ async function main(): Promise<void> {
   };
   const initCtx = new RequestContext(1);
   const initResult = await chain.processRequest(initRequest, initCtx);
-  console.log(`  initialize -> ${initResult ? `Rejected: ${initResult.message}` : "Continue"}`);
+  console.log(
+    `  initialize -> ${
+      initResult ? `Rejected: ${initResult.message}` : "Continue"
+    }`,
+  );
 
   // Simulate a tools/call request (will be rejected by auth — no token)
   const toolRequest = {
@@ -167,7 +179,9 @@ async function main(): Promise<void> {
   const toolCtx = new RequestContext(2);
   const toolResult = await chain.processRequest(toolRequest, toolCtx);
   console.log(
-    `  tools/call 'echo' (no token) -> ${toolResult ? `Rejected: ${toolResult.message}` : "Continue"}`,
+    `  tools/call 'echo' (no token) -> ${
+      toolResult ? `Rejected: ${toolResult.message}` : "Continue"
+    }`,
   );
 
   // Simulate a tools/call with valid auth token
@@ -175,12 +189,21 @@ async function main(): Promise<void> {
     jsonrpc: "2.0" as const,
     id: 3,
     method: "tools/call",
-    params: { name: "echo", arguments: { message: "test" }, _auth_token: "demo-secret-token" },
+    params: {
+      name: "echo",
+      arguments: { message: "test" },
+      _auth_token: "demo-secret-token",
+    },
   };
   const authToolCtx = new RequestContext(3);
-  const authToolResult = await chain.processRequest(authToolRequest, authToolCtx);
+  const authToolResult = await chain.processRequest(
+    authToolRequest,
+    authToolCtx,
+  );
   console.log(
-    `  tools/call 'echo' (with token) -> ${authToolResult ? `Rejected: ${authToolResult.message}` : "Continue"}`,
+    `  tools/call 'echo' (with token) -> ${
+      authToolResult ? `Rejected: ${authToolResult.message}` : "Continue"
+    }`,
   );
   console.log();
 

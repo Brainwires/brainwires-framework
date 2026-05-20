@@ -5,10 +5,7 @@
  * Equivalent to Rust's `brainwires-network::remote::command_queue`.
  */
 
-import type {
-  BackendCommand,
-  PrioritizedCommand,
-} from "./protocol.ts";
+import type { BackendCommand, PrioritizedCommand } from "./protocol.ts";
 import { PRIORITY_ORDER } from "./protocol.ts";
 
 const DEFAULT_QUEUE_MAX_DEPTH = 1000;

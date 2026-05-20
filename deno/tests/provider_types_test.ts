@@ -5,17 +5,21 @@
  * and that the registry lookup returns correct entries for each ProviderType.
  */
 
-import { assertEquals, assert, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assert,
+  assertEquals,
+  assertThrows,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   ChatProviderFactory,
-  lookup,
-  PROVIDER_REGISTRY,
-  parseProviderType,
   defaultModel,
-  requiresApiKey,
-  type ProviderType,
+  lookup,
+  parseProviderType,
+  PROVIDER_REGISTRY,
   type ProviderEntry,
-} from "@brainwires/providers";
+  type ProviderType,
+  requiresApiKey,
+} from "@brainwires/provider";
 
 // ---------------------------------------------------------------------------
 // Registry lookup tests
@@ -51,7 +55,10 @@ Deno.test("registry entries have required fields", () => {
   for (const entry of PROVIDER_REGISTRY) {
     assert(entry.provider_type.length > 0, "provider_type should be non-empty");
     assert(entry.chat_protocol.length > 0, "chat_protocol should be non-empty");
-    assert(entry.default_base_url.length > 0, "default_base_url should be non-empty");
+    assert(
+      entry.default_base_url.length > 0,
+      "default_base_url should be non-empty",
+    );
     assert(entry.default_model.length > 0, "default_model should be non-empty");
     assert(entry.auth !== undefined, "auth should be defined");
   }
@@ -171,8 +178,14 @@ Deno.test("parseProviderType returns undefined for invalid", () => {
 
 Deno.test("defaultModel returns non-empty strings", () => {
   const providers: ProviderType[] = [
-    "anthropic", "openai", "google", "groq", "ollama",
-    "together", "fireworks", "anyscale",
+    "anthropic",
+    "openai",
+    "google",
+    "groq",
+    "ollama",
+    "together",
+    "fireworks",
+    "anyscale",
   ];
   for (const pt of providers) {
     const model = defaultModel(pt);

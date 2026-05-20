@@ -6,21 +6,21 @@
 
 import { assertEquals } from "@std/assert";
 import {
-  filterToSql,
+  buildCount,
   buildCreateTable,
+  buildDelete,
   buildInsert,
   buildSelect,
-  buildDelete,
-  buildCount,
   fieldValueToParam,
+  filterToSql,
 } from "./postgres.ts";
 import {
   type FieldDef,
   FieldTypes,
   FieldValues,
   Filters,
-  requiredField,
   optionalField,
+  requiredField,
 } from "../types.ts";
 
 // ---------------------------------------------------------------------------
@@ -28,13 +28,19 @@ import {
 // ---------------------------------------------------------------------------
 
 Deno.test("filterToSql - Eq", () => {
-  const [sql, vals] = filterToSql(Filters.Eq("name", FieldValues.Utf8("Alice")), 1);
+  const [sql, vals] = filterToSql(
+    Filters.Eq("name", FieldValues.Utf8("Alice")),
+    1,
+  );
   assertEquals(sql, `"name" = $1`);
   assertEquals(vals.length, 1);
 });
 
 Deno.test("filterToSql - Ne", () => {
-  const [sql, vals] = filterToSql(Filters.Ne("status", FieldValues.Utf8("deleted")), 1);
+  const [sql, vals] = filterToSql(
+    Filters.Ne("status", FieldValues.Utf8("deleted")),
+    1,
+  );
   assertEquals(sql, `"status" != $1`);
   assertEquals(vals.length, 1);
 });
@@ -65,7 +71,11 @@ Deno.test("filterToSql - IsNull / NotNull", () => {
 
 Deno.test("filterToSql - In", () => {
   const [sql, vals] = filterToSql(
-    Filters.In("id", [FieldValues.Int64(1), FieldValues.Int64(2), FieldValues.Int64(3)]),
+    Filters.In("id", [
+      FieldValues.Int64(1),
+      FieldValues.Int64(2),
+      FieldValues.Int64(3),
+    ]),
     1,
   );
   assertEquals(sql, `"id" IN ($1, $2, $3)`);
@@ -160,7 +170,10 @@ Deno.test("buildInsert - two rows", () => {
     ],
   ];
   const [sql, params] = buildInsert("users", records);
-  assertEquals(sql, `INSERT INTO "users" ("id", "name") VALUES ($1, $2), ($3, $4)`);
+  assertEquals(
+    sql,
+    `INSERT INTO "users" ("id", "name") VALUES ($1, $2), ($3, $4)`,
+  );
   assertEquals(params.length, 4);
 });
 

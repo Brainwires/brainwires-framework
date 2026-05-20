@@ -2,10 +2,7 @@
  * Error factory methods and codes tests (v1.0).
  */
 
-import {
-  assertEquals,
-  assertInstanceOf,
-} from "@std/assert";
+import { assertEquals, assertInstanceOf } from "@std/assert";
 import {
   A2aError,
   CONTENT_TYPE_NOT_SUPPORTED,

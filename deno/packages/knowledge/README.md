@@ -1,6 +1,8 @@
 # @brainwires/knowledge
 
-Unified intelligence layer for the Brainwires Agent Framework. Provides prompting technique selection, knowledge graph interfaces, and RAG (Retrieval-Augmented Generation) client types.
+Unified intelligence layer for the Brainwires Agent Framework. Provides
+prompting technique selection, knowledge graph interfaces, and RAG
+(Retrieval-Augmented Generation) client types.
 
 Equivalent to the Rust `brainwires-knowledge` crate.
 
@@ -16,8 +18,8 @@ deno add @brainwires/knowledge
 import {
   ALL_TECHNIQUES,
   getTechniqueMetadata,
-  getTechniquesByComplexity,
   getTechniquesByCategory,
+  getTechniquesByComplexity,
 } from "@brainwires/knowledge";
 
 // List all 15 prompting techniques
@@ -37,8 +39,8 @@ console.log("Reasoning techniques:", reasoning);
 
 ## Modules
 
-| Module | Description |
-|--------|-------------|
+| Module        | Description                                                                                                                                                                                   |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Prompting** | 15 techniques from "Adaptive Selection of Prompting Techniques" (arXiv:2510.18162) with SEAL quality integration. Includes `ChainOfThought`, `PlanAndSolve`, `DecomposedPrompting`, and more. |
-| **Knowledge** | `BrainClient` interface for persistent thought storage, entity/relationship types, and thought capture/search. |
-| **RAG** | `RagClient` interface for semantic code search with `IndexRequest`, `QueryRequest`, `AdvancedSearchRequest`, and statistics. |
+| **Knowledge** | `BrainClient` interface for persistent thought storage, entity/relationship types, and thought capture/search.                                                                                |
+| **RAG**       | `RagClient` interface for semantic code search with `IndexRequest`, `QueryRequest`, `AdvancedSearchRequest`, and statistics.                                                                  |

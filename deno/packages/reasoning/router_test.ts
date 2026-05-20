@@ -1,5 +1,9 @@
 import { assert, assertEquals } from "@std/assert";
-import { parseCategories, routeFromFallback, routeFromLocal } from "./router.ts";
+import {
+  parseCategories,
+  routeFromFallback,
+  routeFromLocal,
+} from "./router.ts";
 
 Deno.test("route fallback has 0.5 confidence", () => {
   const r = routeFromFallback(["FileOps", "Search"]);

@@ -13,7 +13,7 @@ const DENO_PACKAGES = "./packages";
 
 /** Crates we intentionally leave on the runtime boundary. Keep in sync with docs/parity.md. */
 const RUST_ONLY = new Set([
-  "brainwires",                 // meta-crate, no deno equivalent
+  "brainwires", // meta-crate, no deno equivalent
   "brainwires-hardware",
   "brainwires-sandbox",
   "brainwires-sandbox-proxy",
@@ -21,7 +21,8 @@ const RUST_ONLY = new Set([
 
 /** Crates that live inside another Deno package (folded rather than 1:1). */
 const FOLDED: Record<string, string> = {
-  "brainwires-mcp-server": "network",
+  // brainwires-mcp-server unfolded in v0.11.0 — now @brainwires/mcp-server.
+  // None folded at present.
 };
 
 /** Rust crate name → Deno package name. */
@@ -48,7 +49,11 @@ function main() {
 
     for (const crate of crates) {
       if (RUST_ONLY.has(crate)) {
-        rows.push({ crate, pkg: "—", status: "runtime-boundary (intentional)" });
+        rows.push({
+          crate,
+          pkg: "—",
+          status: "runtime-boundary (intentional)",
+        });
         continue;
       }
       if (crate in FOLDED) {
@@ -68,7 +73,11 @@ function main() {
     console.log("| Rust crate | Deno package | Status |");
     console.log("|---|---|---|");
     for (const r of rows) {
-      console.log(`| \`${r.crate}\` | ${r.pkg === "—" ? "—" : `\`${r.pkg}\``} | ${r.status} |`);
+      console.log(
+        `| \`${r.crate}\` | ${
+          r.pkg === "—" ? "—" : `\`${r.pkg}\``
+        } | ${r.status} |`,
+      );
     }
     console.log("");
     console.log(`Total crates: ${rows.length}`);

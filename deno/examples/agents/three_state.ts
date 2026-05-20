@@ -5,13 +5,13 @@
 // Run: deno run deno/examples/agents/three_state.ts
 
 import {
-  createOperationLog,
-  ThreeStateModel,
   type ApplicationChange,
+  createOperationLog,
   type OperationLog,
   type ProposedOperation,
   type StateChange,
-} from "@brainwires/agents";
+  ThreeStateModel,
+} from "@brainwires/agent";
 
 async function main() {
   console.log("=== Three-State Model Demo ===\n");
@@ -107,7 +107,11 @@ async function main() {
   const change: StateChange = {
     operationId: "op-change-1",
     applicationChanges: [
-      { kind: "file_modified", path: "src/main.rs", newHash: "updated-hash-789" },
+      {
+        kind: "file_modified",
+        path: "src/main.rs",
+        newHash: "updated-hash-789",
+      },
       { kind: "resource_created", resourceId: "deploy-artifact" },
     ] as ApplicationChange[],
     newDependencies: [],

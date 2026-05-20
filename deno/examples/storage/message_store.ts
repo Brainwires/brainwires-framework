@@ -68,7 +68,9 @@ async function main() {
   const results = await store.search("tree data structures", 3, 0.0);
   console.log(`Search results: ${results.length} messages`);
   for (const [msg, score] of results) {
-    console.log(`  [${score.toFixed(3)}] (${msg.messageId}) ${msg.role}: ${msg.content}`);
+    console.log(
+      `  [${score.toFixed(3)}] (${msg.messageId}) ${msg.role}: ${msg.content}`,
+    );
   }
   console.log();
 
@@ -80,7 +82,9 @@ async function main() {
     2,
     0.0,
   );
-  console.log(`Search within "${conversationId}": ${convResults.length} results`);
+  console.log(
+    `Search within "${conversationId}": ${convResults.length} results`,
+  );
   for (const [msg, score] of convResults) {
     console.log(`  [${score.toFixed(3)}] ${msg.content}`);
   }
@@ -89,7 +93,9 @@ async function main() {
   // 5. List all messages for a conversation
   console.log("--- List by Conversation ---");
   const convMessages = await store.getByConversation(conversationId);
-  console.log(`Conversation "${conversationId}" has ${convMessages.length} messages:`);
+  console.log(
+    `Conversation "${conversationId}" has ${convMessages.length} messages:`,
+  );
   for (const msg of convMessages) {
     console.log(`  ${msg.messageId} (${msg.role}): ${msg.content}`);
   }
@@ -109,7 +115,9 @@ async function main() {
   console.log("--- Delete Operations ---");
   await store.delete("msg-4");
   const afterDelete = await store.getByConversation("conv-demo-2");
-  console.log(`After deleting msg-4, conv-demo-2 has ${afterDelete.length} messages`);
+  console.log(
+    `After deleting msg-4, conv-demo-2 has ${afterDelete.length} messages`,
+  );
 
   // 8. Batch add
   console.log("\n--- Batch Add ---");
@@ -131,7 +139,9 @@ async function main() {
   ];
   await store.addBatch(batchMessages);
   const batchConv = await store.getByConversation("conv-demo-3");
-  console.log(`Batch added ${batchMessages.length} messages to conv-demo-3 (total: ${batchConv.length})`);
+  console.log(
+    `Batch added ${batchMessages.length} messages to conv-demo-3 (total: ${batchConv.length})`,
+  );
 
   console.log("\nDone.");
 }

@@ -114,7 +114,11 @@ export class Message implements MessageData {
           parts.push(block.text);
           break;
         case "tool_use":
-          parts.push(`[Called tool: ${block.name} with args: ${JSON.stringify(block.input)}]`);
+          parts.push(
+            `[Called tool: ${block.name} with args: ${
+              JSON.stringify(block.input)
+            }]`,
+          );
           break;
         case "tool_result":
           if (block.is_error) {
@@ -149,7 +153,10 @@ export interface Usage {
 }
 
 /** Create a new Usage. */
-export function createUsage(promptTokens: number, completionTokens: number): Usage {
+export function createUsage(
+  promptTokens: number,
+  completionTokens: number,
+): Usage {
   return {
     prompt_tokens: promptTokens,
     completion_tokens: completionTokens,
@@ -171,13 +178,23 @@ export type StreamChunk =
   | { type: "text"; text: string }
   | { type: "tool_use"; id: string; name: string }
   | { type: "tool_input_delta"; id: string; partial_json: string }
-  | { type: "tool_call"; call_id: string; response_id: string; chat_id?: string; tool_name: string; server: string; parameters: any }
+  | {
+    type: "tool_call";
+    call_id: string;
+    response_id: string;
+    chat_id?: string;
+    tool_name: string;
+    server: string;
+    parameters: any;
+  }
   | { type: "usage"; usage: Usage }
   | { type: "done" };
 
 /** Serialize messages into the STATELESS protocol format for conversation history.
  * Equivalent to Rust's `serialize_messages_to_stateless_history` in brainwires-core. */
-export function serializeMessagesToStatelessHistory(messages: Message[]): Record<string, any>[] {
+export function serializeMessagesToStatelessHistory(
+  messages: Message[],
+): Record<string, any>[] {
   const history: Record<string, any>[] = [];
 
   for (const msg of messages) {

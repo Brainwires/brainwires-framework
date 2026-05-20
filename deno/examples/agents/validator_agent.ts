@@ -9,10 +9,10 @@ import {
   formatValidationFeedback,
   formatValidatorStatus,
   runValidation,
-  ValidatorAgent,
   type ValidationCheck,
   type ValidationConfig,
-} from "@brainwires/agents";
+  ValidatorAgent,
+} from "@brainwires/agent";
 
 async function main() {
   console.log("=== Validation Loop Demo ===\n");
@@ -131,7 +131,9 @@ export function farewell(name: string): string {
 
   // 8. Summary
   console.log("\n--- Summary ---");
-  console.log("The validation loop prevents agents from reporting success when:");
+  console.log(
+    "The validation loop prevents agents from reporting success when:",
+  );
   console.log("  - Files in the working set do not exist on disk");
   console.log("  - Duplicate exports/functions/types are present");
   console.log("  - Basic syntax errors are detected");

@@ -52,7 +52,11 @@ export class EventEnvelope<E> implements Event {
 
   /** Map the payload to a different type, preserving all correlation fields. */
   map<U>(f: (payload: E) => U): EventEnvelope<U> {
-    const mapped = new EventEnvelope<U>(this.trace_id, this.sequence, f(this.payload));
+    const mapped = new EventEnvelope<U>(
+      this.trace_id,
+      this.sequence,
+      f(this.payload),
+    );
     // Preserve the original event_id and occurred_at across map operations.
     (mapped as { event_id: string }).event_id = this.event_id;
     (mapped as { occurred_at: string }).occurred_at = this.occurred_at;

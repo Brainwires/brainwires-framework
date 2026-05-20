@@ -1,19 +1,21 @@
 # Permissions
 
-The `@brainwires/permissions` package provides capability-based access control, policy enforcement, audit logging, trust management, and anomaly detection.
+The `@brainwires/permissions` package provides capability-based access control,
+policy enforcement, audit logging, trust management, and anomaly detection.
 
 ## Capability Profiles
 
-`AgentCapabilities` bundles fine-grained controls over filesystem, tools, network, git, spawning, and resource quotas.
+`AgentCapabilities` bundles fine-grained controls over filesystem, tools,
+network, git, spawning, and resource quotas.
 
 ```ts
 import {
   AgentCapabilities,
-  parseCapabilityProfile,
   defaultFilesystemCapabilities,
-  standardGitCapabilities,
   defaultResourceQuotas,
-} from "@brainwires/permissions";
+  parseCapabilityProfile,
+  standardGitCapabilities,
+} from "@brainwires/permission";
 
 // Use a preset profile
 const caps = parseCapabilityProfile("standard_dev");
@@ -30,35 +32,54 @@ Preset profiles: `read_only`, `standard_dev`, `full_access`.
 
 ## PolicyEngine
 
-The `PolicyEngine` evaluates requests against a set of rules to produce allow/deny/requires-approval decisions.
+The `PolicyEngine` evaluates requests against a set of rules to produce
+allow/deny/requires-approval decisions.
 
 ```ts
-import { PolicyEngine, createPolicy, createPolicyRequest, PolicyActions } from "@brainwires/permissions";
+import {
+  createPolicy,
+  createPolicyRequest,
+  PolicyActions,
+  PolicyEngine,
+} from "@brainwires/permission";
 
 const engine = new PolicyEngine();
 
 // Add a policy
 engine.addPolicy(createPolicy({
   name: "no-force-push",
-  conditions: [{ field: "action", operator: "equals", value: "git_force_push" }],
+  conditions: [{
+    field: "action",
+    operator: "equals",
+    value: "git_force_push",
+  }],
   action: PolicyActions.deny("Force push is prohibited"),
 }));
 
 // Evaluate a request
-const request = createPolicyRequest({ action: "git_force_push", agent: "worker-1" });
+const request = createPolicyRequest({
+  action: "git_force_push",
+  agent: "worker-1",
+});
 const decision = engine.evaluate(request);
 ```
 
-Helpers for common request types: `policyRequestForFile`, `policyRequestForGit`, `policyRequestForNetwork`, `policyRequestForTool`.
+Helpers for common request types: `policyRequestForFile`, `policyRequestForGit`,
+`policyRequestForNetwork`, `policyRequestForTool`.
 
 See: `../examples/permissions/policy_engine.ts`.
 
 ## TrustManager
 
-`TrustManager` tracks agent trust levels based on success/failure history and violation severity.
+`TrustManager` tracks agent trust levels based on success/failure history and
+violation severity.
 
 ```ts
-import { TrustManager, createTrustFactor, trustLevelFromScore } from "@brainwires/permissions";
+import {
+  createTrustFactor,
+  trustLevelFromScore,
+  TrustManager,
+} from "@brainwires/permission";
 
 const manager = new TrustManager();
 manager.registerAgent("worker-1", createTrustFactor("worker-1"));
@@ -79,7 +100,12 @@ Types: `TrustFactor`, `TrustLevel`, `ViolationSeverity`, `ViolationCounts`.
 `AuditLogger` records and queries security-relevant events.
 
 ```ts
-import { AuditLogger, createAuditEvent, createAuditQuery, withAgent } from "@brainwires/permissions";
+import {
+  AuditLogger,
+  createAuditEvent,
+  createAuditQuery,
+  withAgent,
+} from "@brainwires/permission";
 
 const logger = new AuditLogger();
 
@@ -101,10 +127,11 @@ See: `../examples/permissions/trust_audit.ts`.
 
 ## Anomaly Detection
 
-`AnomalyDetector` monitors the audit stream for statistical anomalies -- unusual action frequencies, time-of-day patterns, and sudden behavior changes.
+`AnomalyDetector` monitors the audit stream for statistical anomalies -- unusual
+action frequencies, time-of-day patterns, and sudden behavior changes.
 
 ```ts
-import { AnomalyDetector, defaultAnomalyConfig } from "@brainwires/permissions";
+import { AnomalyDetector, defaultAnomalyConfig } from "@brainwires/permission";
 
 const detector = new AnomalyDetector(defaultAnomalyConfig());
 // Feed audit events into the detector
@@ -116,11 +143,15 @@ Types: `AnomalyConfig`, `AnomalyEvent`, `AnomalyKind`.
 
 ## Approval Workflows
 
-For sensitive operations, policies can return a "requires approval" decision. The approval system provides structured request/response types:
+For sensitive operations, policies can return a "requires approval" decision.
+The approval system provides structured request/response types:
 
 ```ts
-import type { ApprovalRequest, ApprovalResponse } from "@brainwires/permissions";
-import { approvalActionSeverity, isApprovalResponseApproved } from "@brainwires/permissions";
+import type { ApprovalRequest, ApprovalResponse } from "@brainwires/permission";
+import {
+  approvalActionSeverity,
+  isApprovalResponseApproved,
+} from "@brainwires/permission";
 ```
 
 ## Configuration
@@ -128,7 +159,10 @@ import { approvalActionSeverity, isApprovalResponseApproved } from "@brainwires/
 Load permissions from a JSON config file:
 
 ```ts
-import { loadPermissionsConfig, configToCapabilities } from "@brainwires/permissions";
+import {
+  configToCapabilities,
+  loadPermissionsConfig,
+} from "@brainwires/permission";
 
 const config = loadPermissionsConfig("./permissions.json");
 const caps = configToCapabilities(config);

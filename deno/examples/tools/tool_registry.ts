@@ -60,7 +60,9 @@ async function main() {
     defer_loading: true,
   };
   registry.register(sensitiveTool);
-  console.log("Registered 'deploy_production' (requires approval, deferred).\n");
+  console.log(
+    "Registered 'deploy_production' (requires approval, deferred).\n",
+  );
 
   // 3. List tools by category
   const categories: [string, ToolCategory][] = [
@@ -91,7 +93,9 @@ async function main() {
     console.log(`  Description:       ${tool.description}`);
     console.log(`  Requires approval: ${tool.requires_approval ?? false}`);
     console.log(`  Defer loading:     ${tool.defer_loading ?? false}`);
-    console.log(`  Schema:            ${JSON.stringify(tool.input_schema, null, 2)}`);
+    console.log(
+      `  Schema:            ${JSON.stringify(tool.input_schema, null, 2)}`,
+    );
   }
 
   // 5. Search tools by keyword
@@ -105,12 +109,16 @@ async function main() {
   // 6. Initial vs. deferred tools
   const initial = registry.getInitialTools();
   const deferred = registry.getDeferredTools();
-  console.log(`\nInitial tools: ${initial.length}, Deferred tools: ${deferred.length}`);
+  console.log(
+    `\nInitial tools: ${initial.length}, Deferred tools: ${deferred.length}`,
+  );
 
   // 7. Core tools subset
   const core = registry.getCore();
   console.log(
-    `Core tools (${core.length}): ${core.map((t: { name: string }) => t.name).join(", ")}`,
+    `Core tools (${core.length}): ${
+      core.map((t: { name: string }) => t.name).join(", ")
+    }`,
   );
 
   console.log("\nDone.");

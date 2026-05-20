@@ -20,7 +20,10 @@ export class AnalyticsError extends Error {
   }
 
   static channelClosed(): AnalyticsError {
-    return new AnalyticsError("channel_closed", "Analytics sink channel closed");
+    return new AnalyticsError(
+      "channel_closed",
+      "Analytics sink channel closed",
+    );
   }
 
   static io(message: string): AnalyticsError {
@@ -61,10 +64,16 @@ export class BillingError extends Error {
     return new BillingError("hook", `billing hook error: ${message}`);
   }
 
-  static budgetExhausted(agent_id: string, spent: number, limit: number): BillingError {
+  static budgetExhausted(
+    agent_id: string,
+    spent: number,
+    limit: number,
+  ): BillingError {
     return new BillingError(
       "budget_exhausted",
-      `budget exhausted for agent '${agent_id}': ${spent.toFixed(6)} / ${limit.toFixed(6)} USD`,
+      `budget exhausted for agent '${agent_id}': ${spent.toFixed(6)} / ${
+        limit.toFixed(6)
+      } USD`,
       { agent_id, spent, limit },
     );
   }

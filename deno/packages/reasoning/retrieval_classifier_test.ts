@@ -18,7 +18,11 @@ Deno.test("retrieval need methods", () => {
 });
 
 Deno.test("classification result constructors", () => {
-  const local = classificationFromLocal("high", 0.9, "references earlier discussion");
+  const local = classificationFromLocal(
+    "high",
+    0.9,
+    "references earlier discussion",
+  );
   assert(local.used_local_llm);
   assertEquals(local.intent, "references earlier discussion");
   const fb = classificationFromFallback("medium", 0.7);
@@ -42,6 +46,9 @@ Deno.test("heuristic: short context bumps need up", () => {
 });
 
 Deno.test("parseClassification extracts level + intent", () => {
-  assertEquals(parseClassification("HIGH: references earlier discussion").need, "high");
+  assertEquals(
+    parseClassification("HIGH: references earlier discussion").need,
+    "high",
+  );
   assertEquals(parseClassification("NONE: self-contained query").need, "none");
 });

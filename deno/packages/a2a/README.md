@@ -1,6 +1,9 @@
 # @brainwires/a2a
 
-Agent-to-Agent (A2A) protocol implementation for the Brainwires Agent Framework. This is one of the first Deno-native implementations of [Google's A2A protocol](https://github.com/google/A2A), enabling standardized inter-agent communication with JSON-RPC and REST transports.
+Agent-to-Agent (A2A) protocol implementation for the Brainwires Agent Framework.
+This is one of the first Deno-native implementations of
+[Google's A2A protocol](https://github.com/google/A2A), enabling standardized
+inter-agent communication with JSON-RPC and REST transports.
 
 Equivalent to the Rust `brainwires-a2a` crate.
 
@@ -62,12 +65,12 @@ const card: AgentCard = {
 
 ## Key Exports
 
-| Export | Description |
-|--------|-------------|
-| `A2aClient` | Unified client supporting JSON-RPC and REST transports |
-| `AgentCard` | Self-describing agent manifest type |
-| `A2aError` | Typed error with standard A2A error codes |
-| `createUserMessage` / `createAgentMessage` | Message factory helpers |
-| `parseSseStream` | Server-Sent Events parser for streaming |
-| `A2aHandler` | Interface for implementing A2A agent servers |
-| Streaming types | `StreamEvent`, `TaskStatusUpdateEvent`, `TaskArtifactUpdateEvent` |
+| Export                                     | Description                                                       |
+| ------------------------------------------ | ----------------------------------------------------------------- |
+| `A2aClient`                                | Unified client supporting JSON-RPC and REST transports            |
+| `AgentCard`                                | Self-describing agent manifest type                               |
+| `A2aError`                                 | Typed error with standard A2A error codes                         |
+| `createUserMessage` / `createAgentMessage` | Message factory helpers                                           |
+| `parseSseStream`                           | Server-Sent Events parser for streaming                           |
+| `A2aHandler`                               | Interface for implementing A2A agent servers                      |
+| Streaming types                            | `StreamEvent`, `TaskStatusUpdateEvent`, `TaskArtifactUpdateEvent` |

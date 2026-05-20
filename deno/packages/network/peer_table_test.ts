@@ -3,11 +3,7 @@
  * Equivalent to Rust peer_table::tests.
  */
 
-import {
-  assertEquals,
-  assert,
-  assertFalse,
-} from "@std/assert";
+import { assert, assertEquals, assertFalse } from "@std/assert";
 import { PeerTable, type TransportAddress } from "./peer_table.ts";
 import { createAgentIdentity } from "./identity.ts";
 

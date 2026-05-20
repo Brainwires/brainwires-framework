@@ -11,7 +11,11 @@ import type {
   SearchResult,
   StatisticsResponse,
 } from "@brainwires/knowledge";
-import { DEFAULT_LIMIT, DEFAULT_MAX_FILE_SIZE, DEFAULT_MIN_SCORE } from "@brainwires/knowledge";
+import {
+  DEFAULT_LIMIT,
+  DEFAULT_MAX_FILE_SIZE,
+  DEFAULT_MIN_SCORE,
+} from "@brainwires/knowledge";
 
 // ---------------------------------------------------------------------------
 // Mock RagClient — in production, supply a real vector-DB-backed implementation
@@ -21,7 +25,11 @@ class MockRagClient implements RagClient {
   private indexed = false;
 
   async indexCodebase(req: IndexRequest): Promise<IndexResponse> {
-    console.log(`  [mock] Indexing ${req.path} (patterns: ${req.includePatterns?.join(", ") ?? "*"})`);
+    console.log(
+      `  [mock] Indexing ${req.path} (patterns: ${
+        req.includePatterns?.join(", ") ?? "*"
+      })`,
+    );
     this.indexed = true;
     return {
       mode: "full",
@@ -39,7 +47,8 @@ class MockRagClient implements RagClient {
     const results: SearchResult[] = [
       {
         filePath: "src/knowledge/entity.ts",
-        content: "export interface Entity {\n  name: string;\n  entityType: EntityType;",
+        content:
+          "export interface Entity {\n  name: string;\n  entityType: EntityType;",
         score: 0.92,
         vectorScore: 0.88,
         keywordScore: req.hybrid ? 0.95 : undefined,
@@ -50,7 +59,8 @@ class MockRagClient implements RagClient {
       },
       {
         filePath: "src/rag/types.ts",
-        content: "export interface SearchResult {\n  filePath: string;\n  score: number;",
+        content:
+          "export interface SearchResult {\n  filePath: string;\n  score: number;",
         score: 0.85,
         vectorScore: 0.85,
         startLine: 40,
@@ -60,7 +70,8 @@ class MockRagClient implements RagClient {
       },
       {
         filePath: "src/core/error.ts",
-        content: "export class FrameworkError extends Error {\n  constructor(kind, message)",
+        content:
+          "export class FrameworkError extends Error {\n  constructor(kind, message)",
         score: 0.78,
         vectorScore: 0.78,
         startLine: 5,
@@ -96,12 +107,25 @@ class MockRagClient implements RagClient {
     return { success: true, message: "Index cleared" };
   }
 
-  async advancedSearch(req: import("@brainwires/knowledge").AdvancedSearchRequest): Promise<QueryResponse> {
-    return this.queryCodebase({ query: req.query, limit: req.limit, minScore: req.minScore });
+  async advancedSearch(
+    req: import("@brainwires/knowledge").AdvancedSearchRequest,
+  ): Promise<QueryResponse> {
+    return this.queryCodebase({
+      query: req.query,
+      limit: req.limit,
+      minScore: req.minScore,
+    });
   }
 
-  async searchGitHistory(req: import("@brainwires/knowledge").SearchGitHistoryRequest) {
-    return { results: [], commitsIndexed: 0, totalCachedCommits: 0, durationMs: 5 };
+  async searchGitHistory(
+    req: import("@brainwires/knowledge").SearchGitHistoryRequest,
+  ) {
+    return {
+      results: [],
+      commitsIndexed: 0,
+      totalCachedCommits: 0,
+      durationMs: 5,
+    };
   }
 }
 
@@ -156,7 +180,9 @@ async function main() {
   console.log(`Database size:    ${stats.databaseSizeBytes} bytes`);
   console.log("Language breakdown:");
   for (const lang of stats.languageBreakdown) {
-    console.log(`  ${lang.language}: ${lang.fileCount} files, ${lang.chunkCount} chunks`);
+    console.log(
+      `  ${lang.language}: ${lang.fileCount} files, ${lang.chunkCount} chunks`,
+    );
   }
   console.log();
 
@@ -184,7 +210,9 @@ async function main() {
     const response = await client.queryCodebase(query);
     console.log(
       `  Found ${response.results.length} results in ${response.durationMs} ms ` +
-      `(threshold: ${response.thresholdUsed.toFixed(2)}, lowered: ${response.thresholdLowered})`
+        `(threshold: ${
+          response.thresholdUsed.toFixed(2)
+        }, lowered: ${response.thresholdLowered})`,
     );
 
     for (let i = 0; i < response.results.length; i++) {
@@ -200,8 +228,8 @@ async function main() {
 
       console.log(
         `  [${i + 1}] score=${result.score.toFixed(3)} ` +
-        `(vec=${result.vectorScore.toFixed(3)}, kw=${kwLabel}) | ` +
-        `${result.filePath}:${result.startLine}-${result.endLine} | ${preview}`
+          `(vec=${result.vectorScore.toFixed(3)}, kw=${kwLabel}) | ` +
+          `${result.filePath}:${result.startLine}-${result.endLine} | ${preview}`,
       );
     }
     console.log();
@@ -225,7 +253,7 @@ async function main() {
     const result = vectorResponse.results[i];
     console.log(
       `  [${i + 1}] score=${result.score.toFixed(3)} | ` +
-      `${result.filePath} (lines ${result.startLine}-${result.endLine})`
+        `${result.filePath} (lines ${result.startLine}-${result.endLine})`,
     );
   }
 

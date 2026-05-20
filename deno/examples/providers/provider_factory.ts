@@ -11,9 +11,9 @@ import {
   inferOpenaiCapabilities,
   lookup,
   PROVIDER_REGISTRY,
-  requiresApiKey,
   type ProviderType,
-} from "@brainwires/providers";
+  requiresApiKey,
+} from "@brainwires/provider";
 
 async function main() {
   console.log("=== Provider Factory & Model Listing Example ===\n");
@@ -22,7 +22,9 @@ async function main() {
   console.log("--- Known Chat Providers ---");
   for (const entry of PROVIDER_REGISTRY) {
     console.log(
-      `  ${entry.provider_type.padEnd(18)} | protocol: ${entry.chat_protocol.padEnd(28)} | default model: ${entry.default_model}`,
+      `  ${entry.provider_type.padEnd(18)} | protocol: ${
+        entry.chat_protocol.padEnd(28)
+      } | default model: ${entry.default_model}`,
     );
   }
   console.log();
@@ -106,7 +108,9 @@ async function main() {
     const key = needsKey ? "demo-key" : undefined;
     try {
       createModelLister(pt, key);
-      console.log(`  ${pt.padEnd(12)} -> ModelLister created (would query API)`);
+      console.log(
+        `  ${pt.padEnd(12)} -> ModelLister created (would query API)`,
+      );
     } catch (e) {
       console.log(`  ${pt.padEnd(12)} -> ${(e as Error).message}`);
     }
@@ -133,10 +137,14 @@ async function main() {
   if (anthropicEntry) {
     console.log(`  Anthropic protocol: ${anthropicEntry.chat_protocol}`);
     console.log(`  Anthropic auth: ${JSON.stringify(anthropicEntry.auth)}`);
-    console.log(`  Supports model listing: ${anthropicEntry.supports_model_listing}`);
+    console.log(
+      `  Supports model listing: ${anthropicEntry.supports_model_listing}`,
+    );
   }
 
-  console.log("\nDone! In a real application you would call provider.chat() or");
+  console.log(
+    "\nDone! In a real application you would call provider.chat() or",
+  );
   console.log("lister.listModels() to interact with the APIs.");
 }
 

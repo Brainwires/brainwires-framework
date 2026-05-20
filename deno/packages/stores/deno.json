@@ -1,0 +1,13 @@
+{
+  "name": "@brainwires/stores",
+  "license": "MIT",
+  "version": "0.11.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./conversation": "./conversation_store.ts",
+    "./message": "./message_store.ts",
+    "./plan": "./plan_store.ts",
+    "./task": "./task_store.ts",
+    "./template": "./template_store.ts"
+  }
+}

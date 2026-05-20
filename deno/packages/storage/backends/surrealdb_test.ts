@@ -11,11 +11,7 @@ import {
   filterToSurrealQL,
   jsonRowToRecord,
 } from "./surrealdb.ts";
-import {
-  FieldTypes,
-  FieldValues,
-  Filters,
-} from "../types.ts";
+import { FieldTypes, FieldValues, Filters } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // fieldTypeToSurrealQL
@@ -45,7 +41,10 @@ Deno.test("fieldTypeToSurrealQL - Boolean", () => {
 });
 
 Deno.test("fieldTypeToSurrealQL - Vector", () => {
-  assertEquals(fieldTypeToSurrealQL(FieldTypes.Vector(384)), "array<float, 384>");
+  assertEquals(
+    fieldTypeToSurrealQL(FieldTypes.Vector(384)),
+    "array<float, 384>",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -105,29 +104,47 @@ Deno.test("filterToSurrealQL - Ne", () => {
 
 Deno.test("filterToSurrealQL - Lt / Gt / Lte / Gte", () => {
   let offset = { value: 0 };
-  const [ltSql] = filterToSurrealQL(Filters.Lt("x", FieldValues.Int32(5)), offset);
+  const [ltSql] = filterToSurrealQL(
+    Filters.Lt("x", FieldValues.Int32(5)),
+    offset,
+  );
   assertEquals(ltSql, "x < $p0");
 
   offset = { value: 0 };
-  const [gtSql] = filterToSurrealQL(Filters.Gt("x", FieldValues.Int32(5)), offset);
+  const [gtSql] = filterToSurrealQL(
+    Filters.Gt("x", FieldValues.Int32(5)),
+    offset,
+  );
   assertEquals(gtSql, "x > $p0");
 
   offset = { value: 0 };
-  const [lteSql] = filterToSurrealQL(Filters.Lte("x", FieldValues.Int32(5)), offset);
+  const [lteSql] = filterToSurrealQL(
+    Filters.Lte("x", FieldValues.Int32(5)),
+    offset,
+  );
   assertEquals(lteSql, "x <= $p0");
 
   offset = { value: 0 };
-  const [gteSql] = filterToSurrealQL(Filters.Gte("x", FieldValues.Int32(5)), offset);
+  const [gteSql] = filterToSurrealQL(
+    Filters.Gte("x", FieldValues.Int32(5)),
+    offset,
+  );
   assertEquals(gteSql, "x >= $p0");
 });
 
 Deno.test("filterToSurrealQL - IsNull / NotNull", () => {
   const offset = { value: 0 };
-  const [isNullSql, isNullBinds] = filterToSurrealQL(Filters.IsNull("email"), offset);
+  const [isNullSql, isNullBinds] = filterToSurrealQL(
+    Filters.IsNull("email"),
+    offset,
+  );
   assertEquals(isNullSql, "email IS NULL");
   assertEquals(isNullBinds.length, 0);
 
-  const [notNullSql, notNullBinds] = filterToSurrealQL(Filters.NotNull("email"), offset);
+  const [notNullSql, notNullBinds] = filterToSurrealQL(
+    Filters.NotNull("email"),
+    offset,
+  );
   assertEquals(notNullSql, "email IS NOT NULL");
   assertEquals(notNullBinds.length, 0);
 });
@@ -135,7 +152,11 @@ Deno.test("filterToSurrealQL - IsNull / NotNull", () => {
 Deno.test("filterToSurrealQL - In", () => {
   const offset = { value: 0 };
   const [sql, binds] = filterToSurrealQL(
-    Filters.In("id", [FieldValues.Int64(1), FieldValues.Int64(2), FieldValues.Int64(3)]),
+    Filters.In("id", [
+      FieldValues.Int64(1),
+      FieldValues.Int64(2),
+      FieldValues.Int64(3),
+    ]),
     offset,
   );
   assertEquals(sql, "id IN $p0");

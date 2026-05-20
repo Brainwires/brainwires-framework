@@ -23,19 +23,49 @@ export class FrameworkError extends Error {
     // Build message from kind
     let msg: string;
     switch (kind.type) {
-      case "config": msg = `Configuration error: ${kind.message}`; break;
-      case "provider": msg = `Provider error: ${kind.message}`; break;
-      case "provider_auth": msg = `Provider authentication failed for ${kind.provider}: ${kind.message}`; break;
-      case "provider_model": msg = `Provider model error (${kind.provider}/${kind.model}): ${kind.message}`; break;
-      case "embedding_dimension": msg = `Embedding dimension mismatch: expected ${kind.expected}, got ${kind.got}`; break;
-      case "tool_execution": msg = `Tool execution error: ${kind.message}`; break;
-      case "agent": msg = `Agent error: ${kind.message}`; break;
-      case "storage": msg = `Storage error: ${kind.message}`; break;
-      case "storage_schema": msg = `Storage schema error in ${kind.store}: ${kind.message}`; break;
-      case "training_config": msg = `Training configuration error for ${kind.parameter}: ${kind.message}`; break;
-      case "permission_denied": msg = `Permission denied: ${kind.message}`; break;
-      case "serialization": msg = `Serialization error: ${kind.message}`; break;
-      case "other": msg = kind.message; break;
+      case "config":
+        msg = `Configuration error: ${kind.message}`;
+        break;
+      case "provider":
+        msg = `Provider error: ${kind.message}`;
+        break;
+      case "provider_auth":
+        msg =
+          `Provider authentication failed for ${kind.provider}: ${kind.message}`;
+        break;
+      case "provider_model":
+        msg =
+          `Provider model error (${kind.provider}/${kind.model}): ${kind.message}`;
+        break;
+      case "embedding_dimension":
+        msg =
+          `Embedding dimension mismatch: expected ${kind.expected}, got ${kind.got}`;
+        break;
+      case "tool_execution":
+        msg = `Tool execution error: ${kind.message}`;
+        break;
+      case "agent":
+        msg = `Agent error: ${kind.message}`;
+        break;
+      case "storage":
+        msg = `Storage error: ${kind.message}`;
+        break;
+      case "storage_schema":
+        msg = `Storage schema error in ${kind.store}: ${kind.message}`;
+        break;
+      case "training_config":
+        msg =
+          `Training configuration error for ${kind.parameter}: ${kind.message}`;
+        break;
+      case "permission_denied":
+        msg = `Permission denied: ${kind.message}`;
+        break;
+      case "serialization":
+        msg = `Serialization error: ${kind.message}`;
+        break;
+      case "other":
+        msg = kind.message;
+        break;
     }
     super(msg);
     this.name = "FrameworkError";
@@ -48,8 +78,17 @@ export class FrameworkError extends Error {
   }
 
   /** Create a provider model error. */
-  static providerModel(provider: string, model: string, message: string): FrameworkError {
-    return new FrameworkError({ type: "provider_model", provider, model, message });
+  static providerModel(
+    provider: string,
+    model: string,
+    message: string,
+  ): FrameworkError {
+    return new FrameworkError({
+      type: "provider_model",
+      provider,
+      model,
+      message,
+    });
   }
 
   /** Create an embedding dimension mismatch error. */

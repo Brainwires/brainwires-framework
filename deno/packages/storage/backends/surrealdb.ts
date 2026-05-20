@@ -75,27 +75,45 @@ export function filterToSurrealQL(
   switch (filter.kind) {
     case "Eq": {
       const name = `p${paramOffset.value++}`;
-      return [`${filter.field} = $${name}`, [[name, fieldValueToJson(filter.value)]]];
+      return [`${filter.field} = $${name}`, [[
+        name,
+        fieldValueToJson(filter.value),
+      ]]];
     }
     case "Ne": {
       const name = `p${paramOffset.value++}`;
-      return [`${filter.field} != $${name}`, [[name, fieldValueToJson(filter.value)]]];
+      return [`${filter.field} != $${name}`, [[
+        name,
+        fieldValueToJson(filter.value),
+      ]]];
     }
     case "Lt": {
       const name = `p${paramOffset.value++}`;
-      return [`${filter.field} < $${name}`, [[name, fieldValueToJson(filter.value)]]];
+      return [`${filter.field} < $${name}`, [[
+        name,
+        fieldValueToJson(filter.value),
+      ]]];
     }
     case "Lte": {
       const name = `p${paramOffset.value++}`;
-      return [`${filter.field} <= $${name}`, [[name, fieldValueToJson(filter.value)]]];
+      return [`${filter.field} <= $${name}`, [[
+        name,
+        fieldValueToJson(filter.value),
+      ]]];
     }
     case "Gt": {
       const name = `p${paramOffset.value++}`;
-      return [`${filter.field} > $${name}`, [[name, fieldValueToJson(filter.value)]]];
+      return [`${filter.field} > $${name}`, [[
+        name,
+        fieldValueToJson(filter.value),
+      ]]];
     }
     case "Gte": {
       const name = `p${paramOffset.value++}`;
-      return [`${filter.field} >= $${name}`, [[name, fieldValueToJson(filter.value)]]];
+      return [`${filter.field} >= $${name}`, [[
+        name,
+        fieldValueToJson(filter.value),
+      ]]];
     }
     case "NotNull":
       return [`${filter.field} IS NOT NULL`, []];
@@ -140,7 +158,10 @@ export function jsonRowToRecord(row: Record<string, unknown>): BwRecord {
   for (const [key, val] of Object.entries(row)) {
     let fv: FieldValue;
     if (key === "id") {
-      fv = { kind: "Utf8", value: typeof val === "string" ? val : JSON.stringify(val) };
+      fv = {
+        kind: "Utf8",
+        value: typeof val === "string" ? val : JSON.stringify(val),
+      };
     } else if (val === null || val === undefined) {
       fv = { kind: "Utf8", value: null };
     } else if (typeof val === "boolean") {
@@ -247,7 +268,8 @@ export class SurrealDatabase implements StorageBackend {
       ddl += `DEFINE FIELD ${field.name} ON ${tableName} TYPE ${typeExpr};\n`;
 
       if (field.fieldType.kind === "Vector") {
-        ddl += `DEFINE INDEX idx_${tableName}_${field.name} ON ${tableName} FIELDS ${field.name} MTREE DIMENSION ${field.fieldType.dimension} DIST COSINE TYPE F32;\n`;
+        ddl +=
+          `DEFINE INDEX idx_${tableName}_${field.name} ON ${tableName} FIELDS ${field.name} MTREE DIMENSION ${field.fieldType.dimension} DIST COSINE TYPE F32;\n`;
       }
     }
 
@@ -291,7 +313,10 @@ export class SurrealDatabase implements StorageBackend {
       sql += ` LIMIT ${limit}`;
     }
 
-    const rows = await this.runQuery(sql, bindings) as Record<string, unknown>[];
+    const rows = await this.runQuery(sql, bindings) as Record<
+      string,
+      unknown
+    >[];
     return rows.map(jsonRowToRecord);
   }
 
@@ -322,7 +347,10 @@ export class SurrealDatabase implements StorageBackend {
     }
     sql += " GROUP ALL";
 
-    const rows = await this.runQuery(sql, bindings) as Record<string, unknown>[];
+    const rows = await this.runQuery(sql, bindings) as Record<
+      string,
+      unknown
+    >[];
     const first = rows[0];
     if (first && typeof first === "object" && "total" in first) {
       return Number(first.total);
@@ -354,7 +382,10 @@ export class SurrealDatabase implements StorageBackend {
       `WHERE ${vectorColumn} <|${limit}|> $query_vec${whereExtra} ` +
       `ORDER BY __score DESC`;
 
-    const rows = await this.runQuery(sql, bindings) as Record<string, unknown>[];
+    const rows = await this.runQuery(sql, bindings) as Record<
+      string,
+      unknown
+    >[];
     return rows.map((row) => {
       const score = Number(row.__score ?? 0);
       const record = jsonRowToRecord(row);

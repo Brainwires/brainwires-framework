@@ -7,14 +7,14 @@
 
 import {
   defaultPlannerAgentConfig,
+  type JudgeVerdict,
   parsePlannerOutput,
   parseVerdict,
+  type PlannerAgentConfig,
   validateTaskGraph,
   verdictHints,
   verdictType,
-  type JudgeVerdict,
-  type PlannerAgentConfig,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 
 async function main() {
   // 1. Parse a planner output from a fenced JSON block
@@ -70,7 +70,9 @@ This plan prioritizes correctness before documentation.
   console.log(`Tasks (${output.tasks.length}):`);
   for (const task of output.tasks) {
     console.log(
-      `  [${task.priority}] ${task.id} - ${task.description} (depends on: [${task.dependsOn.join(", ")}])`,
+      `  [${task.priority}] ${task.id} - ${task.description} (depends on: [${
+        task.dependsOn.join(", ")
+      }])`,
     );
     if (task.filesInvolved.length > 0) {
       console.log(`         files: [${task.filesInvolved.join(", ")}]`);

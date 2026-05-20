@@ -27,8 +27,7 @@ export class AgentToolRegistry {
           properties: {
             description: {
               type: "string",
-              description:
-                "Description of the task for the agent to execute",
+              description: "Description of the task for the agent to execute",
             },
             working_directory: {
               type: "string",
@@ -48,8 +47,7 @@ export class AgentToolRegistry {
             build_type: {
               type: "string",
               enum: ["npm", "cargo", "typescript"],
-              description:
-                "Optional build type for validation.",
+              description: "Optional build type for validation.",
             },
           },
           required: ["description"],
@@ -57,8 +55,7 @@ export class AgentToolRegistry {
       },
       {
         name: "agent_list",
-        description:
-          "List all currently running task agents and their status",
+        description: "List all currently running task agents and their status",
         input_schema: { type: "object", properties: {} },
       },
       {
@@ -132,8 +129,7 @@ export class AgentToolRegistry {
           properties: {
             max_cycles: {
               type: "integer",
-              description:
-                "Maximum number of improvement cycles (default: 10)",
+              description: "Maximum number of improvement cycles (default: 10)",
             },
             max_budget: {
               type: "number",
@@ -141,8 +137,7 @@ export class AgentToolRegistry {
             },
             dry_run: {
               type: "boolean",
-              description:
-                "List tasks without executing (default: false)",
+              description: "List tasks without executing (default: false)",
             },
             strategies: {
               type: "string",
@@ -154,8 +149,7 @@ export class AgentToolRegistry {
       },
       {
         name: "self_improve_status",
-        description:
-          "Get the status of a running self-improvement session",
+        description: "Get the status of a running self-improvement session",
         input_schema: { type: "object", properties: {} },
       },
       {

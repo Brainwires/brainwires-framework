@@ -1,0 +1,16 @@
+{
+  "name": "@brainwires/tool-runtime",
+  "license": "MIT",
+  "version": "0.11.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./registry": "./registry.ts",
+    "./executor": "./executor.ts",
+    "./router": "./smart_router.ts",
+    "./oauth": "./oauth.ts",
+    "./openapi": "./openapi.ts",
+    "./search": "./tool_search.ts",
+    "./transaction": "./transaction.ts",
+    "./validation": "./validation.ts"
+  }
+}

@@ -149,73 +149,90 @@ async function main() {
   const b = await embedder.embed("deep learning neural networks");
   const c = await embedder.embed("banana smoothie recipe");
 
-  console.log(`  'machine learning' vs 'deep learning': ${cosineSimilarity(a, b).toFixed(4)}`);
-  console.log(`  'machine learning' vs 'banana smoothie': ${cosineSimilarity(a, c).toFixed(4)}`);
+  console.log(
+    `  'machine learning' vs 'deep learning': ${
+      cosineSimilarity(a, b).toFixed(4)
+    }`,
+  );
+  console.log(
+    `  'machine learning' vs 'banana smoothie': ${
+      cosineSimilarity(a, c).toFixed(4)
+    }`,
+  );
 
   // Batch embedding
   const batchTexts = ["first document", "second document", "third document"];
   const batchResults = await embedder.embedBatch(batchTexts);
-  console.log(`  Batch: embedded ${batchResults.length} texts, each ${batchResults[0].length} dims`);
+  console.log(
+    `  Batch: embedded ${batchResults.length} texts, each ${
+      batchResults[0].length
+    } dims`,
+  );
 
   // 5. Index code chunks into the vector store
   console.log("\n=== Indexing Code Chunks ===");
   const store = new InMemoryVectorStore();
   await store.initialize(embedder.dimension);
 
-  const codeChunks: { id: string; content: string; metadata: ChunkMetadata }[] = [
-    {
-      id: "chunk-1",
-      content: "export async function authenticate(token: string): Promise<User> {\n  const decoded = jwt.verify(token, SECRET);\n  return findUser(decoded.sub);\n}",
-      metadata: {
-        file_path: "src/auth.ts",
-        start_line: 10,
-        end_line: 14,
-        language: "TypeScript",
-        extension: "ts",
-        file_hash: "abc123",
-        indexed_at: Math.floor(Date.now() / 1000),
+  const codeChunks: { id: string; content: string; metadata: ChunkMetadata }[] =
+    [
+      {
+        id: "chunk-1",
+        content:
+          "export async function authenticate(token: string): Promise<User> {\n  const decoded = jwt.verify(token, SECRET);\n  return findUser(decoded.sub);\n}",
+        metadata: {
+          file_path: "src/auth.ts",
+          start_line: 10,
+          end_line: 14,
+          language: "TypeScript",
+          extension: "ts",
+          file_hash: "abc123",
+          indexed_at: Math.floor(Date.now() / 1000),
+        },
       },
-    },
-    {
-      id: "chunk-2",
-      content: "export function hashPassword(password: string): string {\n  return bcrypt.hashSync(password, SALT_ROUNDS);\n}",
-      metadata: {
-        file_path: "src/auth.ts",
-        start_line: 20,
-        end_line: 23,
-        language: "TypeScript",
-        extension: "ts",
-        file_hash: "abc123",
-        indexed_at: Math.floor(Date.now() / 1000),
+      {
+        id: "chunk-2",
+        content:
+          "export function hashPassword(password: string): string {\n  return bcrypt.hashSync(password, SALT_ROUNDS);\n}",
+        metadata: {
+          file_path: "src/auth.ts",
+          start_line: 20,
+          end_line: 23,
+          language: "TypeScript",
+          extension: "ts",
+          file_hash: "abc123",
+          indexed_at: Math.floor(Date.now() / 1000),
+        },
       },
-    },
-    {
-      id: "chunk-3",
-      content: "export class DatabaseConnection {\n  constructor(private url: string) {}\n  async query(sql: string): Promise<Row[]> { /* ... */ }\n}",
-      metadata: {
-        file_path: "src/db.ts",
-        start_line: 1,
-        end_line: 5,
-        language: "TypeScript",
-        extension: "ts",
-        file_hash: "def456",
-        indexed_at: Math.floor(Date.now() / 1000),
+      {
+        id: "chunk-3",
+        content:
+          "export class DatabaseConnection {\n  constructor(private url: string) {}\n  async query(sql: string): Promise<Row[]> { /* ... */ }\n}",
+        metadata: {
+          file_path: "src/db.ts",
+          start_line: 1,
+          end_line: 5,
+          language: "TypeScript",
+          extension: "ts",
+          file_hash: "def456",
+          indexed_at: Math.floor(Date.now() / 1000),
+        },
       },
-    },
-    {
-      id: "chunk-4",
-      content: "const router = new Router();\nrouter.get('/api/users', listUsers);\nrouter.post('/api/users', createUser);\nrouter.delete('/api/users/:id', deleteUser);",
-      metadata: {
-        file_path: "src/routes.ts",
-        start_line: 5,
-        end_line: 9,
-        language: "TypeScript",
-        extension: "ts",
-        file_hash: "ghi789",
-        indexed_at: Math.floor(Date.now() / 1000),
+      {
+        id: "chunk-4",
+        content:
+          "const router = new Router();\nrouter.get('/api/users', listUsers);\nrouter.post('/api/users', createUser);\nrouter.delete('/api/users/:id', deleteUser);",
+        metadata: {
+          file_path: "src/routes.ts",
+          start_line: 5,
+          end_line: 9,
+          language: "TypeScript",
+          extension: "ts",
+          file_hash: "ghi789",
+          indexed_at: Math.floor(Date.now() / 1000),
+        },
       },
-    },
-  ];
+    ];
 
   // Embed and store all chunks
   const ids = codeChunks.map((c) => c.id);
@@ -242,7 +259,11 @@ async function main() {
     for (const result of results) {
       const meta = result.metadata as ChunkMetadata;
       const preview = result.content.split("\n")[0].slice(0, 60);
-      console.log(`    [${result.score.toFixed(4)}] ${meta.file_path}:${meta.start_line} — ${preview}...`);
+      console.log(
+        `    [${
+          result.score.toFixed(4)
+        }] ${meta.file_path}:${meta.start_line} — ${preview}...`,
+      );
     }
   }
 
@@ -268,16 +289,24 @@ async function main() {
   });
 
   for (const result of searchResults) {
-    console.log(`  [${result.score.toFixed(4)}] ${result.file_path}:${result.start_line}-${result.end_line} (${result.language})`);
+    console.log(
+      `  [${
+        result.score.toFixed(4)
+      }] ${result.file_path}:${result.start_line}-${result.end_line} (${result.language})`,
+    );
   }
 
   // 8. Cleanup
   const deleted = await store.delete(["chunk-1"]);
-  console.log(`\n  Deleted ${deleted} chunk(s), remaining: ${await store.count()}`);
+  console.log(
+    `\n  Deleted ${deleted} chunk(s), remaining: ${await store.count()}`,
+  );
   await store.clear();
   console.log(`  Cleared store, remaining: ${await store.count()}`);
 
-  console.log("\nDone! Plug in a real embedding model and vector database for production RAG.");
+  console.log(
+    "\nDone! Plug in a real embedding model and vector database for production RAG.",
+  );
 }
 
 await main();

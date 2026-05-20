@@ -42,7 +42,11 @@ class SimpleEntityStore {
   private relationships: Relationship[] = [];
   private contradictions: ContradictionEvent[] = [];
 
-  addExtraction(extraction: ExtractionResult, messageId: string, timestamp: number): void {
+  addExtraction(
+    extraction: ExtractionResult,
+    messageId: string,
+    timestamp: number,
+  ): void {
     // Merge entities
     for (const [name, entityType] of extraction.entities) {
       const existing = this.entities.get(name);
@@ -95,7 +99,9 @@ class SimpleEntityStore {
   }
 
   getByType(entityType: EntityType): EntityEntry[] {
-    return [...this.entities.values()].filter((e) => e.entityType === entityType);
+    return [...this.entities.values()].filter((e) =>
+      e.entityType === entityType
+    );
   }
 
   getRelated(name: string): string[] {
@@ -179,8 +185,16 @@ async function main() {
       ["Config", "type"],
     ],
     relationships: [
-      { kind: "Contains", container: "server.rs", contained: "handle_connection" },
-      { kind: "DependsOn", dependent: "handle_connection", dependency: "Config" },
+      {
+        kind: "Contains",
+        container: "server.rs",
+        contained: "handle_connection",
+      },
+      {
+        kind: "DependsOn",
+        dependent: "handle_connection",
+        dependency: "Config",
+      },
       {
         kind: "CoOccurs",
         entityA: "handle_connection",
@@ -225,7 +239,7 @@ async function main() {
   console.log("Top 3 entities by mention count:");
   for (const entity of top) {
     console.log(
-      `  ${entity.name} (${entity.entityType}) -- ${entity.mentionCount} mentions`
+      `  ${entity.name} (${entity.entityType}) -- ${entity.mentionCount} mentions`,
     );
   }
   console.log();
@@ -234,40 +248,69 @@ async function main() {
   console.log(`Functions: [${functions.map((e) => `"${e.name}"`).join(", ")}]`);
 
   const related = store.getRelated("process_request");
-  console.log(`Entities related to 'process_request': [${related.map((r) => `"${r}"`).join(", ")}]`);
+  console.log(
+    `Entities related to 'process_request': [${
+      related.map((r) => `"${r}"`).join(", ")
+    }]`,
+  );
   console.log();
 
   // 3. Demonstrate relationship types
   console.log("--- Step 3: Relationship Types ---\n");
 
   const sampleRelationships: Relationship[] = [
-    { kind: "Defines", definer: "auth.ts", defined: "AuthService", context: "class definition" },
+    {
+      kind: "Defines",
+      definer: "auth.ts",
+      defined: "AuthService",
+      context: "class definition",
+    },
     { kind: "References", from: "handler.ts", to: "AuthService" },
-    { kind: "Modifies", modifier: "migration.sql", modified: "users_table", changeType: "adds column" },
+    {
+      kind: "Modifies",
+      modifier: "migration.sql",
+      modified: "users_table",
+      changeType: "adds column",
+    },
     { kind: "DependsOn", dependent: "api.ts", dependency: "database.ts" },
     { kind: "Contains", container: "src/", contained: "auth.ts" },
-    { kind: "CoOccurs", entityA: "Config", entityB: "Logger", messageId: "msg-5" },
+    {
+      kind: "CoOccurs",
+      entityA: "Config",
+      entityB: "Logger",
+      messageId: "msg-5",
+    },
   ];
 
   for (const rel of sampleRelationships) {
     switch (rel.kind) {
       case "Defines":
-        console.log(`  ${rel.kind}: ${rel.definer} defines ${rel.defined} (${rel.context})`);
+        console.log(
+          `  ${rel.kind}: ${rel.definer} defines ${rel.defined} (${rel.context})`,
+        );
         break;
       case "References":
         console.log(`  ${rel.kind}: ${rel.from} -> ${rel.to}`);
         break;
       case "Modifies":
-        console.log(`  ${rel.kind}: ${rel.modifier} ${rel.changeType} ${rel.modified}`);
+        console.log(
+          `  ${rel.kind}: ${rel.modifier} ${rel.changeType} ${rel.modified}`,
+        );
         break;
       case "DependsOn":
-        console.log(`  ${rel.kind}: ${rel.dependent} depends on ${rel.dependency}`);
+        console.log(
+          `  ${rel.kind}: ${rel.dependent} depends on ${rel.dependency}`,
+        );
         break;
       case "Contains":
-        console.log(`  ${rel.kind}: ${rel.container} contains ${rel.contained}`);
+        console.log(
+          `  ${rel.kind}: ${rel.container} contains ${rel.contained}`,
+        );
         break;
       case "CoOccurs":
-        console.log(`  ${rel.kind}: ${rel.entityA} & ${rel.entityB} in ${rel.messageId}`);
+        console.log(
+          `  ${rel.kind}: ${rel.entityA} & ${rel.entityB} in ${rel.messageId}`,
+        );
         break;
     }
   }
@@ -296,7 +339,7 @@ async function main() {
     console.log("Contradictions detected:");
     for (const c of contradictions) {
       console.log(
-        `  ${c.kind} on '${c.subject}': existing='${c.existingContext}', new='${c.newContext}'`
+        `  ${c.kind} on '${c.subject}': existing='${c.existingContext}', new='${c.newContext}'`,
       );
     }
   }
@@ -305,7 +348,9 @@ async function main() {
   // 5. Thought creation
   console.log("--- Step 5: Thought Construction ---\n");
 
-  const thought = createThought("Decided to use PostgreSQL for the auth service");
+  const thought = createThought(
+    "Decided to use PostgreSQL for the auth service",
+  );
   thought.category = parseThoughtCategory("decision");
   thought.tags = ["database", "auth", "architecture"];
   thought.importance = 0.9;
@@ -317,7 +362,9 @@ async function main() {
   console.log(`  Tags:       [${thought.tags.join(", ")}]`);
   console.log(`  Source:     ${thought.source}`);
   console.log(`  Importance: ${thought.importance.toFixed(1)}`);
-  console.log(`  Created:    ${new Date(thought.createdAt * 1000).toISOString()}`);
+  console.log(
+    `  Created:    ${new Date(thought.createdAt * 1000).toISOString()}`,
+  );
   console.log();
 
   // 6. List all thought categories

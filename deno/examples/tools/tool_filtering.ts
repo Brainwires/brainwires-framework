@@ -5,22 +5,22 @@
 // Run: deno run deno/examples/tool-system/tool_filtering.ts
 
 import {
-  classifyError,
   categoryName,
-  errorMessage,
-  isRetryable,
-  retryStrategy,
-  getSuggestion,
+  classifyError,
+  containsSensitiveData,
   defaultRetryStrategy,
   delayForAttempt,
-  maxAttempts,
-  successOutcome,
+  errorMessage,
   failureOutcome,
-  containsSensitiveData,
-  redactSensitiveData,
-  isInjectionAttempt,
-  sanitizeExternalContent,
   filterToolOutput,
+  getSuggestion,
+  isInjectionAttempt,
+  isRetryable,
+  maxAttempts,
+  redactSensitiveData,
+  retryStrategy,
+  sanitizeExternalContent,
+  successOutcome,
   wrapWithContentSource,
 } from "@brainwires/tools";
 
@@ -78,13 +78,17 @@ async function main() {
   console.log("\n=== Tool Outcomes ===\n");
 
   const ok = successOutcome("read_file", 0, 45);
-  console.log(`  Success: tool=${ok.toolName} retries=${ok.retries} time=${ok.executionTimeMs}ms`);
+  console.log(
+    `  Success: tool=${ok.toolName} retries=${ok.retries} time=${ok.executionTimeMs}ms`,
+  );
 
   const transientError = classifyError("fetch_url", "connection timed out");
   const fail = failureOutcome("fetch_url", 2, transientError, 3200);
   console.log(
     `  Failure: tool=${fail.toolName} retries=${fail.retries} ` +
-    `time=${fail.executionTimeMs}ms category=${fail.errorCategory ? categoryName(fail.errorCategory) : "none"}`,
+      `time=${fail.executionTimeMs}ms category=${
+        fail.errorCategory ? categoryName(fail.errorCategory) : "none"
+      }`,
   );
 
   // 4. Sensitive data detection and redaction

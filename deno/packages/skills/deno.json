@@ -1,0 +1,6 @@
+{
+  "name": "@brainwires/skills",
+  "license": "MIT",
+  "version": "0.11.0",
+  "exports": "./mod.ts"
+}

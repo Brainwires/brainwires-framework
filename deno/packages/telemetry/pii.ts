@@ -26,5 +26,8 @@ export async function hashSessionId(session_id: string): Promise<string> {
 export function redactSecrets(text: string): string {
   return text
     .replace(/\b(sk|pk|api|bearer)[-_]?[A-Za-z0-9]{16,}/gi, "***REDACTED***")
-    .replace(/\b[A-Za-z0-9+/]{32,}={0,2}\b/g, (m) => (m.length > 40 ? "***REDACTED***" : m));
+    .replace(
+      /\b[A-Za-z0-9+/]{32,}={0,2}\b/g,
+      (m) => (m.length > 40 ? "***REDACTED***" : m),
+    );
 }

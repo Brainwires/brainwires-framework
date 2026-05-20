@@ -7,7 +7,11 @@
  * @module
  */
 
-import type { ChunkMetadata, DatabaseStats, SearchResult } from "@brainwires/core";
+import type {
+  ChunkMetadata,
+  DatabaseStats,
+  SearchResult,
+} from "@brainwires/core";
 import type { VectorDatabase } from "../traits.ts";
 
 const COLLECTION_NAME = "code_embeddings";
@@ -101,7 +105,9 @@ export function buildSearchBody(
 }
 
 /** Parse a Qdrant search result point into a SearchResult. */
-export function parseSearchPoint(point: Record<string, unknown>): SearchResult | null {
+export function parseSearchPoint(
+  point: Record<string, unknown>,
+): SearchResult | null {
   const payload = point.payload as Record<string, unknown> | undefined;
   if (!payload) return null;
 
@@ -173,15 +179,20 @@ export class QdrantDatabase implements VectorDatabase {
     const res = await fetch(`${this.baseUrl}${path}`, opts);
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Qdrant ${method} ${path} failed (${res.status}): ${text}`);
+      throw new Error(
+        `Qdrant ${method} ${path} failed (${res.status}): ${text}`,
+      );
     }
     return await res.json() as Record<string, unknown>;
   }
 
   private async collectionExists(): Promise<boolean> {
     const data = await this.request("/collections", "GET");
-    const result = data.result as { collections?: { name: string }[] } | undefined;
-    return result?.collections?.some((c) => c.name === COLLECTION_NAME) ?? false;
+    const result = data.result as
+      | { collections?: { name: string }[] }
+      | undefined;
+    return result?.collections?.some((c) => c.name === COLLECTION_NAME) ??
+      false;
   }
 
   // ── VectorDatabase ─────────────────────────────────────────────────
@@ -246,7 +257,12 @@ export class QdrantDatabase implements VectorDatabase {
     languages?: string[],
     pathPatterns?: string[],
   ): Promise<SearchResult[]> {
-    const filter = buildQdrantFilter(project, rootPath, fileExtensions, languages);
+    const filter = buildQdrantFilter(
+      project,
+      rootPath,
+      fileExtensions,
+      languages,
+    );
     const body = buildSearchBody(queryVector, limit, minScore, filter);
 
     const data = await this.request(

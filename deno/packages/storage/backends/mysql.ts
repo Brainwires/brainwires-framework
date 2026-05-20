@@ -128,7 +128,10 @@ export function filterToSql(
 }
 
 /** Build a CREATE TABLE IF NOT EXISTS DDL statement (MySQL dialect). */
-export function buildCreateTable(tableName: string, schema: FieldDef[]): string {
+export function buildCreateTable(
+  tableName: string,
+  schema: FieldDef[],
+): string {
   const cols = schema.map((f, i) => {
     const mysqlType = mapFieldType(f.fieldType);
     const nullable = f.nullable ? "" : " NOT NULL";
@@ -155,7 +158,9 @@ export function buildInsert(
     }
     rowGroups.push(`(${placeholders.join(", ")})`);
   }
-  const sql = `INSERT INTO \`${tableName}\` (${quotedCols.join(", ")}) VALUES ${rowGroups.join(", ")}`;
+  const sql = `INSERT INTO \`${tableName}\` (${quotedCols.join(", ")}) VALUES ${
+    rowGroups.join(", ")
+  }`;
   return [sql, allParams];
 }
 
@@ -232,7 +237,10 @@ function rowToRecord(row: Record<string, unknown>): BwRecord {
       if (val.startsWith("[") && val.endsWith("]")) {
         try {
           const arr = JSON.parse(val);
-          if (Array.isArray(arr) && arr.every((v: unknown) => typeof v === "number")) {
+          if (
+            Array.isArray(arr) &&
+            arr.every((v: unknown) => typeof v === "number")
+          ) {
             fv = { kind: "Vector", value: arr as number[] };
           } else {
             fv = { kind: "Utf8", value: val };
@@ -251,7 +259,9 @@ function rowToRecord(row: Record<string, unknown>): BwRecord {
       }
     } else if (typeof val === "boolean") {
       fv = { kind: "Boolean", value: val };
-    } else if (Array.isArray(val) && val.every((v: unknown) => typeof v === "number")) {
+    } else if (
+      Array.isArray(val) && val.every((v: unknown) => typeof v === "number")
+    ) {
       // mysql2 may parse JSON columns into arrays directly.
       fv = { kind: "Vector", value: val as number[] };
     } else {
@@ -343,10 +353,12 @@ export class MySqlDatabase implements StorageBackend {
 
     if (filter) {
       const [whereSql, vals] = filterToSql(filter);
-      sql = `SELECT * FROM \`${tableName}\` WHERE ${whereSql} AND \`${vectorColumn}\` IS NOT NULL`;
+      sql =
+        `SELECT * FROM \`${tableName}\` WHERE ${whereSql} AND \`${vectorColumn}\` IS NOT NULL`;
       params = vals.map(fieldValueToParam);
     } else {
-      sql = `SELECT * FROM \`${tableName}\` WHERE \`${vectorColumn}\` IS NOT NULL`;
+      sql =
+        `SELECT * FROM \`${tableName}\` WHERE \`${vectorColumn}\` IS NOT NULL`;
       params = [];
     }
 

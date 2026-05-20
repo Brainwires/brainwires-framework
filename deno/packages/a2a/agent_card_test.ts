@@ -146,12 +146,16 @@ Deno.test("SecurityScheme oauth2 with authorizationCode flow", () => {
   const scheme: SecurityScheme = {
     oauth2SecurityScheme: {
       flows: { authorizationCode: flow },
-      oauth2MetadataUrl: "https://auth.example.com/.well-known/openid-configuration",
+      oauth2MetadataUrl:
+        "https://auth.example.com/.well-known/openid-configuration",
     },
   };
   const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
   const oauth2 = parsed.oauth2SecurityScheme!;
-  assertEquals(oauth2.flows.authorizationCode?.authorizationUrl, "https://auth.example.com/authorize");
+  assertEquals(
+    oauth2.flows.authorizationCode?.authorizationUrl,
+    "https://auth.example.com/authorize",
+  );
   assertEquals(oauth2.flows.authorizationCode?.pkceRequired, true);
   assertEquals(oauth2.flows.authorizationCode?.scopes.read, "Read access");
 });
@@ -167,7 +171,10 @@ Deno.test("SecurityScheme oauth2 with clientCredentials flow", () => {
     },
   };
   const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
-  assertEquals(parsed.oauth2SecurityScheme?.flows.clientCredentials?.tokenUrl, "https://auth.example.com/token");
+  assertEquals(
+    parsed.oauth2SecurityScheme?.flows.clientCredentials?.tokenUrl,
+    "https://auth.example.com/token",
+  );
 });
 
 Deno.test("SecurityScheme oauth2 with deviceCode flow", () => {
@@ -182,17 +189,24 @@ Deno.test("SecurityScheme oauth2 with deviceCode flow", () => {
     },
   };
   const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
-  assertEquals(parsed.oauth2SecurityScheme?.flows.deviceCode?.deviceAuthorizationUrl, "https://auth.example.com/device");
+  assertEquals(
+    parsed.oauth2SecurityScheme?.flows.deviceCode?.deviceAuthorizationUrl,
+    "https://auth.example.com/device",
+  );
 });
 
 Deno.test("SecurityScheme openIdConnect wrapper variant", () => {
   const scheme: SecurityScheme = {
     openIdConnectSecurityScheme: {
-      openIdConnectUrl: "https://auth.example.com/.well-known/openid-configuration",
+      openIdConnectUrl:
+        "https://auth.example.com/.well-known/openid-configuration",
     },
   };
   const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
-  assertEquals(parsed.openIdConnectSecurityScheme?.openIdConnectUrl, "https://auth.example.com/.well-known/openid-configuration");
+  assertEquals(
+    parsed.openIdConnectSecurityScheme?.openIdConnectUrl,
+    "https://auth.example.com/.well-known/openid-configuration",
+  );
 });
 
 Deno.test("SecurityScheme mutualTls wrapper variant", () => {
@@ -227,7 +241,10 @@ Deno.test("AgentCard with security schemes", () => {
   };
   const parsed = JSON.parse(JSON.stringify(card)) as AgentCard;
   assertEquals(Object.keys(parsed.securitySchemes!).length, 2);
-  assertEquals(parsed.securitySchemes!.bearer.httpAuthSecurityScheme?.scheme, "Bearer");
+  assertEquals(
+    parsed.securitySchemes!.bearer.httpAuthSecurityScheme?.scheme,
+    "Bearer",
+  );
   assertEquals(parsed.securityRequirements!.length, 1);
 });
 

@@ -3,43 +3,39 @@
  * Covers command queue, heartbeat, protocol types, and bridge state management.
  */
 
-import {
-  assertEquals,
-  assert,
-  assertThrows,
-} from "@std/assert";
+import { assert, assertEquals, assertThrows } from "@std/assert";
 
 import {
-  // Protocol
-  PROTOCOL_VERSION,
-  SUPPORTED_VERSIONS,
-  NegotiatedProtocol,
-  defaultProtocolHello,
-  defaultProtocolAccept,
   allSupportedCapabilities,
-  PRIORITY_ORDER,
-  type ProtocolCapability,
-  type RemoteMessage,
+  assessConnectionQuality,
   type BackendCommand,
-  type RemoteAgentInfo,
-  type PrioritizedCommand,
-  type RetryPolicy,
   type CommandPriority,
   // Command queue
   CommandQueue,
-  QueueEntry,
-  QueueError,
+  defaultBridgeConfig,
+  defaultProtocolAccept,
+  defaultProtocolHello,
+  displayBridgeStatus,
   // Heartbeat
   HeartbeatCollector,
-  ProtocolMetrics,
-  assessConnectionQuality,
   type MetricsSnapshot,
+  NegotiatedProtocol,
+  type PrioritizedCommand,
+  PRIORITY_ORDER,
+  // Protocol
+  PROTOCOL_VERSION,
+  type ProtocolCapability,
+  ProtocolMetrics,
+  QueueEntry,
+  QueueError,
+  type RemoteAgentInfo,
   // Bridge
   RemoteBridge,
-  defaultBridgeConfig,
   // Manager
   RemoteBridgeManager,
-  displayBridgeStatus,
+  type RemoteMessage,
+  type RetryPolicy,
+  SUPPORTED_VERSIONS,
 } from "./mod.ts";
 
 // ============================================================================
@@ -114,7 +110,8 @@ Deno.test("RemoteMessage serialization - register", () => {
 });
 
 Deno.test("BackendCommand deserialization - authenticated", () => {
-  const json = '{"type":"authenticated","session_token":"abc123","user_id":"user-456","refresh_interval_secs":30}';
+  const json =
+    '{"type":"authenticated","session_token":"abc123","user_id":"user-456","refresh_interval_secs":30}';
   const cmd = JSON.parse(json) as BackendCommand;
   assertEquals(cmd.type, "authenticated");
   if (cmd.type === "authenticated") {
@@ -125,7 +122,8 @@ Deno.test("BackendCommand deserialization - authenticated", () => {
 });
 
 Deno.test("BackendCommand deserialization - with protocol", () => {
-  const json = '{"type":"authenticated","session_token":"abc123","user_id":"user-456","refresh_interval_secs":30,"protocol":{"selected_version":"1.1","enabled_capabilities":["streaming","tools"]}}';
+  const json =
+    '{"type":"authenticated","session_token":"abc123","user_id":"user-456","refresh_interval_secs":30,"protocol":{"selected_version":"1.1","enabled_capabilities":["streaming","tools"]}}';
   const cmd = JSON.parse(json) as BackendCommand;
   if (cmd.type === "authenticated" && cmd.protocol) {
     assertEquals(cmd.protocol.selected_version, "1.1");
@@ -160,7 +158,10 @@ Deno.test("PRIORITY_ORDER values", () => {
 // Command Queue Tests
 // ============================================================================
 
-function makePingCommand(priority: CommandPriority, timestamp = 0): PrioritizedCommand {
+function makePingCommand(
+  priority: CommandPriority,
+  timestamp = 0,
+): PrioritizedCommand {
   return {
     command: { type: "ping", timestamp } as BackendCommand,
     priority,
@@ -419,7 +420,11 @@ Deno.test("HeartbeatCollector - detect spawned agents", async () => {
   ];
 
   const events = await collector.detectChanges();
-  assert(events.some((e) => e.event_type === "spawned" && e.agent_id === "agent-new"));
+  assert(
+    events.some((e) =>
+      e.event_type === "spawned" && e.agent_id === "agent-new"
+    ),
+  );
 });
 
 Deno.test("HeartbeatCollector - detect exited agents", async () => {
@@ -449,7 +454,11 @@ Deno.test("HeartbeatCollector - detect exited agents", async () => {
   currentAgents = [];
 
   const events = await collector.detectChanges();
-  assert(events.some((e) => e.event_type === "exited" && e.agent_id === "agent-exit"));
+  assert(
+    events.some((e) =>
+      e.event_type === "exited" && e.agent_id === "agent-exit"
+    ),
+  );
 });
 
 Deno.test("HeartbeatCollector - detect busy/idle state changes", async () => {
@@ -477,7 +486,9 @@ Deno.test("HeartbeatCollector - detect busy/idle state changes", async () => {
   current = { ...current, is_busy: true, status: "busy" };
 
   const events = await collector.detectChanges();
-  assert(events.some((e) => e.event_type === "busy" && e.agent_id === "agent-state"));
+  assert(
+    events.some((e) => e.event_type === "busy" && e.agent_id === "agent-state"),
+  );
 });
 
 Deno.test("HeartbeatCollector - getCurrentAgents", async () => {

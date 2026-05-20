@@ -6,7 +6,12 @@ function nowTimestamp(): number {
 
 /** Status of a plan.
  * Equivalent to Rust's `PlanStatus` in brainwires-core. */
-export type PlanStatus = "draft" | "active" | "paused" | "completed" | "abandoned";
+export type PlanStatus =
+  | "draft"
+  | "active"
+  | "paused"
+  | "completed"
+  | "abandoned";
 
 /** Parse a PlanStatus from a string. */
 export function parsePlanStatus(s: string): PlanStatus | undefined {
@@ -39,11 +44,18 @@ export class PlanMetadata {
   merged: boolean;
   depth: number;
 
-  constructor(conversationId: string, taskDescription: string, planContent: string) {
+  constructor(
+    conversationId: string,
+    taskDescription: string,
+    planContent: string,
+  ) {
     const now = nowTimestamp();
     this.plan_id = crypto.randomUUID();
     this.conversation_id = conversationId;
-    this.title = (taskDescription.split("\n")[0] ?? taskDescription).slice(0, 50);
+    this.title = (taskDescription.split("\n")[0] ?? taskDescription).slice(
+      0,
+      50,
+    );
     this.task_description = taskDescription;
     this.plan_content = planContent;
     this.status = "draft";
@@ -57,8 +69,16 @@ export class PlanMetadata {
   }
 
   /** Create a branch (sub-plan) from this plan. */
-  createBranch(branchName: string, taskDescription: string, planContent: string): PlanMetadata {
-    const branch = new PlanMetadata(this.conversation_id, taskDescription, planContent);
+  createBranch(
+    branchName: string,
+    taskDescription: string,
+    planContent: string,
+  ): PlanMetadata {
+    const branch = new PlanMetadata(
+      this.conversation_id,
+      taskDescription,
+      planContent,
+    );
     branch.parent_plan_id = this.plan_id;
     branch.branch_name = branchName;
     branch.depth = this.depth + 1;
@@ -123,7 +143,10 @@ export class PlanMetadata {
 
   /** Generate markdown export with YAML frontmatter. */
   toMarkdown(): string {
-    const created = new Date(this.created_at * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
+    const created = new Date(this.created_at * 1000).toISOString().replace(
+      /\.\d{3}Z$/,
+      "Z",
+    );
     const model = this.model_id ?? "unknown";
     const escapedTitle = this.title.replace(/"/g, '\\"');
     return `---
@@ -201,11 +224,19 @@ export class PlanBudget {
     if (this.max_steps !== undefined && stepCount > this.max_steps) {
       return `plan has ${stepCount} steps but limit is ${this.max_steps}`;
     }
-    if (this.max_estimated_tokens !== undefined && totalTokens > this.max_estimated_tokens) {
+    if (
+      this.max_estimated_tokens !== undefined &&
+      totalTokens > this.max_estimated_tokens
+    ) {
       return `plan estimates ${totalTokens} tokens but limit is ${this.max_estimated_tokens}`;
     }
-    if (this.max_estimated_cost_usd !== undefined && totalCost > this.max_estimated_cost_usd) {
-      return `plan estimates $${totalCost.toFixed(6)} USD but limit is $${this.max_estimated_cost_usd.toFixed(6)}`;
+    if (
+      this.max_estimated_cost_usd !== undefined &&
+      totalCost > this.max_estimated_cost_usd
+    ) {
+      return `plan estimates $${totalCost.toFixed(6)} USD but limit is $${
+        this.max_estimated_cost_usd.toFixed(6)
+      }`;
     }
     return undefined;
   }
@@ -237,7 +268,10 @@ export class SerializablePlan {
   }
 
   /** Parse a plan from model-generated text that contains an embedded JSON object with a "steps" array. */
-  static parseFromText(taskDescription: string, text: string): SerializablePlan | undefined {
+  static parseFromText(
+    taskDescription: string,
+    text: string,
+  ): SerializablePlan | undefined {
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");
     if (start === -1 || end === -1 || start > end) return undefined;
@@ -265,7 +299,9 @@ export class SerializablePlan {
         step_number: i + 1,
         description,
         tool_hint: typeof toolHint === "string" ? toolHint : undefined,
-        estimated_tokens: typeof estimatedTokens === "number" ? estimatedTokens : 500,
+        estimated_tokens: typeof estimatedTokens === "number"
+          ? estimatedTokens
+          : 500,
       });
     }
 

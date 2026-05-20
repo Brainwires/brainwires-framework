@@ -33,7 +33,11 @@ export {
   RegexOutputParser,
 } from "@brainwires/core";
 
-export { type ParsedStep, parsePlanSteps, stepsToTasks } from "./plan_parser.ts";
+export {
+  type ParsedStep,
+  parsePlanSteps,
+  stepsToTasks,
+} from "./plan_parser.ts";
 
 // Config + timer
 export {
@@ -47,9 +51,9 @@ export {
 
 // Complexity scorer
 export {
+  complexityFromLocal,
   type ComplexityResult,
   ComplexityScorer,
-  complexityFromLocal,
   defaultComplexity,
   parseScore as parseComplexityScore,
   scoreHeuristic,
@@ -59,9 +63,9 @@ export {
 export {
   LocalRouter,
   parseCategories,
-  type RouteResult,
   routeFromFallback,
   routeFromLocal,
+  type RouteResult,
   type ToolCategory,
 } from "./router.ts";
 
@@ -77,9 +81,9 @@ export {
 
 // Retrieval classifier
 export {
-  type ClassificationResult,
   classificationFromFallback,
   classificationFromLocal,
+  type ClassificationResult,
   classifyHeuristic as classifyRetrievalHeuristic,
   parseClassification as parseRetrievalClassification,
   RetrievalClassifier,

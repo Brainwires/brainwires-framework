@@ -7,8 +7,8 @@
 import { assertEquals } from "@std/assert";
 import {
   buildQdrantFilter,
-  buildUpsertBody,
   buildSearchBody,
+  buildUpsertBody,
   parseSearchPoint,
 } from "./qdrant.ts";
 import type { ChunkMetadata } from "@brainwires/core";
@@ -30,7 +30,9 @@ Deno.test("buildQdrantFilter - project only", () => {
 });
 
 Deno.test("buildQdrantFilter - multiple conditions", () => {
-  const filter = buildQdrantFilter("proj", "/root", ["ts", "rs"], ["TypeScript"]);
+  const filter = buildQdrantFilter("proj", "/root", ["ts", "rs"], [
+    "TypeScript",
+  ]);
   assertEquals(filter?.must?.length, 4);
   assertEquals(filter!.must![0].key, "project");
   assertEquals(filter!.must![1].key, "root_path");

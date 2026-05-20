@@ -3,18 +3,18 @@
 // Run: deno run deno/examples/core/storage_and_search.ts
 
 import {
+  canOverride,
+  type ContentSource,
+  extractJson,
   FrameworkError,
   JsonListParser,
   JsonOutputParser,
   PlanBudget,
   PlanMetadata,
-  RegexOutputParser,
-  SerializablePlan,
-  canOverride,
-  extractJson,
-  requiresSanitization,
-  type ContentSource,
   type PlanStep,
+  RegexOutputParser,
+  requiresSanitization,
+  SerializablePlan,
 } from "@brainwires/core";
 
 async function main() {
@@ -48,10 +48,13 @@ async function main() {
   }
 
   // Parse JSON embedded in prose
-  const llmResponse2 = 'After analysis, the result is {"sentiment": "neutral", "score": 0.5, "explanation": "Mixed signals."}. Hope that helps!';
+  const llmResponse2 =
+    'After analysis, the result is {"sentiment": "neutral", "score": 0.5, "explanation": "Mixed signals."}. Hope that helps!';
   try {
     const result = jsonParser.parse(llmResponse2);
-    console.log(`  Embedded JSON: sentiment=${result.sentiment}, score=${result.score}`);
+    console.log(
+      `  Embedded JSON: sentiment=${result.sentiment}, score=${result.score}`,
+    );
   } catch (e) {
     console.log(`  Parse error: ${(e as Error).message}`);
   }
@@ -67,7 +70,8 @@ async function main() {
   const listParser = new JsonListParser<TodoItem>();
   console.log(`  Instructions: ${listParser.formatInstructions()}`);
 
-  const llmList = '[{"task": "Fix auth bug", "priority": "high"}, {"task": "Update docs", "priority": "low"}]';
+  const llmList =
+    '[{"task": "Fix auth bug", "priority": "high"}, {"task": "Update docs", "priority": "low"}]';
   try {
     const items = listParser.parse(llmList);
     for (const item of items) {
@@ -86,7 +90,9 @@ async function main() {
   console.log(`  Instructions: ${regexParser.formatInstructions()}`);
 
   try {
-    const result = regexParser.parse("ANSWER: TypeScript is great CONFIDENCE: 95%");
+    const result = regexParser.parse(
+      "ANSWER: TypeScript is great CONFIDENCE: 95%",
+    );
     console.log(`  Answer: ${result.answer}`);
     console.log(`  Confidence: ${result.confidence}%`);
   } catch (e) {
@@ -112,13 +118,35 @@ async function main() {
   console.log("\n=== Execution Plans ===");
 
   const steps: PlanStep[] = [
-    { step_number: 1, description: "Read existing auth module", tool_hint: "read_file", estimated_tokens: 500 },
-    { step_number: 2, description: "Analyze security vulnerabilities", estimated_tokens: 2000 },
-    { step_number: 3, description: "Generate fix suggestions", tool_hint: "write_file", estimated_tokens: 1500 },
-    { step_number: 4, description: "Write unit tests", tool_hint: "write_file", estimated_tokens: 1000 },
+    {
+      step_number: 1,
+      description: "Read existing auth module",
+      tool_hint: "read_file",
+      estimated_tokens: 500,
+    },
+    {
+      step_number: 2,
+      description: "Analyze security vulnerabilities",
+      estimated_tokens: 2000,
+    },
+    {
+      step_number: 3,
+      description: "Generate fix suggestions",
+      tool_hint: "write_file",
+      estimated_tokens: 1500,
+    },
+    {
+      step_number: 4,
+      description: "Write unit tests",
+      tool_hint: "write_file",
+      estimated_tokens: 1000,
+    },
   ];
 
-  const plan = new SerializablePlan("Fix authentication security issues", steps);
+  const plan = new SerializablePlan(
+    "Fix authentication security issues",
+    steps,
+  );
   console.log(`  Plan ID: ${plan.plan_id}`);
   console.log(`  Steps: ${plan.stepCount()}`);
   console.log(`  Estimated tokens: ${plan.totalEstimatedTokens()}`);
@@ -145,15 +173,24 @@ async function main() {
       {"description": "Update the settings", "tool": "write_file", "estimated_tokens": 500}
     ]
   }`;
-  const parsedPlan = SerializablePlan.parseFromText("Update config settings", llmPlanText);
+  const parsedPlan = SerializablePlan.parseFromText(
+    "Update config settings",
+    llmPlanText,
+  );
   if (parsedPlan) {
-    console.log(`  Parsed plan: ${parsedPlan.stepCount()} steps, ${parsedPlan.totalEstimatedTokens()} tokens`);
+    console.log(
+      `  Parsed plan: ${parsedPlan.stepCount()} steps, ${parsedPlan.totalEstimatedTokens()} tokens`,
+    );
   }
 
   // 6. Plan metadata with branching
   console.log("\n=== Plan Metadata ===");
 
-  const planMeta = new PlanMetadata("conv-001", "Refactor auth module", "Step 1: analyze...\nStep 2: implement...");
+  const planMeta = new PlanMetadata(
+    "conv-001",
+    "Refactor auth module",
+    "Step 1: analyze...\nStep 2: implement...",
+  );
   planMeta.withModel("claude-sonnet").withIterations(5);
   planMeta.setStatus("active");
 
@@ -162,7 +199,11 @@ async function main() {
   console.log(`  Is root: ${planMeta.isRoot()}`);
 
   // Create a branch (sub-plan)
-  const branch = planMeta.createBranch("auth-refactor-v2", "Alternative approach using OAuth", "Step 1: setup OAuth...");
+  const branch = planMeta.createBranch(
+    "auth-refactor-v2",
+    "Alternative approach using OAuth",
+    "Step 1: setup OAuth...",
+  );
   planMeta.addChild(branch.plan_id);
 
   console.log(`  Branch: ${branch.branch_name}, depth: ${branch.depth}`);
@@ -175,17 +216,28 @@ async function main() {
   // 7. Content source trust levels
   console.log("\n=== Content Source Trust ===");
 
-  const sources: ContentSource[] = ["system_prompt", "user_input", "agent_reasoning", "external_content"];
+  const sources: ContentSource[] = [
+    "system_prompt",
+    "user_input",
+    "agent_reasoning",
+    "external_content",
+  ];
 
   for (const source of sources) {
-    console.log(`  ${source}: needs_sanitization=${requiresSanitization(source)}`);
+    console.log(
+      `  ${source}: needs_sanitization=${requiresSanitization(source)}`,
+    );
   }
 
   console.log("\n  Override matrix (can source override target?):");
   for (const source of sources) {
-    const canOverrideList = sources.filter((target) => canOverride(source, target));
+    const canOverrideList = sources.filter((target) =>
+      canOverride(source, target)
+    );
     if (canOverrideList.length > 0) {
-      console.log(`    ${source} can override: [${canOverrideList.join(", ")}]`);
+      console.log(
+        `    ${source} can override: [${canOverrideList.join(", ")}]`,
+      );
     } else {
       console.log(`    ${source} can override: (none)`);
     }
@@ -200,7 +252,10 @@ async function main() {
     FrameworkError.providerModel("anthropic", "claude-4", "Model not found"),
     FrameworkError.embeddingDimension(384, 768),
     FrameworkError.storageSchema("messages", "Missing 'content' column"),
-    new FrameworkError({ type: "tool_execution", message: "Timeout after 30s" }),
+    new FrameworkError({
+      type: "tool_execution",
+      message: "Timeout after 30s",
+    }),
   ];
 
   for (const err of errors) {
@@ -211,12 +266,21 @@ async function main() {
   try {
     throw FrameworkError.providerAuth("demo", "expired token");
   } catch (e: unknown) {
-    if (e instanceof FrameworkError && (e as FrameworkError).kind.type === "provider_auth") {
-      console.log(`\n  Caught provider auth error for: ${(e as FrameworkError).kind.provider}`);
+    if (
+      e instanceof FrameworkError &&
+      (e as FrameworkError).kind.type === "provider_auth"
+    ) {
+      console.log(
+        `\n  Caught provider auth error for: ${
+          (e as FrameworkError).kind.provider
+        }`,
+      );
     }
   }
 
-  console.log("\nDone! Use output parsers for structured LLM extraction and plans for execution budgeting.");
+  console.log(
+    "\nDone! Use output parsers for structured LLM extraction and plans for execution budgeting.",
+  );
 }
 
 await main();

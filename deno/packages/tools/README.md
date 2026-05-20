@@ -1,6 +1,8 @@
 # @brainwires/tools
 
-Built-in tool implementations and a composable tool registry for the Brainwires Agent Framework. Provides ready-to-use tools for shell commands, file operations, git, web fetching, and code search.
+Built-in tool implementations and a composable tool registry for the Brainwires
+Agent Framework. Provides ready-to-use tools for shell commands, file
+operations, git, web fetching, and code search.
 
 Equivalent to the Rust `brainwires-tools` crate.
 
@@ -14,11 +16,11 @@ deno add @brainwires/tools
 
 ```ts
 import {
-  ToolRegistry,
   BashTool,
   FileOpsTool,
   GitTool,
   SearchTool,
+  ToolRegistry,
   WebTool,
 } from "@brainwires/tools";
 
@@ -42,19 +44,19 @@ console.log(bashTool?.name); // "bash"
 
 ## Built-in Tools
 
-| Tool Class | Tools Provided | Description |
-|------------|---------------|-------------|
-| `BashTool` | `bash` | Shell command execution with output management |
-| `FileOpsTool` | `read_file`, `write_file`, `edit_file`, `list_directory`, `search_files`, `delete_file`, `create_directory` | File system operations |
-| `GitTool` | `git_status`, `git_diff`, `git_log`, `git_stage`, `git_commit`, `git_push`, `git_pull`, etc. | Git operations |
-| `SearchTool` | `search_code` | Regex-based code search (respects `.gitignore`) |
-| `WebTool` | `web_fetch` | URL fetching |
+| Tool Class    | Tools Provided                                                                                              | Description                                     |
+| ------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `BashTool`    | `bash`                                                                                                      | Shell command execution with output management  |
+| `FileOpsTool` | `read_file`, `write_file`, `edit_file`, `list_directory`, `search_files`, `delete_file`, `create_directory` | File system operations                          |
+| `GitTool`     | `git_status`, `git_diff`, `git_log`, `git_stage`, `git_commit`, `git_push`, `git_pull`, etc.                | Git operations                                  |
+| `SearchTool`  | `search_code`                                                                                               | Regex-based code search (respects `.gitignore`) |
+| `WebTool`     | `web_fetch`                                                                                                 | URL fetching                                    |
 
 ## Other Exports
 
-| Export | Description |
-|--------|-------------|
-| `ToolRegistry` | Composable container with category filtering and search |
-| `getSmartTools` | Context-aware tool selection based on message analysis |
-| `sanitizeExternalContent` | Input sanitization for tool outputs |
-| `classifyError` / `retryStrategy` | Error taxonomy and retry logic |
+| Export                            | Description                                             |
+| --------------------------------- | ------------------------------------------------------- |
+| `ToolRegistry`                    | Composable container with category filtering and search |
+| `getSmartTools`                   | Context-aware tool selection based on message analysis  |
+| `sanitizeExternalContent`         | Input sanitization for tool outputs                     |
+| `classifyError` / `retryStrategy` | Error taxonomy and retry logic                          |

@@ -8,7 +8,10 @@
  * Run with: deno test deno/tests/fixture_test.ts
  */
 
-import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assertEquals,
+  assertExists,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { join } from "https://deno.land/std@0.224.0/path/mod.ts";
 
 const FIXTURES_DIR = join(
@@ -146,7 +149,10 @@ interface ToolDef {
 Deno.test("Tool: sample tool with schema", () => {
   const tool = loadFixture<ToolDef>("tool_sample");
   assertEquals(tool.name, "read_file");
-  assertEquals(tool.description, "Read the contents of a file at the given path");
+  assertEquals(
+    tool.description,
+    "Read the contents of a file at the given path",
+  );
   assertEquals(tool.input_schema.type, "object");
   assertExists(tool.input_schema.properties);
   assertExists(tool.input_schema.properties!.path);
@@ -312,7 +318,10 @@ Deno.test("Usage: sample", () => {
   assertEquals(usage.prompt_tokens, 150);
   assertEquals(usage.completion_tokens, 50);
   assertEquals(usage.total_tokens, 200);
-  assertEquals(usage.prompt_tokens + usage.completion_tokens, usage.total_tokens);
+  assertEquals(
+    usage.prompt_tokens + usage.completion_tokens,
+    usage.total_tokens,
+  );
   assertRoundTrip(usage, "Usage");
 });
 

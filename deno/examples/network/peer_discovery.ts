@@ -5,25 +5,25 @@
 // Run: deno run deno/examples/agent-network/peer_discovery.ts
 
 import {
-  createAgentIdentity,
   type AgentIdentity,
-  defaultAgentCard,
-  hasCapability,
-  supportsProtocol,
-  ManualDiscovery,
-  type Discovery,
-  type DiscoveryProtocol,
-  PeerTable,
-  type TransportAddress,
-  displayTransportAddress,
-  DirectRouter,
+  broadcastEnvelope,
   BroadcastRouter,
   ContentRouter,
+  createAgentIdentity,
+  defaultAgentCard,
   directEnvelope,
-  broadcastEnvelope,
-  topicEnvelope,
-  textPayload,
+  DirectRouter,
+  type Discovery,
+  type DiscoveryProtocol,
+  displayTransportAddress,
+  hasCapability,
   jsonPayload,
+  ManualDiscovery,
+  PeerTable,
+  supportsProtocol,
+  textPayload,
+  topicEnvelope,
+  type TransportAddress,
 } from "@brainwires/network";
 
 async function main(): Promise<void> {
@@ -85,7 +85,9 @@ async function main(): Promise<void> {
   const agents = [coordinator, coder, reviewer, deployer];
   for (const agent of agents) {
     console.log(
-      `  ${agent.name}: capabilities=${JSON.stringify(agent.agentCard.capabilities)}, ` +
+      `  ${agent.name}: capabilities=${
+        JSON.stringify(agent.agentCard.capabilities)
+      }, ` +
         `protocols=${JSON.stringify(agent.agentCard.supportedProtocols)}`,
     );
   }
@@ -101,25 +103,39 @@ async function main(): Promise<void> {
 
   // Initial discovery
   let found: AgentIdentity[] = await discovery.discover();
-  console.log(`  Initial peers: ${found.map((p: AgentIdentity) => p.name).join(", ")}`);
+  console.log(
+    `  Initial peers: ${found.map((p: AgentIdentity) => p.name).join(", ")}`,
+  );
 
   // Register more agents
   await discovery.register(deployer);
   await discovery.register(coordinator);
   found = await discovery.discover();
-  console.log(`  After registering deployer + coordinator: ${found.map((p: AgentIdentity) => p.name).join(", ")}`);
+  console.log(
+    `  After registering deployer + coordinator: ${
+      found.map((p: AgentIdentity) => p.name).join(", ")
+    }`,
+  );
 
   // Lookup by ID
   const lookedUp = await discovery.lookup(reviewer.id);
-  console.log(`  Lookup reviewer by ID: ${lookedUp ? lookedUp.name : "not found"}`);
+  console.log(
+    `  Lookup reviewer by ID: ${lookedUp ? lookedUp.name : "not found"}`,
+  );
 
   const missing = await discovery.lookup("nonexistent-id");
-  console.log(`  Lookup nonexistent ID: ${missing ? missing.name : "not found"}`);
+  console.log(
+    `  Lookup nonexistent ID: ${missing ? missing.name : "not found"}`,
+  );
 
   // Deregister
   await discovery.deregister(deployer.id);
   found = await discovery.discover();
-  console.log(`  After deregistering deployer: ${found.map((p: AgentIdentity) => p.name).join(", ")}`);
+  console.log(
+    `  After deregistering deployer: ${
+      found.map((p: AgentIdentity) => p.name).join(", ")
+    }`,
+  );
   console.log();
 
   // ---------------------------------------------------------------------------
@@ -129,20 +145,50 @@ async function main(): Promise<void> {
 
   const allAgents: AgentIdentity[] = await discovery.discover();
 
-  const coders = allAgents.filter((a: AgentIdentity) => hasCapability(a.agentCard, "code-generation"));
-  console.log(`  Agents with "code-generation": ${coders.map((a: AgentIdentity) => a.name).join(", ") || "none"}`);
+  const coders = allAgents.filter((a: AgentIdentity) =>
+    hasCapability(a.agentCard, "code-generation")
+  );
+  console.log(
+    `  Agents with "code-generation": ${
+      coders.map((a: AgentIdentity) => a.name).join(", ") || "none"
+    }`,
+  );
 
-  const reviewers = allAgents.filter((a: AgentIdentity) => hasCapability(a.agentCard, "code-review"));
-  console.log(`  Agents with "code-review": ${reviewers.map((a: AgentIdentity) => a.name).join(", ") || "none"}`);
+  const reviewers = allAgents.filter((a: AgentIdentity) =>
+    hasCapability(a.agentCard, "code-review")
+  );
+  console.log(
+    `  Agents with "code-review": ${
+      reviewers.map((a: AgentIdentity) => a.name).join(", ") || "none"
+    }`,
+  );
 
-  const monitors = allAgents.filter((a: AgentIdentity) => hasCapability(a.agentCard, "monitoring"));
-  console.log(`  Agents with "monitoring": ${monitors.map((a: AgentIdentity) => a.name).join(", ") || "none"}`);
+  const monitors = allAgents.filter((a: AgentIdentity) =>
+    hasCapability(a.agentCard, "monitoring")
+  );
+  console.log(
+    `  Agents with "monitoring": ${
+      monitors.map((a: AgentIdentity) => a.name).join(", ") || "none"
+    }`,
+  );
 
-  const a2aAgents = allAgents.filter((a: AgentIdentity) => supportsProtocol(a.agentCard, "a2a"));
-  console.log(`  Agents supporting "a2a": ${a2aAgents.map((a: AgentIdentity) => a.name).join(", ") || "none"}`);
+  const a2aAgents = allAgents.filter((a: AgentIdentity) =>
+    supportsProtocol(a.agentCard, "a2a")
+  );
+  console.log(
+    `  Agents supporting "a2a": ${
+      a2aAgents.map((a: AgentIdentity) => a.name).join(", ") || "none"
+    }`,
+  );
 
-  const ipcAgents = allAgents.filter((a: AgentIdentity) => supportsProtocol(a.agentCard, "ipc"));
-  console.log(`  Agents supporting "ipc": ${ipcAgents.map((a: AgentIdentity) => a.name).join(", ") || "none"}`);
+  const ipcAgents = allAgents.filter((a: AgentIdentity) =>
+    supportsProtocol(a.agentCard, "ipc")
+  );
+  console.log(
+    `  Agents supporting "ipc": ${
+      ipcAgents.map((a: AgentIdentity) => a.name).join(", ") || "none"
+    }`,
+  );
   console.log();
 
   // ---------------------------------------------------------------------------
@@ -184,16 +230,22 @@ async function main(): Promise<void> {
   peerTable.subscribe(coordinator.id, "review-requests");
 
   console.log(
-    `  "build-events" subscribers: ${peerTable.subscribers("build-events").length}`,
+    `  "build-events" subscribers: ${
+      peerTable.subscribers("build-events").length
+    }`,
   );
   console.log(
-    `  "review-requests" subscribers: ${peerTable.subscribers("review-requests").length}`,
+    `  "review-requests" subscribers: ${
+      peerTable.subscribers("review-requests").length
+    }`,
   );
 
   // Unsubscribe and check
   peerTable.unsubscribe(coordinator.id, "build-events");
   console.log(
-    `  "build-events" after unsubscribe coordinator: ${peerTable.subscribers("build-events").length}`,
+    `  "build-events" after unsubscribe coordinator: ${
+      peerTable.subscribers("build-events").length
+    }`,
   );
 
   // Remove a peer entirely
@@ -201,7 +253,9 @@ async function main(): Promise<void> {
   console.log(`  Removed peer: ${removed?.name ?? "none"}`);
   console.log(`  Peers remaining: ${peerTable.length}`);
   console.log(
-    `  "build-events" after removing coder: ${peerTable.subscribers("build-events").length}`,
+    `  "build-events" after removing coder: ${
+      peerTable.subscribers("build-events").length
+    }`,
   );
   console.log();
 
@@ -232,8 +286,12 @@ async function main(): Promise<void> {
     textPayload("System: maintenance window starting"),
   );
   const broadcastAddrs = await broadcastRouter.route(broadcastMsg, peerTable);
-  console.log(`  BroadcastRouter (${JSON.stringify(broadcastRouter.strategy())}):`);
-  console.log(`    -> ${broadcastAddrs.map(displayTransportAddress).join(", ")}`);
+  console.log(
+    `  BroadcastRouter (${JSON.stringify(broadcastRouter.strategy())}):`,
+  );
+  console.log(
+    `    -> ${broadcastAddrs.map(displayTransportAddress).join(", ")}`,
+  );
 
   // Content-based routing
   const contentRouter = new ContentRouter();
@@ -267,7 +325,11 @@ async function main(): Promise<void> {
     await directRouter.route(broadcastMsg, peerTable);
     console.log("  DirectRouter + broadcast -> OK (unexpected)");
   } catch (e) {
-    console.log(`  DirectRouter + broadcast -> Error: ${e instanceof Error ? e.message : e}`);
+    console.log(
+      `  DirectRouter + broadcast -> Error: ${
+        e instanceof Error ? e.message : e
+      }`,
+    );
   }
 
   try {
@@ -275,7 +337,11 @@ async function main(): Promise<void> {
     await contentRouter.route(directMsg, peerTable);
     console.log("  ContentRouter + direct -> OK (unexpected)");
   } catch (e) {
-    console.log(`  ContentRouter + direct -> Error: ${e instanceof Error ? e.message : e}`);
+    console.log(
+      `  ContentRouter + direct -> Error: ${
+        e instanceof Error ? e.message : e
+      }`,
+    );
   }
 
   console.log("\nDone.");

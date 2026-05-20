@@ -17,18 +17,36 @@ async function main() {
   // 2. Stage multiple file writes
   console.log("=== Staging Writes ===\n");
 
-  const targetDir = `${Deno.env.get("TMPDIR") ?? "/tmp"}/brainwires-txn-example`;
+  const targetDir = `${
+    Deno.env.get("TMPDIR") ?? "/tmp"
+  }/brainwires-txn-example`;
   Deno.mkdirSync(targetDir, { recursive: true });
 
   const writes = [
-    { key: "config", target_path: `${targetDir}/config.json`, content: '{"version": "1.0", "debug": false}' },
-    { key: "readme", target_path: `${targetDir}/README.md`, content: "# My Project\n\nA demonstration project." },
-    { key: "main", target_path: `${targetDir}/src/main.ts`, content: 'console.log("Hello from transactions!");\n' },
+    {
+      key: "config",
+      target_path: `${targetDir}/config.json`,
+      content: '{"version": "1.0", "debug": false}',
+    },
+    {
+      key: "readme",
+      target_path: `${targetDir}/README.md`,
+      content: "# My Project\n\nA demonstration project.",
+    },
+    {
+      key: "main",
+      target_path: `${targetDir}/src/main.ts`,
+      content: 'console.log("Hello from transactions!");\n',
+    },
   ];
 
   for (const write of writes) {
     const staged = txn.stage(write);
-    console.log(`  Staged '${write.key}' -> ${write.target_path}: ${staged ? "OK" : "already staged"}`);
+    console.log(
+      `  Staged '${write.key}' -> ${write.target_path}: ${
+        staged ? "OK" : "already staged"
+      }`,
+    );
   }
 
   // Demonstrate duplicate key rejection (first write wins)
@@ -37,7 +55,11 @@ async function main() {
     target_path: `${targetDir}/config-v2.json`,
     content: '{"version": "2.0"}',
   });
-  console.log(`  Staged duplicate 'config': ${duplicate ? "OK" : "rejected (first write wins)"}`);
+  console.log(
+    `  Staged duplicate 'config': ${
+      duplicate ? "OK" : "rejected (first write wins)"
+    }`,
+  );
 
   console.log(`\n  Pending writes: ${txn.pendingCount()}`);
 
@@ -58,7 +80,11 @@ async function main() {
   for (const write of writes) {
     try {
       const content = Deno.readTextFileSync(write.target_path);
-      console.log(`  ${write.key}: ${content.substring(0, 50)}${content.length > 50 ? "..." : ""}`);
+      console.log(
+        `  ${write.key}: ${content.substring(0, 50)}${
+          content.length > 50 ? "..." : ""
+        }`,
+      );
     } catch (e) {
       console.log(`  ${write.key}: ERROR - ${e}`);
     }

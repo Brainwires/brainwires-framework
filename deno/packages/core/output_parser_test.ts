@@ -26,7 +26,8 @@ Deno.test("JsonOutputParser: clean JSON", () => {
 
 Deno.test("JsonOutputParser: JSON with surrounding prose", () => {
   const parser = new JsonOutputParser<TestStruct>();
-  const input = 'Here is the result: {"name": "test", "value": 42} Hope that helps!';
+  const input =
+    'Here is the result: {"name": "test", "value": 42} Hope that helps!';
   const result = parser.parse(input);
   assertEquals(result.name, "test");
   assertEquals(result.value, 42);
@@ -34,7 +35,8 @@ Deno.test("JsonOutputParser: JSON with surrounding prose", () => {
 
 Deno.test("JsonOutputParser: JSON in code fence", () => {
   const parser = new JsonOutputParser<TestStruct>();
-  const input = 'Here\'s the JSON:\n```json\n{"name": "test", "value": 42}\n```';
+  const input =
+    'Here\'s the JSON:\n```json\n{"name": "test", "value": 42}\n```';
   const result = parser.parse(input);
   assertEquals(result.name, "test");
 });

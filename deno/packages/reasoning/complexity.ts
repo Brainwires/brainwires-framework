@@ -22,7 +22,10 @@ export function defaultComplexity(): ComplexityResult {
 }
 
 /** Build a result from LLM output, clamping score and confidence. */
-export function complexityFromLocal(score: number, confidence: number): ComplexityResult {
+export function complexityFromLocal(
+  score: number,
+  confidence: number,
+): ComplexityResult {
   return {
     score: clamp01(score),
     confidence: clamp01(confidence),
@@ -35,7 +38,8 @@ function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
 }
 
-const SYSTEM_PROMPT = `You are a task complexity evaluator. Given a task description, output a complexity score.
+const SYSTEM_PROMPT =
+  `You are a task complexity evaluator. Given a task description, output a complexity score.
 
 Scoring guide:
 - 0.0-0.2: Trivial (single step, no decisions)
@@ -132,13 +136,18 @@ export class ComplexityScorer {
 
   /** LLM-backed scoring. Returns null on failure so callers can fall back. */
   async score(task_description: string): Promise<ComplexityResult | null> {
-    const user = `Rate the complexity of this task from 0.0 (trivial) to 1.0 (very complex). Output ONLY a decimal number.
+    const user =
+      `Rate the complexity of this task from 0.0 (trivial) to 1.0 (very complex). Output ONLY a decimal number.
 
 Task: ${task_description}`;
     const options = ChatOptions.deterministic(10);
     options.setSystem(SYSTEM_PROMPT);
     try {
-      const resp = await this.provider.chat([Message.user(user)], undefined, options);
+      const resp = await this.provider.chat(
+        [Message.user(user)],
+        undefined,
+        options,
+      );
       const text = resp.message.textOrSummary();
       const score = parseScore(text);
       return score === null ? null : complexityFromLocal(score, 0.8);

@@ -53,6 +53,9 @@ Deno.test("ToolContext with registry", () => {
 
 Deno.test("toolModeDisplayName", () => {
   assertEquals(toolModeDisplayName({ type: "full" }), "full");
-  assertEquals(toolModeDisplayName({ type: "explicit", tools: ["a"] }), "explicit");
+  assertEquals(
+    toolModeDisplayName({ type: "explicit", tools: ["a"] }),
+    "explicit",
+  );
   assertEquals(toolModeDisplayName({ type: "smart" }), "smart");
 });

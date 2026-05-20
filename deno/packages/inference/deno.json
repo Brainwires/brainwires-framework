@@ -1,0 +1,14 @@
+{
+  "name": "@brainwires/inference",
+  "license": "MIT",
+  "version": "0.11.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./task-agent": "./task_agent.ts",
+    "./judge": "./judge_agent.ts",
+    "./planner": "./planner_agent.ts",
+    "./validator": "./validator_agent.ts",
+    "./cycle": "./cycle_orchestrator.ts",
+    "./runtime": "./runtime.ts"
+  }
+}

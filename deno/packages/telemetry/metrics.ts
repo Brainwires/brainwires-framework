@@ -65,7 +65,9 @@ export function avgRunDurationMs(m: OutcomeMetrics): number {
 }
 
 export function avgProviderLatencyMs(m: OutcomeMetrics): number {
-  return m.provider_call_count === 0 ? 0 : m.total_provider_duration_ms / m.provider_call_count;
+  return m.provider_call_count === 0
+    ? 0
+    : m.total_provider_duration_ms / m.provider_call_count;
 }
 
 export function toolErrorRate(m: OutcomeMetrics): number {
@@ -176,49 +178,134 @@ export class MetricsRegistry implements AnalyticsSink {
     };
 
     counter("brainwires_agent_runs_total", "Total agent runs attempted");
-    for (const m of this.entries.values()) row("brainwires_agent_runs_total", m.agent_id, m.total_runs);
+    for (const m of this.entries.values()) {
+      row("brainwires_agent_runs_total", m.agent_id, m.total_runs);
+    }
 
     counter("brainwires_agent_runs_success_total", "Agent runs that succeeded");
-    for (const m of this.entries.values()) row("brainwires_agent_runs_success_total", m.agent_id, m.success_count);
+    for (const m of this.entries.values()) {
+      row("brainwires_agent_runs_success_total", m.agent_id, m.success_count);
+    }
 
     counter("brainwires_agent_runs_failure_total", "Agent runs that failed");
-    for (const m of this.entries.values()) row("brainwires_agent_runs_failure_total", m.agent_id, m.failure_count);
+    for (const m of this.entries.values()) {
+      row("brainwires_agent_runs_failure_total", m.agent_id, m.failure_count);
+    }
 
     gauge("brainwires_agent_success_rate", "Agent run success rate (0-1)");
-    for (const m of this.entries.values()) row("brainwires_agent_success_rate", m.agent_id, successRate(m));
+    for (const m of this.entries.values()) {
+      row("brainwires_agent_success_rate", m.agent_id, successRate(m));
+    }
 
-    counter("brainwires_agent_tool_calls_total", "Total tool calls made by agent");
-    for (const m of this.entries.values()) row("brainwires_agent_tool_calls_total", m.agent_id, m.total_tool_calls);
+    counter(
+      "brainwires_agent_tool_calls_total",
+      "Total tool calls made by agent",
+    );
+    for (const m of this.entries.values()) {
+      row("brainwires_agent_tool_calls_total", m.agent_id, m.total_tool_calls);
+    }
 
-    counter("brainwires_agent_tool_errors_total", "Tool calls that produced an error");
-    for (const m of this.entries.values()) row("brainwires_agent_tool_errors_total", m.agent_id, m.tool_error_count);
+    counter(
+      "brainwires_agent_tool_errors_total",
+      "Tool calls that produced an error",
+    );
+    for (const m of this.entries.values()) {
+      row("brainwires_agent_tool_errors_total", m.agent_id, m.tool_error_count);
+    }
 
-    counter("brainwires_agent_provider_calls_total", "Total LLM provider calls");
-    for (const m of this.entries.values()) row("brainwires_agent_provider_calls_total", m.agent_id, m.provider_call_count);
+    counter(
+      "brainwires_agent_provider_calls_total",
+      "Total LLM provider calls",
+    );
+    for (const m of this.entries.values()) {
+      row(
+        "brainwires_agent_provider_calls_total",
+        m.agent_id,
+        m.provider_call_count,
+      );
+    }
 
-    counter("brainwires_agent_tokens_prompt_total", "Total prompt tokens consumed");
-    for (const m of this.entries.values()) row("brainwires_agent_tokens_prompt_total", m.agent_id, m.total_tokens_prompt);
+    counter(
+      "brainwires_agent_tokens_prompt_total",
+      "Total prompt tokens consumed",
+    );
+    for (const m of this.entries.values()) {
+      row(
+        "brainwires_agent_tokens_prompt_total",
+        m.agent_id,
+        m.total_tokens_prompt,
+      );
+    }
 
-    counter("brainwires_agent_tokens_completion_total", "Total completion tokens generated");
-    for (const m of this.entries.values()) row("brainwires_agent_tokens_completion_total", m.agent_id, m.total_tokens_completion);
+    counter(
+      "brainwires_agent_tokens_completion_total",
+      "Total completion tokens generated",
+    );
+    for (const m of this.entries.values()) {
+      row(
+        "brainwires_agent_tokens_completion_total",
+        m.agent_id,
+        m.total_tokens_completion,
+      );
+    }
 
     counter("brainwires_agent_cost_usd_total", "Cumulative LLM cost in USD");
-    for (const m of this.entries.values()) row("brainwires_agent_cost_usd_total", m.agent_id, m.total_cost_usd);
+    for (const m of this.entries.values()) {
+      row("brainwires_agent_cost_usd_total", m.agent_id, m.total_cost_usd);
+    }
 
-    gauge("brainwires_agent_avg_run_duration_ms", "Average agent run duration in ms");
-    for (const m of this.entries.values()) row("brainwires_agent_avg_run_duration_ms", m.agent_id, avgRunDurationMs(m));
+    gauge(
+      "brainwires_agent_avg_run_duration_ms",
+      "Average agent run duration in ms",
+    );
+    for (const m of this.entries.values()) {
+      row(
+        "brainwires_agent_avg_run_duration_ms",
+        m.agent_id,
+        avgRunDurationMs(m),
+      );
+    }
 
-    gauge("brainwires_agent_avg_provider_latency_ms", "Average LLM provider call latency in ms");
-    for (const m of this.entries.values()) row("brainwires_agent_avg_provider_latency_ms", m.agent_id, avgProviderLatencyMs(m));
+    gauge(
+      "brainwires_agent_avg_provider_latency_ms",
+      "Average LLM provider call latency in ms",
+    );
+    for (const m of this.entries.values()) {
+      row(
+        "brainwires_agent_avg_provider_latency_ms",
+        m.agent_id,
+        avgProviderLatencyMs(m),
+      );
+    }
 
-    counter("brainwires_agent_cache_read_tokens_total", "Prompt tokens served from the provider's cache");
-    for (const m of this.entries.values()) row("brainwires_agent_cache_read_tokens_total", m.agent_id, m.total_cache_read_tokens);
+    counter(
+      "brainwires_agent_cache_read_tokens_total",
+      "Prompt tokens served from the provider's cache",
+    );
+    for (const m of this.entries.values()) {
+      row(
+        "brainwires_agent_cache_read_tokens_total",
+        m.agent_id,
+        m.total_cache_read_tokens,
+      );
+    }
 
-    counter("brainwires_agent_cache_creation_tokens_total", "Prompt tokens charged to populate the provider's cache");
-    for (const m of this.entries.values()) row("brainwires_agent_cache_creation_tokens_total", m.agent_id, m.total_cache_creation_tokens);
+    counter(
+      "brainwires_agent_cache_creation_tokens_total",
+      "Prompt tokens charged to populate the provider's cache",
+    );
+    for (const m of this.entries.values()) {
+      row(
+        "brainwires_agent_cache_creation_tokens_total",
+        m.agent_id,
+        m.total_cache_creation_tokens,
+      );
+    }
 
     gauge("brainwires_agent_cache_hit_rate", "Prompt cache hit rate (0-1)");
-    for (const m of this.entries.values()) row("brainwires_agent_cache_hit_rate", m.agent_id, cacheHitRate(m));
+    for (const m of this.entries.values()) {
+      row("brainwires_agent_cache_hit_rate", m.agent_id, cacheHitRate(m));
+    }
 
     return lines.join("\n") + "\n";
   }

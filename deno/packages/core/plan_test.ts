@@ -64,9 +64,15 @@ That's the plan.`;
 });
 
 Deno.test("SerializablePlan.parseFromText - empty steps returns undefined", () => {
-  assertEquals(SerializablePlan.parseFromText("task", '{"steps":[]}'), undefined);
+  assertEquals(
+    SerializablePlan.parseFromText("task", '{"steps":[]}'),
+    undefined,
+  );
 });
 
 Deno.test("SerializablePlan.parseFromText - no JSON returns undefined", () => {
-  assertEquals(SerializablePlan.parseFromText("task", "no json here"), undefined);
+  assertEquals(
+    SerializablePlan.parseFromText("task", "no json here"),
+    undefined,
+  );
 });

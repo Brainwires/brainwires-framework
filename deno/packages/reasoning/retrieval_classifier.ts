@@ -69,7 +69,14 @@ const REFERENCE = [
   "mentioned earlier",
   "as mentioned",
 ];
-const QUESTION = ["what did", "when did", "why did", "how did", "where was", "who was"];
+const QUESTION = [
+  "what did",
+  "when did",
+  "why did",
+  "how did",
+  "where was",
+  "who was",
+];
 const CONTINUATION = [
   "continue",
   "keep going",
@@ -80,14 +87,32 @@ const CONTINUATION = [
   "go on",
 ];
 
-export function classifyHeuristic(query: string, context_len: number): ClassificationResult {
+export function classifyHeuristic(
+  query: string,
+  context_len: number,
+): ClassificationResult {
   const lower = query.toLowerCase();
   let score = 0;
   let matches = 0;
 
-  for (const p of REFERENCE) if (lower.includes(p)) { score += 0.4; matches += 1; }
-  for (const p of QUESTION) if (lower.includes(p)) { score += 0.25; matches += 1; }
-  for (const p of CONTINUATION) if (lower.includes(p)) { score += 0.15; matches += 1; }
+  for (const p of REFERENCE) {
+    if (lower.includes(p)) {
+      score += 0.4;
+      matches += 1;
+    }
+  }
+  for (const p of QUESTION) {
+    if (lower.includes(p)) {
+      score += 0.25;
+      matches += 1;
+    }
+  }
+  for (const p of CONTINUATION) {
+    if (lower.includes(p)) {
+      score += 0.15;
+      matches += 1;
+    }
+  }
 
   if (context_len < 3) score += 0.3;
   else if (context_len < 5) score += 0.2;
@@ -141,9 +166,13 @@ export class RetrievalClassifier {
     this.model_id = model_id;
   }
 
-  async classify(query: string, context_len: number): Promise<ClassificationResult | null> {
+  async classify(
+    query: string,
+    context_len: number,
+  ): Promise<ClassificationResult | null> {
     const truncated = query.length > 200 ? query.slice(0, 200) : query;
-    const prompt = `Classify if this query needs to retrieve earlier conversation context.
+    const prompt =
+      `Classify if this query needs to retrieve earlier conversation context.
 
 Query: "${truncated}"
 Recent context messages: ${context_len}
@@ -160,7 +189,11 @@ Example: HIGH: references "earlier" and asks about past discussion
 Classification:`;
     const options = ChatOptions.deterministic(50);
     try {
-      const resp = await this.provider.chat([Message.user(prompt)], undefined, options);
+      const resp = await this.provider.chat(
+        [Message.user(prompt)],
+        undefined,
+        options,
+      );
       return parseClassification(resp.message.textOrSummary());
     } catch {
       return null;

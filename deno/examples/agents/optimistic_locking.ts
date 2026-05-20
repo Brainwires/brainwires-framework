@@ -5,12 +5,12 @@
 // Run: deno run deno/examples/agents/optimistic_locking.ts
 
 import {
-  isCommitSuccess,
-  OptimisticController,
   type CommitResult,
+  isCommitSuccess,
   type OptimisticConflict,
+  OptimisticController,
   type ResolutionStrategy,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 
 async function main() {
   console.log("=== Optimistic Concurrency Demo ===\n");
@@ -47,7 +47,9 @@ async function main() {
     console.log(`  Actual version:    ${conflict.actualVersion}`);
     console.log(`  Holder agent:      ${conflict.holderAgent}`);
     console.log(
-      `  Version diff:      ${conflict.actualVersion - conflict.expectedVersion}`,
+      `  Version diff:      ${
+        conflict.actualVersion - conflict.expectedVersion
+      }`,
     );
   }
 

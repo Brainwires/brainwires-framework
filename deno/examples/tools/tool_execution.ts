@@ -6,7 +6,11 @@
 import { ToolContext, ToolResult } from "@brainwires/core";
 import type { Tool, ToolUse } from "@brainwires/core";
 import { allow, reject } from "@brainwires/tools";
-import type { PreHookDecision, ToolPreHook, ToolExecutor } from "@brainwires/tools";
+import type {
+  PreHookDecision,
+  ToolExecutor,
+  ToolPreHook,
+} from "@brainwires/tools";
 
 // 1. Define a safety-check hook
 // This hook blocks destructive tools and rejects calls with suspicious input patterns.
@@ -20,7 +24,10 @@ class SafetyGuardHook implements ToolPreHook {
     this.blockedPatterns = ["rm -rf", "DROP TABLE"];
   }
 
-  async beforeExecute(toolUse: ToolUse, _context: ToolContext): Promise<PreHookDecision> {
+  async beforeExecute(
+    toolUse: ToolUse,
+    _context: ToolContext,
+  ): Promise<PreHookDecision> {
     // Check if the tool itself is blocked
     if (this.blockedTools.includes(toolUse.name)) {
       return reject(`Tool '${toolUse.name}' is blocked by safety policy.`);
@@ -42,10 +49,15 @@ class SafetyGuardHook implements ToolPreHook {
 // 2. Define a logging/audit hook
 
 class AuditLogHook implements ToolPreHook {
-  async beforeExecute(toolUse: ToolUse, context: ToolContext): Promise<PreHookDecision> {
+  async beforeExecute(
+    toolUse: ToolUse,
+    context: ToolContext,
+  ): Promise<PreHookDecision> {
     console.log(
       `[AUDIT] Tool='${toolUse.name}' id='${toolUse.id}' ` +
-      `cwd='${context.working_directory}' input=${JSON.stringify(toolUse.input)}`,
+        `cwd='${context.working_directory}' input=${
+          JSON.stringify(toolUse.input)
+        }`,
     );
     return allow();
   }
@@ -71,7 +83,10 @@ class MockExecutor implements ToolExecutor {
       }
     }
     // Simulate execution
-    return ToolResult.success(toolUse.id, `Executed ${toolUse.name} successfully`);
+    return ToolResult.success(
+      toolUse.id,
+      `Executed ${toolUse.name} successfully`,
+    );
   }
 
   availableTools(): Tool[] {
@@ -97,20 +112,26 @@ async function main() {
 
   // Scenario A: A safe tool call -- should be allowed
   console.log("Scenario A (read_file):");
-  const safeCall = mockToolUse("read_file", { path: "/home/user/project/README.md" });
+  const safeCall = mockToolUse("read_file", {
+    path: "/home/user/project/README.md",
+  });
   const decisionA = await safety.beforeExecute(safeCall, ctx);
   console.log(`  Decision: ${JSON.stringify(decisionA)}`);
   await audit.beforeExecute(safeCall, ctx);
 
   // Scenario B: A blocked tool -- should be rejected
   console.log("\nScenario B (delete_file):");
-  const blockedCall = mockToolUse("delete_file", { path: "/etc/important.conf" });
+  const blockedCall = mockToolUse("delete_file", {
+    path: "/etc/important.conf",
+  });
   const decisionB = await safety.beforeExecute(blockedCall, ctx);
   console.log(`  Decision: ${JSON.stringify(decisionB)}`);
 
   // Scenario C: Input contains a dangerous pattern -- should be rejected
   console.log("\nScenario C (execute_command with 'rm -rf'):");
-  const dangerousInput = mockToolUse("execute_command", { command: "rm -rf /important/data" });
+  const dangerousInput = mockToolUse("execute_command", {
+    command: "rm -rf /important/data",
+  });
   const decisionC = await safety.beforeExecute(dangerousInput, ctx);
   console.log(`  Decision: ${JSON.stringify(decisionC)}`);
 
@@ -132,7 +153,9 @@ async function main() {
 
   for (const call of calls) {
     const result = await executor.execute(call, ctx);
-    console.log(`  ${call.name}: ${result.is_error ? "ERROR" : "OK"} - ${result.content}`);
+    console.log(
+      `  ${call.name}: ${result.is_error ? "ERROR" : "OK"} - ${result.content}`,
+    );
   }
 
   console.log("\nAll scenarios passed.");

@@ -6,24 +6,27 @@
  * and the CommunicationHub + FileLockManager infrastructure.
  */
 
-import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  Message,
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
   ChatOptions,
   type ChatResponse,
-  type Provider,
-  type Tool,
-  type StreamChunk,
-  ToolResult,
   createUsage,
+  Message,
+  type Provider,
+  type StreamChunk,
+  type Tool,
+  ToolResult,
   type ToolUse,
 } from "@brainwires/core";
 import {
-  runAgentLoop,
   type AgentRuntime,
   CommunicationHub,
   FileLockManager,
-} from "@brainwires/agents";
+  runAgentLoop,
+} from "@brainwires/agent";
 import { ToolRegistry } from "@brainwires/tools";
 
 // ---------------------------------------------------------------------------
@@ -44,7 +47,8 @@ class MockProvider implements Provider {
     _tools: Tool[] | undefined,
     _options: ChatOptions,
   ): Promise<ChatResponse> {
-    const response = this.responses[this.callCount] ?? this.responses[this.responses.length - 1];
+    const response = this.responses[this.callCount] ??
+      this.responses[this.responses.length - 1];
     this.callCount++;
     return Promise.resolve(response);
   }
@@ -93,14 +97,17 @@ class MockAgentRuntime implements AgentRuntime {
     const content = response.message.content;
     if (!Array.isArray(content)) return [];
     return content
-      .filter((b): b is { type: "tool_use"; id: string; name: string; input: unknown } =>
-        b.type === "tool_use",
+      .filter((
+        b,
+      ): b is { type: "tool_use"; id: string; name: string; input: unknown } =>
+        b.type === "tool_use"
       )
       .map((b) => ({ id: b.id, name: b.name, input: b.input }));
   }
 
   isCompletion(response: ChatResponse): boolean {
-    return response.finish_reason === "end_turn" || response.finish_reason === "stop";
+    return response.finish_reason === "end_turn" ||
+      response.finish_reason === "stop";
   }
 
   async executeTool(toolUse: ToolUse): Promise<ToolResult> {
@@ -108,7 +115,9 @@ class MockAgentRuntime implements AgentRuntime {
     return ToolResult.success(toolUse.id, `result-of-${toolUse.name}`);
   }
 
-  getLockRequirement(_toolUse: ToolUse): [string, "read" | "write"] | undefined {
+  getLockRequirement(
+    _toolUse: ToolUse,
+  ): [string, "read" | "write"] | undefined {
     return undefined;
   }
 
@@ -144,7 +153,12 @@ Deno.test("agent loop completes after tool call then end_turn", async () => {
     message: new Message({
       role: "assistant",
       content: [
-        { type: "tool_use", id: "call_1", name: "greet", input: { name: "world" } },
+        {
+          type: "tool_use",
+          id: "call_1",
+          name: "greet",
+          input: { name: "world" },
+        },
       ],
     }),
     usage: createUsage(100, 50),
@@ -194,7 +208,10 @@ Deno.test("agent loop hits iteration limit", async () => {
   const result = await runAgentLoop(runtime, hub, lockManager);
 
   assertEquals(result.success, false);
-  assert(result.output.includes("3"), "output should mention the iteration count");
+  assert(
+    result.output.includes("3"),
+    "output should mention the iteration count",
+  );
   assertEquals(result.iterations, 3);
 });
 
@@ -203,7 +220,11 @@ Deno.test("tool registry integration - register and lookup", () => {
   const mockTool: Tool = {
     name: "greet",
     description: "Says hello",
-    input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    input_schema: {
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    },
   };
 
   registry.register(mockTool);

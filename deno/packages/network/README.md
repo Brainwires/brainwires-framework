@@ -1,6 +1,8 @@
 # @brainwires/network
 
-Agent networking layer for the Brainwires Agent Framework. Provides an MCP server framework with middleware, agent identity, message routing, peer discovery, and client connectivity.
+Agent networking layer for the Brainwires Agent Framework. Provides an MCP
+server framework with middleware, agent identity, message routing, peer
+discovery, and client connectivity.
 
 Equivalent to the Rust `brainwires-network` crate.
 
@@ -14,9 +16,9 @@ deno add @brainwires/network
 
 ```ts
 import {
+  LoggingMiddleware,
   McpServer,
   McpToolRegistry,
-  LoggingMiddleware,
   RateLimitMiddleware,
 } from "@brainwires/network";
 import type { McpHandler } from "@brainwires/network";
@@ -37,7 +39,9 @@ toolRegistry.register({
   name: "greet",
   description: "Say hello",
   inputSchema: { type: "object", properties: { name: { type: "string" } } },
-  handler: async (args) => ({ content: [{ type: "text", text: `Hello, ${args.name}!` }] }),
+  handler: async (args) => ({
+    content: [{ type: "text", text: `Hello, ${args.name}!` }],
+  }),
 });
 
 // Create server with middleware
@@ -51,15 +55,15 @@ await server.run();
 
 ## Key Exports
 
-| Export | Description |
-|--------|-------------|
-| `McpServer` | MCP server with JSON-RPC dispatch and middleware pipeline |
-| `McpToolRegistry` | Tool definition container with handler dispatch |
-| `MiddlewareChain` | Ordered middleware pipeline |
-| `AuthMiddleware` | Token-based authentication middleware |
-| `LoggingMiddleware` | Request/response logging |
-| `RateLimitMiddleware` | Rate limiting per client |
-| `ToolFilterMiddleware` | Allow/deny list for tool access |
-| `DirectRouter` / `BroadcastRouter` / `ContentRouter` | Message routing strategies |
-| `ManualDiscovery` | Static peer discovery |
-| `AgentNetworkClient` | Client for connecting to agent network nodes |
+| Export                                               | Description                                               |
+| ---------------------------------------------------- | --------------------------------------------------------- |
+| `McpServer`                                          | MCP server with JSON-RPC dispatch and middleware pipeline |
+| `McpToolRegistry`                                    | Tool definition container with handler dispatch           |
+| `MiddlewareChain`                                    | Ordered middleware pipeline                               |
+| `AuthMiddleware`                                     | Token-based authentication middleware                     |
+| `LoggingMiddleware`                                  | Request/response logging                                  |
+| `RateLimitMiddleware`                                | Rate limiting per client                                  |
+| `ToolFilterMiddleware`                               | Allow/deny list for tool access                           |
+| `DirectRouter` / `BroadcastRouter` / `ContentRouter` | Message routing strategies                                |
+| `ManualDiscovery`                                    | Static peer discovery                                     |
+| `AgentNetworkClient`                                 | Client for connecting to agent network nodes              |

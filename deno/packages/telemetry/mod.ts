@@ -15,7 +15,12 @@
  * Equivalent to Rust's `brainwires-telemetry` crate.
  */
 
-export { AnalyticsError, type AnalyticsErrorKind, BillingError, type BillingErrorKind } from "./error.ts";
+export {
+  AnalyticsError,
+  type AnalyticsErrorKind,
+  BillingError,
+  type BillingErrorKind,
+} from "./error.ts";
 export {
   type AnalyticsEvent,
   type ComplianceMetadata,
@@ -36,7 +41,11 @@ export {
   type UsageEvent,
 } from "./usage.ts";
 export { type BillingHook } from "./billing_hook.ts";
-export { type AnalyticsSink, DEFAULT_CAPACITY, MemoryAnalyticsSink } from "./sink.ts";
+export {
+  type AnalyticsSink,
+  DEFAULT_CAPACITY,
+  MemoryAnalyticsSink,
+} from "./sink.ts";
 export { AnalyticsCollector, type EventCallback } from "./collector.ts";
 export {
   avgCostPerRunUsd,
@@ -49,3 +58,14 @@ export {
   toolErrorRate,
 } from "./metrics.ts";
 export { hashSessionId, redactSecrets } from "./pii.ts";
+
+// Anomaly detection (moved from @brainwires/permissions in v0.11.0)
+export {
+  type AnomalyConfig,
+  AnomalyDetector,
+  type AnomalyEvent,
+  type AnomalyKind,
+  defaultAnomalyConfig,
+  type ObservedEvent,
+  type ObservedEventCategory,
+} from "./anomaly.ts";

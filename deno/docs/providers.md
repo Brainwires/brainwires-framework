@@ -1,6 +1,7 @@
 # Providers
 
-The `@brainwires/providers` package implements AI chat providers that conform to the `Provider` interface from `@brainwires/core`.
+The `@brainwires/providers` package implements AI chat providers that conform to
+the `Provider` interface from `@brainwires/core`.
 
 ## Provider Interface
 
@@ -9,30 +10,38 @@ Every provider implements `chat` and `streamChat`:
 ```ts
 interface Provider {
   name(): string;
-  chat(messages: Message[], tools?: Tool[], options?: ChatOptions): Promise<ChatResponse>;
-  streamChat(messages: Message[], tools?: Tool[], options?: ChatOptions): AsyncIterable<StreamChunk>;
+  chat(
+    messages: Message[],
+    tools?: Tool[],
+    options?: ChatOptions,
+  ): Promise<ChatResponse>;
+  streamChat(
+    messages: Message[],
+    tools?: Tool[],
+    options?: ChatOptions,
+  ): AsyncIterable<StreamChunk>;
   maxOutputTokens?(): number;
 }
 ```
 
 ## Supported Providers
 
-| Class | Service | Key Features |
-|-------|---------|--------------|
-| `AnthropicChatProvider` | Anthropic Claude | Tool use, extended thinking, SSE streaming |
-| `OpenAiChatProvider` | OpenAI GPT | Chat completions API, function calling |
-| `OpenAiResponsesProvider` | OpenAI Responses | Responses API with built-in tools |
-| `GoogleChatProvider` | Google Gemini | Gemini API with tool support |
-| `OllamaChatProvider` | Ollama (local) | Local models, no API key required |
-| `BedrockProvider` | AWS Bedrock | AWS SigV4 auth, Claude on Bedrock |
-| `VertexAiProvider` | Google Vertex AI | Google Cloud auth, Gemini on Vertex |
+| Class                     | Service          | Key Features                               |
+| ------------------------- | ---------------- | ------------------------------------------ |
+| `AnthropicChatProvider`   | Anthropic Claude | Tool use, extended thinking, SSE streaming |
+| `OpenAiChatProvider`      | OpenAI GPT       | Chat completions API, function calling     |
+| `OpenAiResponsesProvider` | OpenAI Responses | Responses API with built-in tools          |
+| `GoogleChatProvider`      | Google Gemini    | Gemini API with tool support               |
+| `OllamaChatProvider`      | Ollama (local)   | Local models, no API key required          |
+| `BedrockProvider`         | AWS Bedrock      | AWS SigV4 auth, Claude on Bedrock          |
+| `VertexAiProvider`        | Google Vertex AI | Google Cloud auth, Gemini on Vertex        |
 
 ## Factory Pattern
 
 Use `ChatProviderFactory` to create providers from configuration:
 
 ```ts
-import { ChatProviderFactory } from "@brainwires/providers";
+import { ChatProviderFactory } from "@brainwires/provider";
 
 const factory = new ChatProviderFactory();
 const provider = factory.create({
@@ -42,11 +51,15 @@ const provider = factory.create({
 });
 ```
 
-The factory also supports `createProviderConfig` for building typed configurations, and `PROVIDER_REGISTRY` / `lookup` for querying available providers.
+The factory also supports `createProviderConfig` for building typed
+configurations, and `PROVIDER_REGISTRY` / `lookup` for querying available
+providers.
 
 ## SSE Streaming
 
-Providers that support streaming return an `AsyncIterable<StreamChunk>`. The package includes `parseSSEStream` and `parseNDJSONStream` utilities for parsing raw HTTP streams.
+Providers that support streaming return an `AsyncIterable<StreamChunk>`. The
+package includes `parseSSEStream` and `parseNDJSONStream` utilities for parsing
+raw HTTP streams.
 
 ```ts
 for await (const chunk of provider.streamChat(messages, tools, options)) {
@@ -58,10 +71,11 @@ for await (const chunk of provider.streamChat(messages, tools, options)) {
 
 ## Rate Limiting
 
-Wrap any HTTP client with `RateLimiter` or `RateLimitedClient` to respect provider rate limits:
+Wrap any HTTP client with `RateLimiter` or `RateLimitedClient` to respect
+provider rate limits:
 
 ```ts
-import { RateLimitedClient } from "@brainwires/providers";
+import { RateLimitedClient } from "@brainwires/provider";
 
 const client = new RateLimitedClient({
   requestsPerMinute: 60,
@@ -76,7 +90,7 @@ See: `../examples/providers/rate_limiting.ts`.
 Use `createModelLister` to dynamically list available models for a provider:
 
 ```ts
-import { createModelLister, type AvailableModel } from "@brainwires/providers";
+import { type AvailableModel, createModelLister } from "@brainwires/provider";
 
 const lister = createModelLister("openai", apiKey);
 const models: AvailableModel[] = await lister.listModels();

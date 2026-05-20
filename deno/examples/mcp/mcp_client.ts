@@ -9,7 +9,7 @@ import {
   McpClient,
   McpConfigManager,
   type McpServerConfig,
-} from "@brainwires/mcp";
+} from "@brainwires/mcp-client";
 
 async function main(): Promise<void> {
   console.log("=== MCP Client Example ===\n");
@@ -58,13 +58,17 @@ async function main(): Promise<void> {
   console.log("--- 2. Create McpClient ---");
 
   const client = new McpClient("brainwires-example", "0.1.0");
-  console.log(`  Created McpClient (name="${client.clientName}", version="${client.clientVersion}")`);
+  console.log(
+    `  Created McpClient (name="${client.clientName}", version="${client.clientVersion}")`,
+  );
   console.log(`  Connected servers: [${client.listConnected().join(", ")}]`);
   console.log();
 
   // Also show the default factory
   const defaultClient = McpClient.createDefault();
-  console.log(`  Default McpClient: name="${defaultClient.clientName}", version="${defaultClient.clientVersion}"`);
+  console.log(
+    `  Default McpClient: name="${defaultClient.clientName}", version="${defaultClient.clientVersion}"`,
+  );
   console.log();
 
   // -----------------------------------------------------------------------
@@ -73,11 +77,13 @@ async function main(): Promise<void> {
   console.log("--- 3. Connection API Overview ---");
   console.log("  The McpClient provides these methods:\n");
 
-  console.log("  // Connect to a server (spawns process, performs MCP handshake)");
+  console.log(
+    "  // Connect to a server (spawns process, performs MCP handshake)",
+  );
   console.log("  await client.connect(serverConfig);\n");
 
   console.log("  // Check connection status");
-  console.log("  client.isConnected(\"filesystem\");\n");
+  console.log('  client.isConnected("filesystem");\n');
 
   console.log("  // List all connected servers");
   console.log("  client.listConnected();\n");
@@ -87,14 +93,14 @@ async function main(): Promise<void> {
   // 4. Tool API
   // -----------------------------------------------------------------------
   console.log("--- 4. Tool API ---");
-  console.log('  // List available tools from a connected server');
+  console.log("  // List available tools from a connected server");
   console.log('  const tools = await client.listTools("filesystem");');
   console.log("  for (const tool of tools) {");
-  console.log('    console.log(`Tool: ${tool.name} - ${tool.description}`);');
+  console.log("    console.log(`Tool: ${tool.name} - ${tool.description}`);");
   console.log("  }\n");
 
   console.log("  // Call a tool with JSON arguments");
-  console.log('  const result = await client.callTool(');
+  console.log("  const result = await client.callTool(");
   console.log('    "filesystem",');
   console.log('    "read_file",');
   console.log('    { path: "/tmp/test.txt" },');
@@ -121,10 +127,12 @@ async function main(): Promise<void> {
   // 5. Resources and prompts API
   // -----------------------------------------------------------------------
   console.log("--- 5. Resources & Prompts API ---");
-  console.log('  // List resources exposed by a server');
-  console.log('  const resources = await client.listResources("filesystem");\n');
+  console.log("  // List resources exposed by a server");
+  console.log(
+    '  const resources = await client.listResources("filesystem");\n',
+  );
 
-  console.log('  // Read a specific resource by URI');
+  console.log("  // Read a specific resource by URI");
   console.log(
     '  const content = await client.readResource("filesystem", "file:///tmp/data.json");\n',
   );

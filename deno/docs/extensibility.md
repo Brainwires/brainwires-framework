@@ -1,37 +1,46 @@
 # Extensibility
 
-This guide covers how to extend the Brainwires framework by implementing key interfaces. The framework is interface-driven: implement an interface, pass it to the component, done.
+This guide covers how to extend the Brainwires framework by implementing key
+interfaces. The framework is interface-driven: implement an interface, pass it
+to the component, done.
 
 ## Key Interfaces
 
-| Interface | Package | Purpose |
-|-----------|---------|---------|
-| `Provider` | `@brainwires/core` | AI chat completion backend |
-| `EmbeddingProvider` | `@brainwires/core` | Text embedding generation |
-| `VectorStore` | `@brainwires/core` | Embedding storage and search |
-| `StorageBackend` | `@brainwires/storage` | Record persistence backend |
-| `VectorDatabase` | `@brainwires/storage` | Storage + vector search |
-| `ToolExecutor` | `@brainwires/tools` | Custom tool execution backend |
-| `ToolPreHook` | `@brainwires/tools` | Pre-execution tool gate |
-| `AgentRuntime` | `@brainwires/agents` | Custom agent execution loop |
-| `LifecycleHook` | `@brainwires/core` | Framework event interception |
-| `OutputParser` | `@brainwires/core` | Structured LLM output parsing |
-| `BrainClient` | `@brainwires/knowledge` | Knowledge storage interface |
-| `RagClient` | `@brainwires/knowledge` | Semantic code search interface |
-| `Middleware` | `@brainwires/network` | MCP server request processing |
-| `Discovery` | `@brainwires/network` | Peer discovery protocol |
-| `A2aHandler` | `@brainwires/a2a` | A2A agent server handler |
+| Interface           | Package                 | Purpose                        |
+| ------------------- | ----------------------- | ------------------------------ |
+| `Provider`          | `@brainwires/core`      | AI chat completion backend     |
+| `EmbeddingProvider` | `@brainwires/core`      | Text embedding generation      |
+| `VectorStore`       | `@brainwires/core`      | Embedding storage and search   |
+| `StorageBackend`    | `@brainwires/storage`   | Record persistence backend     |
+| `VectorDatabase`    | `@brainwires/storage`   | Storage + vector search        |
+| `ToolExecutor`      | `@brainwires/tools`     | Custom tool execution backend  |
+| `ToolPreHook`       | `@brainwires/tools`     | Pre-execution tool gate        |
+| `AgentRuntime`      | `@brainwires/agents`    | Custom agent execution loop    |
+| `LifecycleHook`     | `@brainwires/core`      | Framework event interception   |
+| `OutputParser`      | `@brainwires/core`      | Structured LLM output parsing  |
+| `BrainClient`       | `@brainwires/knowledge` | Knowledge storage interface    |
+| `RagClient`         | `@brainwires/knowledge` | Semantic code search interface |
+| `Middleware`        | `@brainwires/network`   | MCP server request processing  |
+| `Discovery`         | `@brainwires/network`   | Peer discovery protocol        |
+| `A2aHandler`        | `@brainwires/a2a`       | A2A agent server handler       |
 
 ## Custom Provider
 
 Implement `Provider` from `@brainwires/core`:
 
 ```ts
-import type { Provider, ChatResponse, StreamChunk, Tool } from "@brainwires/core";
-import { Message, ChatOptions, createUsage } from "@brainwires/core";
+import type {
+  ChatResponse,
+  Provider,
+  StreamChunk,
+  Tool,
+} from "@brainwires/core";
+import { ChatOptions, createUsage, Message } from "@brainwires/core";
 
 class MyProvider implements Provider {
-  name(): string { return "my-provider"; }
+  name(): string {
+    return "my-provider";
+  }
 
   async chat(
     messages: Message[],
@@ -59,23 +68,35 @@ class MyProvider implements Provider {
 }
 ```
 
-Use it anywhere a `Provider` is expected -- `spawnTaskAgent`, `runAgentLoop`, etc.
+Use it anywhere a `Provider` is expected -- `spawnTaskAgent`, `runAgentLoop`,
+etc.
 
 ## Custom Storage Backend
 
 Implement `StorageBackend` from `@brainwires/storage`:
 
 ```ts
-import type { StorageBackend, Record, Filter, FieldDef } from "@brainwires/storage";
+import type {
+  FieldDef,
+  Filter,
+  Record,
+  StorageBackend,
+} from "@brainwires/storage";
 
 class RedisBackend implements StorageBackend {
-  async createTable(name: string, fields: FieldDef[]): Promise<void> { /* ... */ }
-  async insert(table: string, record: Record): Promise<void> { /* ... */ }
-  async get(table: string, id: string): Promise<Record | null> { /* ... */ }
-  async update(table: string, id: string, record: Record): Promise<void> { /* ... */ }
-  async delete(table: string, id: string): Promise<void> { /* ... */ }
-  async query(table: string, filter: Filter): Promise<Record[]> { /* ... */ }
-  async list(table: string, limit?: number, offset?: number): Promise<Record[]> { /* ... */ }
+  async createTable(name: string, fields: FieldDef[]): Promise<void> {/* ... */}
+  async insert(table: string, record: Record): Promise<void> {/* ... */}
+  async get(table: string, id: string): Promise<Record | null> {/* ... */}
+  async update(table: string, id: string, record: Record): Promise<void> {
+    /* ... */
+  }
+  async delete(table: string, id: string): Promise<void> {/* ... */}
+  async query(table: string, filter: Filter): Promise<Record[]> {/* ... */}
+  async list(
+    table: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<Record[]> {/* ... */}
 }
 ```
 
@@ -87,7 +108,12 @@ Implement `ToolExecutor` from `@brainwires/tools`:
 
 ```ts
 import type { ToolExecutor } from "@brainwires/tools";
-import { ToolResult, type Tool, type ToolUse, objectSchema } from "@brainwires/core";
+import {
+  objectSchema,
+  type Tool,
+  ToolResult,
+  type ToolUse,
+} from "@brainwires/core";
 
 const databaseTool: Tool = {
   name: "query_db",
@@ -96,7 +122,9 @@ const databaseTool: Tool = {
 };
 
 class DatabaseExecutor implements ToolExecutor {
-  availableTools(): Tool[] { return [databaseTool]; }
+  availableTools(): Tool[] {
+    return [databaseTool];
+  }
 
   async execute(toolUse: ToolUse): Promise<ToolResult> {
     const result = await runQuery(toolUse.input.sql);
@@ -110,16 +138,20 @@ class DatabaseExecutor implements ToolExecutor {
 Implement `AgentRuntime` for full control over the agent loop:
 
 ```ts
-import type { AgentRuntime, AgentExecutionResult } from "@brainwires/agents";
-import { runAgentLoop } from "@brainwires/agents";
+import type { AgentExecutionResult, AgentRuntime } from "@brainwires/agent";
+import { runAgentLoop } from "@brainwires/agent";
 
 class MyRuntime implements AgentRuntime {
-  agentId(): string { return "custom-agent"; }
-  maxIterations(): number { return 20; }
-  async callProvider(): Promise<Message> { /* ... */ }
-  extractToolUses(msg: Message): ToolUse[] { /* ... */ }
-  isCompletion(msg: Message): boolean { /* ... */ }
-  async executeTool(toolUse: ToolUse): Promise<ToolResult> { /* ... */ }
+  agentId(): string {
+    return "custom-agent";
+  }
+  maxIterations(): number {
+    return 20;
+  }
+  async callProvider(): Promise<Message> {/* ... */}
+  extractToolUses(msg: Message): ToolUse[] {/* ... */}
+  isCompletion(msg: Message): boolean {/* ... */}
+  async executeTool(toolUse: ToolUse): Promise<ToolResult> {/* ... */}
   // ... remaining lifecycle methods
 }
 
@@ -133,9 +165,9 @@ Implement `Middleware` for the MCP server pipeline:
 ```ts
 import {
   type Middleware,
-  type MiddlewareResult,
   middlewareContinue,
   middlewareReject,
+  type MiddlewareResult,
   RequestContext,
 } from "@brainwires/network";
 
@@ -154,7 +186,11 @@ class MetricsMiddleware implements Middleware {
 Intercept framework events with `LifecycleHook`:
 
 ```ts
-import type { LifecycleHook, LifecycleEvent, HookResult } from "@brainwires/core";
+import type {
+  HookResult,
+  LifecycleEvent,
+  LifecycleHook,
+} from "@brainwires/core";
 
 const loggingHook: LifecycleHook = {
   name: () => "logging",

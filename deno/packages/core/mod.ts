@@ -8,8 +8,8 @@
 // Content source types
 export {
   canOverride,
-  requiresSanitization,
   type ContentSource,
+  requiresSanitization,
 } from "./content_source.ts";
 
 // Embedding provider
@@ -36,8 +36,8 @@ export {
 
 // Knowledge graph types
 export {
-  edgeTypeWeight,
   type EdgeType,
+  edgeTypeWeight,
   type EntityStoreT,
   type EntityType,
   type GraphEdge,
@@ -49,11 +49,11 @@ export {
 export {
   defaultEventFilter,
   eventAgentId,
+  type EventFilter,
   eventToolName,
   eventType,
   filterMatches,
   HookRegistry,
-  type EventFilter,
   type HookResult,
   type LifecycleEvent,
   type LifecycleHook,
@@ -61,16 +61,16 @@ export {
 
 // Message types
 export {
-  createUsage,
-  Message,
-  serializeMessagesToStatelessHistory,
   type ChatResponse,
   type ContentBlock,
+  createUsage,
   type ImageBlock,
   type ImageSource,
+  Message,
   type MessageContent,
   type MessageData,
   type Role,
+  serializeMessagesToStatelessHistory,
   type StreamChunk,
   type TextBlock,
   type ToolResultBlock,
@@ -90,9 +90,9 @@ export {
   parsePlanStatus,
   PlanBudget,
   PlanMetadata,
-  SerializablePlan,
   type PlanStatus,
   type PlanStep,
+  SerializablePlan,
 } from "./plan.ts";
 
 // Provider types
@@ -107,29 +107,29 @@ export {
 
 // Task types
 export {
+  type AgentResponse,
   Task,
   TASK_PRIORITY_VALUES,
-  type AgentResponse,
   type TaskPriority,
   type TaskStatus,
 } from "./task.ts";
 
 // Tool types
 export {
+  type CommitResult,
   defaultToolInputSchema,
+  type IdempotencyRecord,
   IdempotencyRegistry,
   objectSchema,
-  ToolContext,
-  toolModeDisplayName,
-  ToolResult,
-  type CommitResult,
-  type IdempotencyRecord,
   type StagedWrite,
   type StagingBackend,
   type Tool,
   type ToolCaller,
+  ToolContext,
   type ToolInputSchema,
   type ToolMode,
+  toolModeDisplayName,
+  ToolResult,
   type ToolUse,
 } from "./tool.ts";
 
@@ -138,15 +138,12 @@ export {
   extractJson,
   JsonListParser,
   JsonOutputParser,
-  RegexOutputParser,
   type OutputParser,
+  RegexOutputParser,
 } from "./output_parser.ts";
 
 // Vector store types
-export {
-  type VectorSearchResult,
-  type VectorStore,
-} from "./vector_store.ts";
+export { type VectorSearchResult, type VectorStore } from "./vector_store.ts";
 
 // Working set
 export {
@@ -159,3 +156,27 @@ export {
   type WorkingSetConfig,
   type WorkingSetEntry,
 } from "./working_set.ts";
+
+// Confidence (moved from agents → core in v0.11.0)
+export {
+  type ConfidenceFactors,
+  confidenceLevel,
+  defaultConfidenceFactors,
+  defaultResponseConfidence,
+  extractConfidence,
+  isHighConfidence,
+  isLowConfidence,
+  quickConfidenceCheck,
+  type ResponseConfidence,
+  weakestFactor,
+} from "./confidence.ts";
+
+// Platform paths (moved from storage → core in v0.11.0)
+export { PlatformPaths } from "./paths.ts";
+
+// File context manager (moved from storage → core in v0.11.0)
+export {
+  type FileChunk,
+  type FileContent,
+  FileContextManager,
+} from "./file_context.ts";

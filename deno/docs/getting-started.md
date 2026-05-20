@@ -5,7 +5,8 @@ Get from zero to a running agent in about 5 minutes.
 ## Prerequisites
 
 - [Deno](https://deno.land/) 1.40+
-- An API key for at least one AI provider (Anthropic, OpenAI, Google, or a local Ollama instance)
+- An API key for at least one AI provider (Anthropic, OpenAI, Google, or a local
+  Ollama instance)
 
 ## 1. Install packages
 
@@ -18,11 +19,12 @@ deno add @brainwires/tools
 
 ## 2. Create a provider
 
-Every interaction starts with a `Provider` -- the bridge between your code and an AI model.
+Every interaction starts with a `Provider` -- the bridge between your code and
+an AI model.
 
 ```ts
-import { Message, ChatOptions } from "@brainwires/core";
-import { AnthropicChatProvider } from "@brainwires/providers";
+import { ChatOptions, Message } from "@brainwires/core";
+import { AnthropicChatProvider } from "@brainwires/provider";
 
 const provider = new AnthropicChatProvider(
   Deno.env.get("ANTHROPIC_API_KEY")!,
@@ -38,10 +40,11 @@ console.log(response.content);
 
 ## 3. Register tools
 
-Tools give agents the ability to interact with the world. The `ToolRegistry` holds them.
+Tools give agents the ability to interact with the world. The `ToolRegistry`
+holds them.
 
 ```ts
-import { ToolRegistry, BashTool, FileOpsTool } from "@brainwires/tools";
+import { BashTool, FileOpsTool, ToolRegistry } from "@brainwires/tools";
 
 const registry = new ToolRegistry();
 registry.registerTools(BashTool.getTools());
@@ -53,7 +56,7 @@ registry.registerTools(FileOpsTool.getTools());
 Combine a provider, tools, and a task description to spawn an autonomous agent.
 
 ```ts
-import { AgentContext, spawnTaskAgent } from "@brainwires/agents";
+import { AgentContext, spawnTaskAgent } from "@brainwires/agent";
 
 const context = new AgentContext({ tools: registry.allTools() });
 
@@ -74,7 +77,7 @@ console.log(`Output: ${result.output}`);
 Use external tool servers via the Model Context Protocol.
 
 ```ts
-import { McpClient } from "@brainwires/mcp";
+import { McpClient } from "@brainwires/mcp-client";
 
 const client = McpClient.createDefault();
 await client.connect("my-server", {
@@ -90,4 +93,5 @@ console.log("Available tools:", tools.map((t) => t.name));
 
 - See the full [quickstart example](../examples/core/quickstart.ts)
 - Learn the [architecture](./architecture.md)
-- Explore [providers](./providers.md), [tools](./tools.md), and [agents](./agents.md)
+- Explore [providers](./providers.md), [tools](./tools.md), and
+  [agents](./agents.md)

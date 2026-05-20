@@ -1,20 +1,39 @@
 /** Types of entities tracked in the knowledge graph.
  * Equivalent to Rust's `EntityType` in brainwires-core. */
-export type EntityType = "file" | "function" | "type" | "variable" | "concept" | "error" | "command";
+export type EntityType =
+  | "file"
+  | "function"
+  | "type"
+  | "variable"
+  | "concept"
+  | "error"
+  | "command";
 
 /** Types of edges in the relationship graph.
  * Equivalent to Rust's `EdgeType` in brainwires-core. */
-export type EdgeType = "co_occurs" | "contains" | "references" | "depends_on" | "modifies" | "defines";
+export type EdgeType =
+  | "co_occurs"
+  | "contains"
+  | "references"
+  | "depends_on"
+  | "modifies"
+  | "defines";
 
 /** Get the default weight for an edge type. */
 export function edgeTypeWeight(edgeType: EdgeType): number {
   switch (edgeType) {
-    case "defines": return 1.0;
-    case "contains": return 0.9;
-    case "depends_on": return 0.8;
-    case "modifies": return 0.7;
-    case "references": return 0.6;
-    case "co_occurs": return 0.3;
+    case "defines":
+      return 1.0;
+    case "contains":
+      return 0.9;
+    case "depends_on":
+      return 0.8;
+    case "modifies":
+      return 0.7;
+    case "references":
+      return 0.6;
+    case "co_occurs":
+      return 0.3;
   }
 }
 

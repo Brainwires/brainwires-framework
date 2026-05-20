@@ -10,50 +10,50 @@
 
 // Protocol types
 export {
-  PROTOCOL_VERSION,
-  MIN_PROTOCOL_VERSION,
-  SUPPORTED_VERSIONS,
   allSupportedCapabilities,
-  PRIORITY_ORDER,
-  defaultRetryPolicy,
-  defaultProtocolHello,
   defaultProtocolAccept,
+  defaultProtocolHello,
+  defaultRetryPolicy,
+  MIN_PROTOCOL_VERSION,
   NegotiatedProtocol,
+  PRIORITY_ORDER,
+  PROTOCOL_VERSION,
+  SUPPORTED_VERSIONS,
 } from "./protocol.ts";
 
 export type {
-  ProtocolCapability,
-  CommandPriority,
-  RetryPolicy,
-  PrioritizedCommand,
-  ProtocolHello,
-  ProtocolAccept,
-  RemoteMessage,
-  RemoteMessage_Register,
-  RemoteMessage_Heartbeat,
-  RemoteMessage_CommandResult,
-  RemoteMessage_AgentEvent,
-  RemoteMessage_AgentStream,
-  RemoteMessage_Pong,
-  RemoteMessage_AttachmentReceived,
+  AgentEventType,
   BackendCommand,
-  BackendCommand_Authenticated,
-  BackendCommand_SendInput,
-  BackendCommand_SlashCommand,
-  BackendCommand_CancelOperation,
-  BackendCommand_Subscribe,
-  BackendCommand_Unsubscribe,
-  BackendCommand_SpawnAgent,
-  BackendCommand_RequestSync,
-  BackendCommand_Ping,
-  BackendCommand_Disconnect,
-  BackendCommand_AuthenticationFailed,
-  BackendCommand_AttachmentUpload,
   BackendCommand_AttachmentChunk,
   BackendCommand_AttachmentComplete,
+  BackendCommand_AttachmentUpload,
+  BackendCommand_Authenticated,
+  BackendCommand_AuthenticationFailed,
+  BackendCommand_CancelOperation,
+  BackendCommand_Disconnect,
+  BackendCommand_Ping,
+  BackendCommand_RequestSync,
+  BackendCommand_SendInput,
+  BackendCommand_SlashCommand,
+  BackendCommand_SpawnAgent,
+  BackendCommand_Subscribe,
+  BackendCommand_Unsubscribe,
+  CommandPriority,
   CompressionAlgorithm,
+  PrioritizedCommand,
+  ProtocolAccept,
+  ProtocolCapability,
+  ProtocolHello,
   RemoteAgentInfo,
-  AgentEventType,
+  RemoteMessage,
+  RemoteMessage_AgentEvent,
+  RemoteMessage_AgentStream,
+  RemoteMessage_AttachmentReceived,
+  RemoteMessage_CommandResult,
+  RemoteMessage_Heartbeat,
+  RemoteMessage_Pong,
+  RemoteMessage_Register,
+  RetryPolicy,
   StreamChunkType,
 } from "./protocol.ts";
 
@@ -63,35 +63,32 @@ export type { QueueStats } from "./command_queue.ts";
 
 // Heartbeat & telemetry
 export {
+  assessConnectionQuality,
   HeartbeatCollector,
   ProtocolMetrics,
-  assessConnectionQuality,
 } from "./heartbeat.ts";
 export type {
-  HeartbeatData,
   AgentEvent,
   AgentInfoProvider,
-  MetricsSnapshot,
   ConnectionQuality,
+  HeartbeatData,
+  MetricsSnapshot,
 } from "./heartbeat.ts";
 
 // Bridge
-export { RemoteBridge, defaultBridgeConfig } from "./bridge.ts";
+export { defaultBridgeConfig, RemoteBridge } from "./bridge.ts";
 export type {
   BridgeConfig,
   BridgeState,
-  ConnectionMode,
   CommandHandler,
+  ConnectionMode,
   StateChangeHandler,
 } from "./bridge.ts";
 
 // Manager
-export {
-  RemoteBridgeManager,
-  displayBridgeStatus,
-} from "./manager.ts";
+export { displayBridgeStatus, RemoteBridgeManager } from "./manager.ts";
 export type {
-  RemoteBridgeConfig,
   BridgeConfigProvider,
+  RemoteBridgeConfig,
   RemoteBridgeStatus,
 } from "./manager.ts";

@@ -9,7 +9,11 @@
  */
 
 import pg from "pg";
-import type { ChunkMetadata, DatabaseStats, SearchResult } from "@brainwires/core";
+import type {
+  ChunkMetadata,
+  DatabaseStats,
+  SearchResult,
+} from "@brainwires/core";
 import type { StorageBackend, VectorDatabase } from "../traits.ts";
 import type {
   FieldDef,
@@ -137,7 +141,10 @@ export function filterToSql(
 }
 
 /** Build a CREATE TABLE IF NOT EXISTS DDL statement. */
-export function buildCreateTable(tableName: string, schema: FieldDef[]): string {
+export function buildCreateTable(
+  tableName: string,
+  schema: FieldDef[],
+): string {
   const cols = schema.map((f, i) => {
     const pgType = mapFieldType(f.fieldType);
     const nullable = f.nullable ? "" : " NOT NULL";
@@ -167,7 +174,9 @@ export function buildInsert(
     }
     rowGroups.push(`(${placeholders.join(", ")})`);
   }
-  const sql = `INSERT INTO "${tableName}" (${quotedCols.join(", ")}) VALUES ${rowGroups.join(", ")}`;
+  const sql = `INSERT INTO "${tableName}" (${quotedCols.join(", ")}) VALUES ${
+    rowGroups.join(", ")
+  }`;
   return [sql, allParams];
 }
 
@@ -216,7 +225,10 @@ export function buildCount(
 }
 
 /** Parse a pg Row into a Record using column metadata. */
-function rowToRecord(row: { [key: string]: unknown }, fields: pg.FieldDef[]): BwRecord {
+function rowToRecord(
+  row: { [key: string]: unknown },
+  fields: pg.FieldDef[],
+): BwRecord {
   const record: BwRecord = [];
   for (const field of fields) {
     const name = field.name;
@@ -232,7 +244,10 @@ function rowToRecord(row: { [key: string]: unknown }, fields: pg.FieldDef[]): Bw
       if (val.startsWith("[") && val.endsWith("]")) {
         try {
           const arr = JSON.parse(val);
-          if (Array.isArray(arr) && arr.every((v: unknown) => typeof v === "number")) {
+          if (
+            Array.isArray(arr) &&
+            arr.every((v: unknown) => typeof v === "number")
+          ) {
             fv = { kind: "Vector", value: arr as number[] };
           } else {
             fv = { kind: "Utf8", value: val };
@@ -357,7 +372,8 @@ export class PostgresDatabase implements StorageBackend, VectorDatabase {
     }
 
     const limitIdx = 2 + filterParams.length;
-    const sql = `SELECT *, 1.0 - ("${vectorColumn}" <=> $1::vector) AS __score ` +
+    const sql =
+      `SELECT *, 1.0 - ("${vectorColumn}" <=> $1::vector) AS __score ` +
       `FROM "${tableName}" ${whereClause} ` +
       `ORDER BY "${vectorColumn}" <=> $1::vector ` +
       `LIMIT $${limitIdx}`;
@@ -532,7 +548,9 @@ export class PostgresDatabase implements StorageBackend, VectorDatabase {
     ]);
 
     let results: SearchResult[] = result.rows
-      .filter((r: { [key: string]: unknown }) => Number(r.vector_score) >= minScore)
+      .filter((r: { [key: string]: unknown }) =>
+        Number(r.vector_score) >= minScore
+      )
       .map((r: { [key: string]: unknown }) => ({
         file_path: String(r.file_path),
         root_path: r.root_path != null ? String(r.root_path) : undefined,
@@ -609,7 +627,9 @@ export class PostgresDatabase implements StorageBackend, VectorDatabase {
       `SELECT DISTINCT file_path FROM ${this.tableName} WHERE root_path = $1`,
       [rootPath],
     );
-    return result.rows.map((r: { [key: string]: unknown }) => String(r.file_path));
+    return result.rows.map((r: { [key: string]: unknown }) =>
+      String(r.file_path)
+    );
   }
 
   async searchWithEmbeddings(

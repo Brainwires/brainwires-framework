@@ -6,23 +6,23 @@
 
 import { assertEquals } from "@std/assert";
 import {
-  mapFieldType,
-  fieldValueToParam,
-  filterToSql,
+  buildCount,
   buildCreateTable,
+  buildDelete,
   buildInsert,
   buildSelect,
-  buildDelete,
-  buildCount,
   cosineSimilarity,
+  fieldValueToParam,
+  filterToSql,
+  mapFieldType,
 } from "./mysql.ts";
 import {
   type FieldDef,
   FieldTypes,
   FieldValues,
   Filters,
-  requiredField,
   optionalField,
+  requiredField,
 } from "../types.ts";
 
 // ---------------------------------------------------------------------------
@@ -73,13 +73,17 @@ Deno.test("fieldValueToParam - vector becomes JSON string", () => {
 // ---------------------------------------------------------------------------
 
 Deno.test("filterToSql - Eq", () => {
-  const [sql, vals] = filterToSql(Filters.Eq("name", FieldValues.Utf8("Alice")));
+  const [sql, vals] = filterToSql(
+    Filters.Eq("name", FieldValues.Utf8("Alice")),
+  );
   assertEquals(sql, "`name` = ?");
   assertEquals(vals.length, 1);
 });
 
 Deno.test("filterToSql - Ne", () => {
-  const [sql, vals] = filterToSql(Filters.Ne("status", FieldValues.Utf8("deleted")));
+  const [sql, vals] = filterToSql(
+    Filters.Ne("status", FieldValues.Utf8("deleted")),
+  );
   assertEquals(sql, "`status` != ?");
   assertEquals(vals.length, 1);
 });
@@ -110,7 +114,11 @@ Deno.test("filterToSql - IsNull / NotNull", () => {
 
 Deno.test("filterToSql - In", () => {
   const [sql, vals] = filterToSql(
-    Filters.In("id", [FieldValues.Int64(1), FieldValues.Int64(2), FieldValues.Int64(3)]),
+    Filters.In("id", [
+      FieldValues.Int64(1),
+      FieldValues.Int64(2),
+      FieldValues.Int64(3),
+    ]),
   );
   assertEquals(sql, "`id` IN (?, ?, ?)");
   assertEquals(vals.length, 3);

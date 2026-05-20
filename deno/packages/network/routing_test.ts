@@ -3,19 +3,15 @@
  * Equivalent to Rust routing tests.
  */
 
-import {
-  assertEquals,
-  assert,
-  assertRejects,
-} from "@std/assert";
-import { DirectRouter, BroadcastRouter, ContentRouter } from "./routing.ts";
+import { assert, assertEquals, assertRejects } from "@std/assert";
+import { BroadcastRouter, ContentRouter, DirectRouter } from "./routing.ts";
 import { PeerTable, type TransportAddress } from "./peer_table.ts";
 import { createAgentIdentity } from "./identity.ts";
 import {
-  directEnvelope,
   broadcastEnvelope,
-  topicEnvelope,
+  directEnvelope,
   textPayload,
+  topicEnvelope,
 } from "./envelope.ts";
 
 function tcpAddr(address: string): TransportAddress {
@@ -82,9 +78,7 @@ Deno.test("BroadcastRouter - reaches all except sender", async () => {
 
   assertEquals(addrs.length, 2);
   // Sender address should not be included
-  const addrStrings = addrs.map((a) =>
-    a.type === "tcp" ? a.address : ""
-  );
+  const addrStrings = addrs.map((a) => a.type === "tcp" ? a.address : "");
   assert(!addrStrings.includes("127.0.0.1:1000"));
 });
 

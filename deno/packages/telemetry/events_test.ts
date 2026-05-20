@@ -1,5 +1,10 @@
 import { assertEquals } from "@std/assert";
-import { type AnalyticsEvent, eventSessionId, eventTimestamp, eventType } from "./events.ts";
+import {
+  type AnalyticsEvent,
+  eventSessionId,
+  eventTimestamp,
+  eventType,
+} from "./events.ts";
 
 Deno.test("event type accessor", () => {
   const now = new Date().toISOString();

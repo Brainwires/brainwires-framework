@@ -11,13 +11,21 @@ Deno.test("valid / invalid tags", () => {
   const v: ValidationResult = { kind: "valid", confidence: 0.9 };
   assert(isValid(v));
   assert(!isInvalid(v));
-  const i: ValidationResult = { kind: "invalid", reason: "x", severity: 0.5, confidence: 0.8 };
+  const i: ValidationResult = {
+    kind: "invalid",
+    reason: "x",
+    severity: 0.5,
+    confidence: 0.8,
+  };
   assert(!isValid(i));
   assert(isInvalid(i));
 });
 
 Deno.test("heuristic catches refusal", () => {
-  const r = validateHeuristic("Write a poem", "I'm sorry, I cannot write poems as an AI assistant.");
+  const r = validateHeuristic(
+    "Write a poem",
+    "I'm sorry, I cannot write poems as an AI assistant.",
+  );
   assertEquals(r.kind, "invalid");
 });
 
@@ -30,6 +38,8 @@ Deno.test("parseValidation reads VALID / INVALID / ambiguous", () => {
   assertEquals(parseValidation("VALID").kind, "valid");
   const inv = parseValidation("INVALID: Response is off-topic");
   assertEquals(inv.kind, "invalid");
-  if (inv.kind === "invalid") assert(inv.reason.toLowerCase().includes("off-topic"));
+  if (inv.kind === "invalid") {
+    assert(inv.reason.toLowerCase().includes("off-topic"));
+  }
   assertEquals(parseValidation("Maybe?").kind, "skipped");
 });

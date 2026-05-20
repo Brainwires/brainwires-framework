@@ -1,18 +1,21 @@
 # Cognition
 
-The `@brainwires/knowledge` package provides prompting techniques, a knowledge graph interface, RAG (Retrieval-Augmented Generation) client, and code analysis tools.
+The `@brainwires/knowledge` package provides prompting techniques, a knowledge
+graph interface, RAG (Retrieval-Augmented Generation) client, and code analysis
+tools.
 
 ## Prompting Techniques
 
-15 techniques from the adaptive prompting selection paper, each with metadata including complexity level, task characteristics, and SEAL quality integration.
+15 techniques from the adaptive prompting selection paper, each with metadata
+including complexity level, task characteristics, and SEAL quality integration.
 
 ```ts
 import {
   ALL_TECHNIQUES,
+  bestTechnique,
   getTechniqueMetadata,
   getTechniquesByCategory,
   getTechniquesByComplexity,
-  bestTechnique,
   PromptGenerator,
 } from "@brainwires/knowledge";
 
@@ -28,10 +31,14 @@ const technique = bestTechnique(taskCharacteristics);
 
 // Generate a prompt using a technique
 const generator = new PromptGenerator();
-const prompt = generator.generate("chain_of_thought", "Solve this math problem...");
+const prompt = generator.generate(
+  "chain_of_thought",
+  "Solve this math problem...",
+);
 ```
 
 Supporting components:
+
 - `PromptingLearningCoordinator` -- tracks technique effectiveness over time
 - `TaskClusterManager` -- groups similar tasks for technique selection
 - `TemperatureOptimizer` -- finds optimal temperature per technique
@@ -40,10 +47,11 @@ See: `../examples/cognition/prompting_techniques.ts`.
 
 ## Knowledge (BrainClient)
 
-The `BrainClient` interface provides persistent thought storage, entity/relationship management, and knowledge search.
+The `BrainClient` interface provides persistent thought storage,
+entity/relationship management, and knowledge search.
 
 ```ts
-import type { BrainClient, Thought, Entity } from "@brainwires/knowledge";
+import type { BrainClient, Entity, Thought } from "@brainwires/knowledge";
 import { createThought } from "@brainwires/knowledge";
 
 // Create a thought
@@ -58,40 +66,51 @@ const thought = createThought({
 // const results = await client.searchKnowledge({ query: "authentication" });
 ```
 
-Types: `Thought`, `ThoughtCategory`, `Entity`, `Relationship`, `KnowledgeResult`, `MemorySearchResult`.
+Types: `Thought`, `ThoughtCategory`, `Entity`, `Relationship`,
+`KnowledgeResult`, `MemorySearchResult`.
 
 See: `../examples/cognition/knowledge_graph.ts`.
 
 ## RAG (RagClient)
 
-The `RagClient` interface defines semantic code search operations: index, query, advanced search, and statistics.
+The `RagClient` interface defines semantic code search operations: index, query,
+advanced search, and statistics.
 
 ```ts
-import type { RagClient, IndexRequest, QueryRequest } from "@brainwires/knowledge";
+import type {
+  IndexRequest,
+  QueryRequest,
+  RagClient,
+} from "@brainwires/knowledge";
 
 // Index a codebase
 const indexReq: IndexRequest = { path: "/path/to/project", mode: "full" };
 // await ragClient.index(indexReq);
 
 // Semantic search
-const queryReq: QueryRequest = { query: "authentication middleware", limit: 10 };
+const queryReq: QueryRequest = {
+  query: "authentication middleware",
+  limit: 10,
+};
 // const results = await ragClient.query(queryReq);
 ```
 
-Types: `IndexRequest`, `IndexResponse`, `QueryRequest`, `QueryResponse`, `AdvancedSearchRequest`, `SearchResult`, `ChunkMetadata`.
+Types: `IndexRequest`, `IndexResponse`, `QueryRequest`, `QueryResponse`,
+`AdvancedSearchRequest`, `SearchResult`, `ChunkMetadata`.
 
 See: `../examples/cognition/rag_search.ts`.
 
 ## Code Analysis
 
-Regex-based symbol extraction and call graph generation for TypeScript, JavaScript, Python, and Rust.
+Regex-based symbol extraction and call graph generation for TypeScript,
+JavaScript, Python, and Rust.
 
 ```ts
 import {
-  RepoMap,
   buildCallGraph,
-  findReferences,
   CallGraph,
+  findReferences,
+  RepoMap,
 } from "@brainwires/knowledge";
 
 // Generate a repository map
@@ -106,11 +125,13 @@ const graph = buildCallGraph(definitions, references);
 const refs = findReferences(symbolId, allReferences);
 ```
 
-Types: `SymbolId`, `SymbolKind`, `CallEdge`, `CallGraphNode`, `CodeAnalysisDefinition`, `CodeAnalysisReference`, `Visibility`.
+Types: `SymbolId`, `SymbolKind`, `CallEdge`, `CallGraphNode`,
+`CodeAnalysisDefinition`, `CodeAnalysisReference`, `Visibility`.
 
 See: `../examples/cognition/code_analysis.ts`.
 
 ## Further Reading
 
 - [Agents](./agents.md) for using cognition in agent loops
-- [Extensibility](./extensibility.md) for implementing custom BrainClient or RagClient
+- [Extensibility](./extensibility.md) for implementing custom BrainClient or
+  RagClient

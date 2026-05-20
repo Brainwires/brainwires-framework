@@ -8,7 +8,7 @@ import {
   resourceKey,
   WaitQueue,
   type WaitQueueEvent,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 
 async function main() {
   console.log("=== Wait Queue Demo ===\n");
@@ -80,7 +80,9 @@ async function main() {
 
   const estimatedWait = queue.estimateWait(fileKey);
   console.log(
-    `  Estimated wait time: ${estimatedWait != null ? estimatedWait.toFixed(0) + "ms" : "unknown"}`,
+    `  Estimated wait time: ${
+      estimatedWait != null ? estimatedWait.toFixed(0) + "ms" : "unknown"
+    }`,
   );
 
   const released = queue.notifyReleased(fileKey);

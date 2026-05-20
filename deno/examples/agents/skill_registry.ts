@@ -5,16 +5,16 @@
 
 import {
   createSkillMetadata,
+  type DiscoveryPath,
   executionMode,
   hasToolRestrictions,
   isToolAllowed,
-  SkillRegistry,
-  SkillRouter,
-  type DiscoveryPath,
   type Skill,
   type SkillMetadata,
+  SkillRegistry,
+  SkillRouter,
   type SkillSource,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 
 async function main(): Promise<void> {
   // -----------------------------------------------------------------------
@@ -22,7 +22,9 @@ async function main(): Promise<void> {
   // -----------------------------------------------------------------------
   console.log("=== 1. Setup: Creating SKILL.md files ===\n");
 
-  const tempDir = `${Deno.env.get("TMPDIR") ?? "/tmp"}/brainwires-skills-example`;
+  const tempDir = `${
+    Deno.env.get("TMPDIR") ?? "/tmp"
+  }/brainwires-skills-example`;
   try {
     await Deno.mkdir(tempDir, { recursive: true });
   } catch (e) {
@@ -34,33 +36,34 @@ async function main(): Promise<void> {
       "review-pr",
       "Reviews pull requests for code quality and best practices",
       "# PR Review Instructions\n\n" +
-        "1. Check for code style violations\n" +
-        "2. Look for security issues\n" +
-        "3. Verify test coverage\n" +
-        "4. Suggest improvements",
+      "1. Check for code style violations\n" +
+      "2. Look for security issues\n" +
+      "3. Verify test coverage\n" +
+      "4. Suggest improvements",
     ],
     [
       "deploy",
       "Deploys applications to staging or production environments",
       "# Deploy Instructions\n\n" +
-        "1. Verify build passes\n" +
-        "2. Run database migrations\n" +
-        "3. Deploy to target environment\n" +
-        "4. Run smoke tests",
+      "1. Verify build passes\n" +
+      "2. Run database migrations\n" +
+      "3. Deploy to target environment\n" +
+      "4. Run smoke tests",
     ],
     [
       "test-gen",
       "Generates unit tests for functions and modules",
       "# Test Generation Instructions\n\n" +
-        "1. Analyze function signatures\n" +
-        "2. Identify edge cases\n" +
-        "3. Generate test stubs\n" +
-        "4. Add assertions for expected behavior",
+      "1. Analyze function signatures\n" +
+      "2. Identify edge cases\n" +
+      "3. Generate test stubs\n" +
+      "4. Add assertions for expected behavior",
     ],
   ];
 
   for (const [name, description, instructions] of skills) {
-    const content = `---\nname: ${name}\ndescription: ${description}\n---\n\n${instructions}\n`;
+    const content =
+      `---\nname: ${name}\ndescription: ${description}\n---\n\n${instructions}\n`;
     const path = `${tempDir}/${name}.md`;
     await Deno.writeTextFile(path, content);
     console.log(`  Created: ${path}`);
@@ -114,7 +117,9 @@ async function main(): Promise<void> {
     } else {
       for (const m of matches) {
         console.log(
-          `    -> ${m.skillName} (confidence: ${m.confidence.toFixed(2)}, source: ${m.source})`,
+          `    -> ${m.skillName} (confidence: ${
+            m.confidence.toFixed(2)
+          }, source: ${m.source})`,
         );
       }
     }
@@ -155,7 +160,9 @@ async function main(): Promise<void> {
     "custom-skill",
     "A programmatically created skill",
   );
-  console.log(`  Created metadata: ${customMeta.name} -- ${customMeta.description}`);
+  console.log(
+    `  Created metadata: ${customMeta.name} -- ${customMeta.description}`,
+  );
   console.log(`  Execution mode: ${executionMode(customMeta)}`);
   console.log(`  Has tool restrictions: ${hasToolRestrictions(customMeta)}`);
   console.log(`  Is 'Read' allowed: ${isToolAllowed(customMeta, "Read")}`);

@@ -6,21 +6,24 @@
  * capability profiles enforce expected restrictions.
  */
 
-import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  PolicyEngine,
-  PolicyActions,
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  AgentCapabilities,
   createPolicy,
   createPolicyRequest,
-  policyRequestForTool,
+  isDecisionAllowed,
+  isDecisionRequiresApproval,
+  parseCapabilityProfile,
+  PolicyActions,
+  PolicyEngine,
   policyRequestForFile,
   policyRequestForGit,
   policyRequestForNetwork,
-  isDecisionAllowed,
-  isDecisionRequiresApproval,
-  AgentCapabilities,
-  parseCapabilityProfile,
-} from "@brainwires/permissions";
+  policyRequestForTool,
+} from "@brainwires/permission";
 
 // ---------------------------------------------------------------------------
 // PolicyEngine with custom policies
@@ -86,7 +89,10 @@ Deno.test("PolicyEngine denies access to .env files", () => {
 
 Deno.test("PolicyEngine denies access to secret files", () => {
   const engine = PolicyEngine.withDefaults();
-  const request = policyRequestForFile("/project/config/secret.json", "read_file");
+  const request = policyRequestForFile(
+    "/project/config/secret.json",
+    "read_file",
+  );
   const decision = engine.evaluate(request);
 
   assertEquals(decision.action.type, "deny_with_message");
@@ -110,7 +116,10 @@ Deno.test("PolicyEngine requires approval for git reset", () => {
   const request = policyRequestForGit("Reset");
   const decision = engine.evaluate(request);
 
-  assert(isDecisionRequiresApproval(decision), "git reset should require approval");
+  assert(
+    isDecisionRequiresApproval(decision),
+    "git reset should require approval",
+  );
   assertEquals(decision.matched_policy, "approve_git_reset");
 });
 
@@ -119,7 +128,10 @@ Deno.test("PolicyEngine requires approval for git rebase", () => {
   const request = policyRequestForGit("Rebase");
   const decision = engine.evaluate(request);
 
-  assert(isDecisionRequiresApproval(decision), "git rebase should require approval");
+  assert(
+    isDecisionRequiresApproval(decision),
+    "git rebase should require approval",
+  );
   assertEquals(decision.matched_policy, "approve_git_rebase");
 });
 
@@ -165,7 +177,11 @@ Deno.test("read_only profile blocks writes", () => {
   // read_only should allow reads
   assert(caps.filesystem.read_paths.length > 0, "should have read paths");
   // read_only should block writes (empty write_paths)
-  assertEquals(caps.filesystem.write_paths.length, 0, "should have no write paths");
+  assertEquals(
+    caps.filesystem.write_paths.length,
+    0,
+    "should have no write paths",
+  );
 });
 
 Deno.test("full_access profile allows all", () => {
@@ -183,7 +199,10 @@ Deno.test("standard_dev profile has balanced permissions", () => {
   assert(caps.filesystem.read_paths.length > 0, "should have read paths");
   assert(caps.filesystem.write_paths.length > 0, "should have write paths");
   // standard_dev should have some denied paths
-  assert(caps.filesystem.denied_paths.length > 0, "should have denied paths for safety");
+  assert(
+    caps.filesystem.denied_paths.length > 0,
+    "should have denied paths for safety",
+  );
 });
 
 Deno.test("fromProfile creates correct profiles", () => {

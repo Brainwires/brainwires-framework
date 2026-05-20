@@ -9,7 +9,11 @@
  * @module
  */
 
-import type { ChunkMetadata, DatabaseStats, SearchResult } from "@brainwires/core";
+import type {
+  ChunkMetadata,
+  DatabaseStats,
+  SearchResult,
+} from "@brainwires/core";
 import type { FieldDef, Filter, Record, ScoredRecord } from "./types.ts";
 
 /**

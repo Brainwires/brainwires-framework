@@ -6,14 +6,17 @@
  * appropriate categories for various queries.
  */
 
-import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  ToolRegistry,
-  WebTool,
-  SearchTool,
+  assert,
+  assertEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
   analyzeQuery,
   getToolsForCategories,
+  SearchTool,
   type ToolCategory,
+  ToolRegistry,
+  WebTool,
 } from "@brainwires/tools";
 
 // ---------------------------------------------------------------------------
@@ -140,7 +143,10 @@ Deno.test("getToolsForCategories returns matching tools", () => {
   const tools = getToolsForCategories(registry, ["Web", "Search"]);
   const names = tools.map((t) => t.name);
   assert(names.includes("fetch_url"), "should include fetch_url for Web");
-  assert(names.includes("search_code"), "should include search_code for Search");
+  assert(
+    names.includes("search_code"),
+    "should include search_code for Search",
+  );
 });
 
 Deno.test("getToolsForCategories deduplicates tools", () => {

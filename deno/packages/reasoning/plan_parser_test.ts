@@ -43,7 +43,9 @@ Deno.test("stepsToTasks preserves plan_id + priorities", () => {
 });
 
 Deno.test("priority detection on ! important critical", () => {
-  const steps = parsePlanSteps("1. Important: Fix critical bug!\n2. Normal task");
+  const steps = parsePlanSteps(
+    "1. Important: Fix critical bug!\n2. Normal task",
+  );
   assert(steps[0].is_priority);
   assert(!steps[1].is_priority);
 });

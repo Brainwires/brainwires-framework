@@ -3,7 +3,9 @@ import { Message } from "@brainwires/core";
 import { DenoKvSessionStore } from "./deno_kv.ts";
 import { SessionId } from "./types.ts";
 
-async function openStore(): Promise<{ store: DenoKvSessionStore; kv: Deno.Kv }> {
+async function openStore(): Promise<
+  { store: DenoKvSessionStore; kv: Deno.Kv }
+> {
   const kv = await Deno.openKv(":memory:");
   return { store: new DenoKvSessionStore(kv), kv };
 }
@@ -80,7 +82,11 @@ Deno.test("DenoKv save preserves created_at across overwrites", async () => {
     await store.save(id, [Message.user("second")]);
 
     const secondList = await store.list();
-    assertEquals(secondList[0].created_at, firstCreated, "created_at must survive overwrite");
+    assertEquals(
+      secondList[0].created_at,
+      firstCreated,
+      "created_at must survive overwrite",
+    );
     assert(secondList[0].updated_at >= firstCreated);
   } finally {
     kv.close();

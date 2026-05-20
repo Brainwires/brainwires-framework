@@ -4,8 +4,8 @@ Analytics events, sinks, outcome metrics, and billing hooks.
 
 ## What you get
 
-- **`AnalyticsEvent`** — 10 typed event variants (`provider_call`,
-  `agent_run`, `tool_call`, `mcp_request`, `channel_message`, `storage_op`,
+- **`AnalyticsEvent`** — 10 typed event variants (`provider_call`, `agent_run`,
+  `tool_call`, `mcp_request`, `channel_message`, `storage_op`,
   `network_message`, `dream_cycle`, `autonomy_session`, `custom`).
 - **`UsageEvent`** — billable-action payload (`tokens`, `tool_call`,
   `sandbox_seconds`, `api_call`, `custom`).
@@ -58,15 +58,15 @@ const body = metrics.prometheusText();
 
 ## What's intentionally not ported
 
-- **SQLite sink + SQL query layer** — use your own `AnalyticsSink` against
-  Deno KV, Postgres, or OTLP directly. Most production deployments will
-  want OTLP anyway.
+- **SQLite sink + SQL query layer** — use your own `AnalyticsSink` against Deno
+  KV, Postgres, or OTLP directly. Most production deployments will want OTLP
+  anyway.
 - **tracing-crate layer** — Deno has no `tracing` equivalent. Use
   `collector.onEvent(cb)` to pipe events to your logger / exporter.
-- **Heavy PII detectors** — we ship `hashSessionId` and `redactSecrets`.
-  Email / phone / SSN detection lives Rust-side until explicitly requested.
+- **Heavy PII detectors** — we ship `hashSessionId` and `redactSecrets`. Email /
+  phone / SSN detection lives Rust-side until explicitly requested.
 
 ## Equivalent Rust crate
 
-`brainwires-telemetry` — same event shape, same semantics. Counters are
-plain numbers instead of atomics because JS isolates are single-threaded.
+`brainwires-telemetry` — same event shape, same semantics. Counters are plain
+numbers instead of atomics because JS isolates are single-threaded.

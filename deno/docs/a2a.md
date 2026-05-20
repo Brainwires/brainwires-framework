@@ -1,10 +1,12 @@
 # A2A Protocol
 
-The `@brainwires/a2a` package implements Google's Agent-to-Agent (A2A) protocol v1.0 for inter-agent communication using JSON-RPC and REST transports (no gRPC).
+The `@brainwires/a2a` package implements Google's Agent-to-Agent (A2A) protocol
+v1.0 for inter-agent communication using JSON-RPC and REST transports (no gRPC).
 
 ## Overview
 
-A2A enables agents to discover each other, exchange messages, manage tasks, and stream results. The protocol uses:
+A2A enables agents to discover each other, exchange messages, manage tasks, and
+stream results. The protocol uses:
 
 - **Agent Cards** for capability advertisement and discovery
 - **JSON-RPC 2.0** for structured method calls
@@ -13,10 +15,11 @@ A2A enables agents to discover each other, exchange messages, manage tasks, and 
 
 ## Agent Card
 
-An `AgentCard` describes what an agent can do, what protocols it supports, and how to authenticate:
+An `AgentCard` describes what an agent can do, what protocols it supports, and
+how to authenticate:
 
 ```ts
-import type { AgentCard, AgentSkill, AgentCapabilities } from "@brainwires/a2a";
+import type { AgentCapabilities, AgentCard, AgentSkill } from "@brainwires/a2a";
 
 const card: AgentCard = {
   name: "code-reviewer",
@@ -55,20 +58,26 @@ const task = await client.getTask({ id: response.id });
 
 ## Task Lifecycle
 
-Tasks progress through states: `submitted` -> `working` -> `completed` (or `failed`, `canceled`).
+Tasks progress through states: `submitted` -> `working` -> `completed` (or
+`failed`, `canceled`).
 
 ```ts
 import type { Task, TaskState, TaskStatus } from "@brainwires/a2a";
 ```
 
-The client supports task operations: `sendMessage`, `getTask`, `listTasks`, `cancelTask`, `resubscribe`.
+The client supports task operations: `sendMessage`, `getTask`, `listTasks`,
+`cancelTask`, `resubscribe`.
 
 ## SSE Streaming
 
 Stream responses in real-time using Server-Sent Events:
 
 ```ts
-import { parseSseStream, isStatusUpdate, isArtifactUpdate } from "@brainwires/a2a";
+import {
+  isArtifactUpdate,
+  isStatusUpdate,
+  parseSseStream,
+} from "@brainwires/a2a";
 
 // Stream a message send
 const stream = await client.sendMessageStream({
@@ -93,14 +102,22 @@ See: `../examples/a2a/a2a_streaming.ts`.
 Configure webhook-based push notifications for task updates:
 
 ```ts
-import type { TaskPushNotificationConfig, AuthenticationInfo } from "@brainwires/a2a";
+import type {
+  AuthenticationInfo,
+  TaskPushNotificationConfig,
+} from "@brainwires/a2a";
 ```
 
-Methods: `setPushNotificationConfig`, `getPushNotificationConfig`, `listPushNotificationConfigs`, `deletePushNotificationConfig`.
+Methods: `setPushNotificationConfig`, `getPushNotificationConfig`,
+`listPushNotificationConfigs`, `deletePushNotificationConfig`.
 
 ## JSON-RPC Methods
 
-All methods are available as constants: `METHOD_MESSAGE_SEND`, `METHOD_MESSAGE_STREAM`, `METHOD_TASKS_GET`, `METHOD_TASKS_LIST`, `METHOD_TASKS_CANCEL`, `METHOD_TASKS_RESUBSCRIBE`, `METHOD_PUSH_CONFIG_SET`, `METHOD_PUSH_CONFIG_GET`, `METHOD_PUSH_CONFIG_LIST`, `METHOD_PUSH_CONFIG_DELETE`, `METHOD_EXTENDED_CARD`.
+All methods are available as constants: `METHOD_MESSAGE_SEND`,
+`METHOD_MESSAGE_STREAM`, `METHOD_TASKS_GET`, `METHOD_TASKS_LIST`,
+`METHOD_TASKS_CANCEL`, `METHOD_TASKS_RESUBSCRIBE`, `METHOD_PUSH_CONFIG_SET`,
+`METHOD_PUSH_CONFIG_GET`, `METHOD_PUSH_CONFIG_LIST`,
+`METHOD_PUSH_CONFIG_DELETE`, `METHOD_EXTENDED_CARD`.
 
 ## Handler Interface
 

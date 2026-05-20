@@ -1,6 +1,12 @@
 /** Task status.
  * Equivalent to Rust's `TaskStatus` in brainwires-core. */
-export type TaskStatus = "pending" | "inprogress" | "completed" | "failed" | "blocked" | "skipped";
+export type TaskStatus =
+  | "pending"
+  | "inprogress"
+  | "completed"
+  | "failed"
+  | "blocked"
+  | "skipped";
 
 /** Task priority levels.
  * Equivalent to Rust's `TaskPriority` in brainwires-core. */

@@ -12,7 +12,7 @@ import {
   policyRequestForFile,
   policyRequestForGit,
   policyRequestForTool,
-} from "@brainwires/permissions";
+} from "@brainwires/permission";
 
 async function main() {
   console.log("=== Policy Engine Example ===\n");
@@ -55,25 +55,33 @@ async function main() {
   const fileRequest = policyRequestForFile(".env.local", "read_file");
   const fileDecision = engine.evaluate(fileRequest);
   console.log(
-    `  Request: read .env.local\n    Decision: ${fileDecision.action.type}\n    Matched policy: ${fileDecision.matched_policy}\n    Allowed: ${isDecisionAllowed(fileDecision)}\n`,
+    `  Request: read .env.local\n    Decision: ${fileDecision.action.type}\n    Matched policy: ${fileDecision.matched_policy}\n    Allowed: ${
+      isDecisionAllowed(fileDecision)
+    }\n`,
   );
 
   const gitRequest = policyRequestForGit("Reset");
   const gitDecision = engine.evaluate(gitRequest);
   console.log(
-    `  Request: git reset\n    Decision: ${gitDecision.action.type}\n    Matched policy: ${gitDecision.matched_policy}\n    Requires approval: ${isDecisionRequiresApproval(gitDecision)}\n`,
+    `  Request: git reset\n    Decision: ${gitDecision.action.type}\n    Matched policy: ${gitDecision.matched_policy}\n    Requires approval: ${
+      isDecisionRequiresApproval(gitDecision)
+    }\n`,
   );
 
   const toolRequest = policyRequestForTool("bash");
   const toolDecision = engine.evaluate(toolRequest);
   console.log(
-    `  Request: bash tool\n    Decision: ${toolDecision.action.type}\n    Matched policy: ${toolDecision.matched_policy}\n    Allowed: ${isDecisionAllowed(toolDecision)}\n    Audit: ${toolDecision.audit}\n`,
+    `  Request: bash tool\n    Decision: ${toolDecision.action.type}\n    Matched policy: ${toolDecision.matched_policy}\n    Allowed: ${
+      isDecisionAllowed(toolDecision)
+    }\n    Audit: ${toolDecision.audit}\n`,
   );
 
   const safeRequest = policyRequestForFile("src/main.rs", "read_file");
   const safeDecision = engine.evaluate(safeRequest);
   console.log(
-    `  Request: read src/main.rs\n    Decision: ${safeDecision.action.type}\n    Matched policy: ${safeDecision.matched_policy}\n    Allowed: ${isDecisionAllowed(safeDecision)}\n`,
+    `  Request: read src/main.rs\n    Decision: ${safeDecision.action.type}\n    Matched policy: ${safeDecision.matched_policy}\n    Allowed: ${
+      isDecisionAllowed(safeDecision)
+    }\n`,
   );
 
   // 3. List all registered policies

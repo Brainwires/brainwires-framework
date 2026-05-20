@@ -3,11 +3,7 @@
  */
 
 import { assertEquals } from "@std/assert";
-import type {
-  Artifact,
-  Message,
-  Part,
-} from "./types.ts";
+import type { Artifact, Message, Part } from "./types.ts";
 import { createAgentMessage, createUserMessage } from "./types.ts";
 
 Deno.test("Part with text round-trips through JSON", () => {

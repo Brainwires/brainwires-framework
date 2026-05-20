@@ -16,7 +16,9 @@ Deno.test("hash changes with input", async () => {
 });
 
 Deno.test("redact replaces obvious secrets", () => {
-  const r = redactSecrets("api_key=sk-abcdef0123456789abcdef0123456789 plain-text");
+  const r = redactSecrets(
+    "api_key=sk-abcdef0123456789abcdef0123456789 plain-text",
+  );
   assert(r.includes("REDACTED"));
   assert(r.includes("plain-text"));
 });

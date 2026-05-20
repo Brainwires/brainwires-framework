@@ -1,6 +1,0 @@
-{
-  "name": "@brainwires/agents",
-  "license": "MIT",
-  "version": "0.10.1",
-  "exports": "./mod.ts"
-}

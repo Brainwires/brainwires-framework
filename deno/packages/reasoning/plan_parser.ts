@@ -84,7 +84,10 @@ export function parsePlanSteps(content: string): ParsedStep[] {
       const indent = bullet[1].length;
       const desc = bullet[2].trim();
       if (desc.startsWith("Note:") || desc.startsWith("Warning:")) continue;
-      if (desc.length > 10 && ACTION_KEYWORDS.some((k) => desc.toLowerCase().includes(k))) {
+      if (
+        desc.length > 10 &&
+        ACTION_KEYWORDS.some((k) => desc.toLowerCase().includes(k))
+      ) {
         current_number += 1;
         steps.push({
           number: current_number,

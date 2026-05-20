@@ -7,7 +7,11 @@
  * @module
  */
 
-import type { ChunkMetadata, DatabaseStats, SearchResult } from "@brainwires/core";
+import type {
+  ChunkMetadata,
+  DatabaseStats,
+  SearchResult,
+} from "@brainwires/core";
 import type { VectorDatabase } from "../traits.ts";
 
 const DEFAULT_URL = "http://localhost:8080";
@@ -75,7 +79,8 @@ export function buildSearchQuery(
   let searchOperator: string;
   if (hybrid) {
     const escaped = queryText.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    searchOperator = `hybrid: { query: "${escaped}", vector: ${vectorStr}, alpha: 0.7 }`;
+    searchOperator =
+      `hybrid: { query: "${escaped}", vector: ${vectorStr}, alpha: 0.7 }`;
   } else {
     searchOperator = `nearVector: { vector: ${vectorStr} }`;
   }
@@ -189,7 +194,9 @@ export function deterministicUuid(
   }
   const hex = (n: number, len: number) =>
     (n >>> 0).toString(16).padStart(len, "0").slice(-len);
-  return `${hex(h1, 8)}-${hex(h2, 4)}-${hex((h3 & 0x0fff) | 0x5000, 4)}-${hex((h4 & 0x3fff) | 0x8000, 4)}-${hex(h1 ^ h3, 8)}${hex(h2 ^ h4, 4)}`;
+  return `${hex(h1, 8)}-${hex(h2, 4)}-${hex((h3 & 0x0fff) | 0x5000, 4)}-${
+    hex((h4 & 0x3fff) | 0x8000, 4)
+  }-${hex(h1 ^ h3, 8)}${hex(h2 ^ h4, 4)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -300,7 +307,13 @@ export class WeaviateDatabase implements VectorDatabase {
     if (embeddings.length === 0) return 0;
 
     const objects = embeddings.map((emb, idx) =>
-      buildBatchObject(this.className, emb, metadata[idx], contents[idx], rootPath)
+      buildBatchObject(
+        this.className,
+        emb,
+        metadata[idx],
+        contents[idx],
+        rootPath,
+      )
     );
 
     let stored = 0;

@@ -2,9 +2,7 @@
  * Client construction, discovery URL building, and transport tests (v1.0).
  */
 
-import {
-  assertEquals,
-} from "@std/assert";
+import { assertEquals } from "@std/assert";
 import { A2aClient } from "./client.ts";
 import type { JsonRpcRequest } from "./jsonrpc.ts";
 import {

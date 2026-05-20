@@ -4,9 +4,9 @@
 
 import {
   ChatOptions,
+  type ChatResponse,
   createUsage,
   Message,
-  type ChatResponse,
   type Provider,
   type StreamChunk,
   type Tool,
@@ -94,15 +94,23 @@ async function main() {
   // 5. Show ChatOptions presets
   console.log("\n=== ChatOptions Presets ===");
   const deterministic = ChatOptions.deterministic(100);
-  console.log(`Deterministic: temp=${deterministic.temperature}, max_tokens=${deterministic.max_tokens}`);
+  console.log(
+    `Deterministic: temp=${deterministic.temperature}, max_tokens=${deterministic.max_tokens}`,
+  );
 
   const factual = ChatOptions.factual(2048);
-  console.log(`Factual: temp=${factual.temperature}, max_tokens=${factual.max_tokens}`);
+  console.log(
+    `Factual: temp=${factual.temperature}, max_tokens=${factual.max_tokens}`,
+  );
 
   const creative = ChatOptions.creative(4096);
-  console.log(`Creative: temp=${creative.temperature}, max_tokens=${creative.max_tokens}`);
+  console.log(
+    `Creative: temp=${creative.temperature}, max_tokens=${creative.max_tokens}`,
+  );
 
-  console.log("\nDone! Swap EchoProvider with a real LLM provider to get started.");
+  console.log(
+    "\nDone! Swap EchoProvider with a real LLM provider to get started.",
+  );
 }
 
 await main();

@@ -47,7 +47,9 @@ async function main() {
   // 2. List every technique with its metadata
   console.log("=== All Techniques ===\n");
   console.log(
-    `${"#".padEnd(6)} ${"Name".padEnd(34)} ${"Category".padEnd(20)} ${"Level".padEnd(10)} ${"SEAL".padEnd(6)}`
+    `${"#".padEnd(6)} ${"Name".padEnd(34)} ${"Category".padEnd(20)} ${
+      "Level".padEnd(10)
+    } ${"SEAL".padEnd(6)}`,
   );
   console.log("-".repeat(80));
 
@@ -58,10 +60,10 @@ async function main() {
 
     console.log(
       `${String(i + 1).padEnd(6)} ` +
-      `${meta.name.padEnd(34)} ` +
-      `${categoryLabel(meta.category).padEnd(20)} ` +
-      `${meta.complexityLevel.padEnd(10)} ` +
-      `${meta.minSealQuality.toFixed(1)}`
+        `${meta.name.padEnd(34)} ` +
+        `${categoryLabel(meta.category).padEnd(20)} ` +
+        `${meta.complexityLevel.padEnd(10)} ` +
+        `${meta.minSealQuality.toFixed(1)}`,
     );
   }
   console.log();
@@ -72,7 +74,9 @@ async function main() {
   for (const cat of ALL_CATEGORIES) {
     const members = getTechniquesByCategory(cat);
     const suffix = members.length === 1 ? "" : "s";
-    console.log(`${categoryLabel(cat)} (${members.length} technique${suffix}):`);
+    console.log(
+      `${categoryLabel(cat)} (${members.length} technique${suffix}):`,
+    );
     for (const m of members) {
       console.log(`  - ${m.name} -- ${m.description}`);
     }
@@ -103,7 +107,9 @@ async function main() {
   ];
 
   for (const tc of selectedCharacteristics) {
-    const matching = allMetadata.filter((m: TechniqueMetadata) => m.bestFor.includes(tc));
+    const matching = allMetadata.filter((m: TechniqueMetadata) =>
+      m.bestFor.includes(tc)
+    );
     const names = matching.map((m: TechniqueMetadata) => m.name).join(", ");
     console.log(`${tc} (${matching.length}): ${names}`);
   }
@@ -112,18 +118,22 @@ async function main() {
   // 6. Comparison table -- SEAL thresholds
   console.log("=== SEAL Quality Threshold Table ===\n");
   console.log(
-    `${"Technique".padEnd(34)} ${"Level".padEnd(10)} ${"MinSEAL".padEnd(10)} ${"BKS?".padEnd(6)}`
+    `${"Technique".padEnd(34)} ${"Level".padEnd(10)} ${"MinSEAL".padEnd(10)} ${
+      "BKS?".padEnd(6)
+    }`,
   );
   console.log("-".repeat(64));
 
-  const sorted = [...allMetadata].sort((a, b) => a.minSealQuality - b.minSealQuality);
+  const sorted = [...allMetadata].sort((a, b) =>
+    a.minSealQuality - b.minSealQuality
+  );
 
   for (const meta of sorted) {
     console.log(
       `${meta.name.padEnd(34)} ` +
-      `${meta.complexityLevel.padEnd(10)} ` +
-      `${meta.minSealQuality.toFixed(1).padEnd(10)} ` +
-      `${meta.bksPromotionEligible ? "yes" : "no"}`
+        `${meta.complexityLevel.padEnd(10)} ` +
+        `${meta.minSealQuality.toFixed(1).padEnd(10)} ` +
+        `${meta.bksPromotionEligible ? "yes" : "no"}`,
     );
   }
   console.log();

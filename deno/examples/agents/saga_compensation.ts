@@ -5,13 +5,13 @@
 // Run: deno run deno/examples/agents/saga_compensation.ts
 
 import {
-  failureResult,
-  SagaExecutor,
-  successResult,
   type CompensableOperation,
+  failureResult,
   type OperationResult,
+  SagaExecutor,
   type SagaOperationType,
-} from "@brainwires/agents";
+  successResult,
+} from "@brainwires/agent";
 
 // -- Mock Operations --
 
@@ -111,12 +111,11 @@ async function main() {
     console.log("\n--- Compensation Report ---");
     console.log(`  Saga: ${report.sagaId}`);
     for (const entry of report.operations) {
-      const icon =
-        entry.status === "success"
-          ? "OK"
-          : entry.status === "failed"
-            ? "FAIL"
-            : "SKIP";
+      const icon = entry.status === "success"
+        ? "OK"
+        : entry.status === "failed"
+        ? "FAIL"
+        : "SKIP";
       console.log(`  [${icon}] ${entry.description}`);
       if (entry.error) {
         console.log(`        reason: ${entry.error}`);

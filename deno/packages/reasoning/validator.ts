@@ -20,7 +20,8 @@ export function isInvalid(r: ValidationResult): boolean {
   return r.kind === "invalid";
 }
 
-const SYSTEM_PROMPT = `You are a response validator. Given a task and response, determine if the response is appropriate.
+const SYSTEM_PROMPT =
+  `You are a response validator. Given a task and response, determine if the response is appropriate.
 
 Check for:
 1. Response addresses the task (not off-topic)
@@ -54,19 +55,28 @@ export function parseValidation(output: string): ValidationResult {
   }
   if (up.startsWith("INVALID")) {
     const idx = up.indexOf(":");
-    const reason = idx >= 0 ? up.slice(idx + 1).trim() : "Unspecified validation failure";
+    const reason = idx >= 0
+      ? up.slice(idx + 1).trim()
+      : "Unspecified validation failure";
     return { kind: "invalid", reason, severity: 0.6, confidence: 0.75 };
   }
   return { kind: "skipped" };
 }
 
 /** Pattern-based quick validation — no provider call. */
-export function validateHeuristic(task: string, response: string): ValidationResult {
+export function validateHeuristic(
+  task: string,
+  response: string,
+): ValidationResult {
   const task_lower = task.toLowerCase();
   const resp_lower = response.toLowerCase();
 
-  const task_words = new Set(task_lower.split(/\s+/).filter((w) => w.length > 3));
-  const resp_words = new Set(resp_lower.split(/\s+/).filter((w) => w.length > 3));
+  const task_words = new Set(
+    task_lower.split(/\s+/).filter((w) => w.length > 3),
+  );
+  const resp_words = new Set(
+    resp_lower.split(/\s+/).filter((w) => w.length > 3),
+  );
   let overlap = 0;
   for (const w of task_words) if (resp_words.has(w)) overlap += 1;
 
@@ -137,7 +147,11 @@ Output ONLY: VALID or INVALID:<reason>`;
     const options = ChatOptions.deterministic(50);
     options.setSystem(SYSTEM_PROMPT);
     try {
-      const resp = await this.provider.chat([Message.user(user)], undefined, options);
+      const resp = await this.provider.chat(
+        [Message.user(user)],
+        undefined,
+        options,
+      );
       return parseValidation(resp.message.textOrSummary());
     } catch {
       return { kind: "skipped" };

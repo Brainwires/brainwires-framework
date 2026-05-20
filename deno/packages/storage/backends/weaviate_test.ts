@@ -6,12 +6,12 @@
 
 import { assertEquals, assertNotEquals } from "@std/assert";
 import {
-  buildWhereFilter,
-  buildSearchQuery,
   buildAggregateQuery,
-  parseWeaviateResult,
   buildBatchObject,
+  buildSearchQuery,
+  buildWhereFilter,
   deterministicUuid,
+  parseWeaviateResult,
 } from "./weaviate.ts";
 import type { ChunkMetadata } from "@brainwires/core";
 
@@ -181,7 +181,13 @@ Deno.test("buildBatchObject - builds correct structure", () => {
     file_hash: "abc123",
     indexed_at: 1000,
   };
-  const obj = buildBatchObject("CodeEmbedding", [1, 2, 3], meta, "fn main() {}", "/project");
+  const obj = buildBatchObject(
+    "CodeEmbedding",
+    [1, 2, 3],
+    meta,
+    "fn main() {}",
+    "/project",
+  );
   assertEquals(obj.class, "CodeEmbedding");
   assertEquals(obj.vector, [1, 2, 3]);
   const props = obj.properties as Record<string, unknown>;

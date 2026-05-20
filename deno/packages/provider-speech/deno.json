@@ -1,0 +1,15 @@
+{
+  "name": "@brainwires/provider-speech",
+  "license": "MIT",
+  "version": "0.11.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./azure": "./azure_speech.ts",
+    "./cartesia": "./cartesia.ts",
+    "./deepgram": "./deepgram.ts",
+    "./elevenlabs": "./elevenlabs.ts",
+    "./fish": "./fish.ts",
+    "./google-tts": "./google_tts.ts",
+    "./murf": "./murf.ts"
+  }
+}

@@ -7,7 +7,7 @@ import {
   ExecutionGraph,
   telemetryFromGraph,
   type ToolCallRecord,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 
 async function main() {
   console.log("=== DAG Workflow (ExecutionGraph) ===\n");
@@ -88,7 +88,12 @@ async function main() {
   );
 
   console.log(`  Tool calls: ${graph.steps[step2].toolCalls.length}`);
-  console.log(`  Errors: ${graph.steps[step2].toolCalls.filter((tc: ToolCallRecord) => tc.isError).length}`);
+  console.log(
+    `  Errors: ${
+      graph.steps[step2].toolCalls.filter((tc: ToolCallRecord) => tc.isError)
+        .length
+    }`,
+  );
 
   // 4. Simulate iteration 3: verification
   console.log("\n--- 4. Iteration 3: Verification ---");
@@ -141,8 +146,12 @@ async function main() {
   // 7. Inspect individual steps
   console.log("\n--- 7. Step Details ---");
   for (const step of graph.steps) {
-    const tools = step.toolCalls.map((tc: ToolCallRecord) => tc.toolName).join(", ");
-    const errors = step.toolCalls.filter((tc: ToolCallRecord) => tc.isError).length;
+    const tools = step.toolCalls.map((tc: ToolCallRecord) => tc.toolName).join(
+      ", ",
+    );
+    const errors = step.toolCalls.filter((tc: ToolCallRecord) =>
+      tc.isError
+    ).length;
     console.log(
       `  Iteration ${step.iteration}: ${step.toolCalls.length} tools [${tools}], ${errors} errors, ${step.promptTokens}+${step.completionTokens} tokens`,
     );

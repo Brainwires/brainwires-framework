@@ -108,7 +108,9 @@ export class InferenceTimer {
     const ms = this.elapsedMs();
     if (log) {
       log(
-        `local_llm task=${this.task} model=${this.model} latency_ms=${ms.toFixed(0)} ${success ? "ok" : "fallback"}`,
+        `local_llm task=${this.task} model=${this.model} latency_ms=${
+          ms.toFixed(0)
+        } ${success ? "ok" : "fallback"}`,
       );
     }
     return ms;

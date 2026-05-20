@@ -5,10 +5,10 @@
 // Run: deno run deno/examples/agents/agent_pool.ts
 
 import {
+  type AgentPoolStats,
   CommunicationHub,
   FileLockManager,
-  type AgentPoolStats,
-} from "@brainwires/agents";
+} from "@brainwires/agent";
 import { Task } from "@brainwires/core";
 
 async function main() {
@@ -85,7 +85,9 @@ async function main() {
     conflictDetected = true;
   }
   console.log(
-    `  agent-2 read while write held: ${conflictDetected ? "BLOCKED (expected)" : "OK"}`,
+    `  agent-2 read while write held: ${
+      conflictDetected ? "BLOCKED (expected)" : "OK"
+    }`,
   );
 
   writeGuard.release();

@@ -6,10 +6,10 @@
 
 import { assertEquals } from "@std/assert";
 import {
-  escapeFilterValue,
   buildFilterExpr,
-  buildSearchBody,
   buildInsertBody,
+  buildSearchBody,
+  escapeFilterValue,
   parseMilvusResult,
 } from "./milvus.ts";
 import type { ChunkMetadata } from "@brainwires/core";
@@ -113,7 +113,9 @@ Deno.test("buildInsertBody - single entity", () => {
     file_hash: "abc123",
     indexed_at: 1000,
   };
-  const body = buildInsertBody("code_embeddings", [[1, 2, 3]], [meta], ["fn main() {}"], "/project");
+  const body = buildInsertBody("code_embeddings", [[1, 2, 3]], [meta], [
+    "fn main() {}",
+  ], "/project");
   assertEquals(body.collectionName, "code_embeddings");
   const data = body.data as Record<string, unknown>[];
   assertEquals(data.length, 1);
@@ -181,14 +183,24 @@ Deno.test("parseMilvusResult - score below minScore returns null", () => {
 
 Deno.test("parseMilvusResult - missing content returns null", () => {
   assertEquals(
-    parseMilvusResult({ distance: 0, file_path: "/a.rs", start_line: 0, end_line: 1 }, 0),
+    parseMilvusResult({
+      distance: 0,
+      file_path: "/a.rs",
+      start_line: 0,
+      end_line: 1,
+    }, 0),
     null,
   );
 });
 
 Deno.test("parseMilvusResult - missing file_path returns null", () => {
   assertEquals(
-    parseMilvusResult({ distance: 0, content: "hello", start_line: 0, end_line: 1 }, 0),
+    parseMilvusResult({
+      distance: 0,
+      content: "hello",
+      start_line: 0,
+      end_line: 1,
+    }, 0),
     null,
   );
 });

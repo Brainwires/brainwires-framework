@@ -3,13 +3,13 @@
 // Run: deno run deno/examples/core/agent_quickstart.ts
 
 import {
-  HookRegistry,
-  Task,
-  WorkingSet,
   estimateTokens,
+  HookRegistry,
   type HookResult,
   type LifecycleEvent,
   type LifecycleHook,
+  Task,
+  WorkingSet,
 } from "@brainwires/core";
 
 async function main() {
@@ -22,38 +22,62 @@ async function main() {
   parentTask.setPriority("high");
   parentTask.start();
   console.log(`Created task: ${parentTask.id} — ${parentTask.description}`);
-  console.log(`  Status: ${parentTask.status}, Priority: ${parentTask.priority}`);
+  console.log(
+    `  Status: ${parentTask.status}, Priority: ${parentTask.priority}`,
+  );
 
   // Create subtasks
-  const subtask1 = Task.newSubtask("task-1a", "Review auth middleware", "task-1");
-  const subtask2 = Task.newSubtask("task-1b", "Check token validation", "task-1");
+  const subtask1 = Task.newSubtask(
+    "task-1a",
+    "Review auth middleware",
+    "task-1",
+  );
+  const subtask2 = Task.newSubtask(
+    "task-1b",
+    "Check token validation",
+    "task-1",
+  );
   parentTask.addChild(subtask1.id);
   parentTask.addChild(subtask2.id);
 
   subtask1.start();
   subtask1.incrementIteration();
   subtask1.complete("Auth middleware uses JWT with proper expiry checks");
-  console.log(`  Subtask ${subtask1.id}: ${subtask1.status} — ${subtask1.summary}`);
+  console.log(
+    `  Subtask ${subtask1.id}: ${subtask1.status} — ${subtask1.summary}`,
+  );
 
   subtask2.start();
   subtask2.incrementIteration();
   subtask2.incrementIteration();
   subtask2.complete("Token validation handles refresh tokens correctly");
-  console.log(`  Subtask ${subtask2.id}: ${subtask2.status} (${subtask2.iterations} iterations)`);
+  console.log(
+    `  Subtask ${subtask2.id}: ${subtask2.status} (${subtask2.iterations} iterations)`,
+  );
 
   parentTask.complete("Authentication module analysis complete");
   console.log(`  Parent task: ${parentTask.status}`);
-  console.log(`  Has children: ${parentTask.hasChildren()}, Is root: ${parentTask.isRoot()}`);
+  console.log(
+    `  Has children: ${parentTask.hasChildren()}, Is root: ${parentTask.isRoot()}`,
+  );
 
   // 2. Create a plan-associated task with dependencies
   console.log("\n=== Task Dependencies ===");
 
-  const planTask = Task.newForPlan("task-2", "Refactor auth module", "plan-001");
+  const planTask = Task.newForPlan(
+    "task-2",
+    "Refactor auth module",
+    "plan-001",
+  );
   const depTask = new Task("task-3", "Write tests for refactored auth");
   depTask.addDependency(planTask.id);
 
-  console.log(`Task ${depTask.id} depends on: [${depTask.depends_on.join(", ")}]`);
-  console.log(`Task ${depTask.id} has dependencies: ${depTask.hasDependencies()}`);
+  console.log(
+    `Task ${depTask.id} depends on: [${depTask.depends_on.join(", ")}]`,
+  );
+  console.log(
+    `Task ${depTask.id} has dependencies: ${depTask.hasDependencies()}`,
+  );
 
   // 3. Set up lifecycle hooks for event monitoring
   console.log("\n=== Lifecycle Hooks ===");
@@ -76,8 +100,13 @@ async function main() {
     priority: () => 10,
     async onEvent(event: LifecycleEvent): Promise<HookResult> {
       if (event.type === "tool_before_execute" && event.tool_name === "rm_rf") {
-        console.log(`  [hook:guard] BLOCKED dangerous tool: ${event.tool_name}`);
-        return { type: "cancel", reason: "Dangerous tool blocked by safety guard" };
+        console.log(
+          `  [hook:guard] BLOCKED dangerous tool: ${event.tool_name}`,
+        );
+        return {
+          type: "cancel",
+          reason: "Dangerous tool blocked by safety guard",
+        };
       }
       return { type: "continue" };
     },
@@ -112,17 +141,30 @@ async function main() {
     args: { path: "/" },
   };
   const result3 = await registry.dispatch(dangerEvent);
-  console.log(`  Dispatch result: ${result3.type}${result3.type === "cancel" ? ` (${result3.reason})` : ""}`);
+  console.log(
+    `  Dispatch result: ${result3.type}${
+      result3.type === "cancel" ? ` (${result3.reason})` : ""
+    }`,
+  );
 
   // 4. Manage the working set (files in agent context)
   console.log("\n=== Working Set ===");
 
-  const ws = new WorkingSet({ max_files: 5, max_tokens: 5000, stale_after_turns: 3, auto_evict: true });
+  const ws = new WorkingSet({
+    max_files: 5,
+    max_tokens: 5000,
+    stale_after_turns: 3,
+    auto_evict: true,
+  });
 
   // Add files the agent is working with
   ws.add("src/auth.rs", estimateTokens("fn authenticate() { ... }".repeat(20)));
-  ws.addPinned("Cargo.toml", estimateTokens("[package]\nname = \"myapp\""));
-  ws.addLabeled("src/main.rs", estimateTokens("fn main() { ... }".repeat(10)), "entry-point");
+  ws.addPinned("Cargo.toml", estimateTokens('[package]\nname = "myapp"'));
+  ws.addLabeled(
+    "src/main.rs",
+    estimateTokens("fn main() { ... }".repeat(10)),
+    "entry-point",
+  );
 
   console.log(`Files in working set: ${ws.length}`);
   console.log(`Total tokens: ${ws.totalTokens()}`);
@@ -138,7 +180,11 @@ async function main() {
   console.log(`\nAfter 4 turns (touched auth.rs):`);
   console.log(`Files remaining: ${ws.length}`);
   for (const entry of ws.allEntries()) {
-    console.log(`  ${entry.path} — ${entry.tokens} tokens, pinned=${entry.pinned}${entry.label ? `, label=${entry.label}` : ""}`);
+    console.log(
+      `  ${entry.path} — ${entry.tokens} tokens, pinned=${entry.pinned}${
+        entry.label ? `, label=${entry.label}` : ""
+      }`,
+    );
   }
 
   if (ws.lastEviction) {

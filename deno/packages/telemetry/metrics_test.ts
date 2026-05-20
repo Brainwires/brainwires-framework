@@ -35,9 +35,15 @@ function agentRun(
 
 Deno.test("registry records runs and computes rates", async () => {
   const reg = new MetricsRegistry();
-  await reg.record(agentRun("a", { success: true, duration_ms: 100, total_cost_usd: 0.02 }));
-  await reg.record(agentRun("a", { success: false, duration_ms: 200, total_cost_usd: 0.03 }));
-  await reg.record(agentRun("a", { success: true, duration_ms: 300, total_cost_usd: 0.01 }));
+  await reg.record(
+    agentRun("a", { success: true, duration_ms: 100, total_cost_usd: 0.02 }),
+  );
+  await reg.record(
+    agentRun("a", { success: false, duration_ms: 200, total_cost_usd: 0.03 }),
+  );
+  await reg.record(
+    agentRun("a", { success: true, duration_ms: 300, total_cost_usd: 0.01 }),
+  );
 
   const m = reg.get("a");
   assert(m);
@@ -52,23 +58,26 @@ Deno.test("registry records runs and computes rates", async () => {
 
 Deno.test("tool_error_rate is zero without calls", () => {
   const reg = new MetricsRegistry();
-  assertEquals(toolErrorRate({
-    agent_id: "x",
-    total_runs: 0,
-    success_count: 0,
-    failure_count: 0,
-    total_iterations: 0,
-    total_tool_calls: 0,
-    tool_error_count: 0,
-    provider_call_count: 0,
-    total_tokens_prompt: 0,
-    total_tokens_completion: 0,
-    total_cost_usd: 0,
-    total_provider_duration_ms: 0,
-    total_run_duration_ms: 0,
-    total_cache_read_tokens: 0,
-    total_cache_creation_tokens: 0,
-  }), 0);
+  assertEquals(
+    toolErrorRate({
+      agent_id: "x",
+      total_runs: 0,
+      success_count: 0,
+      failure_count: 0,
+      total_iterations: 0,
+      total_tool_calls: 0,
+      tool_error_count: 0,
+      provider_call_count: 0,
+      total_tokens_prompt: 0,
+      total_tokens_completion: 0,
+      total_cost_usd: 0,
+      total_provider_duration_ms: 0,
+      total_run_duration_ms: 0,
+      total_cache_read_tokens: 0,
+      total_cache_creation_tokens: 0,
+    }),
+    0,
+  );
   assert(reg.all().length === 0);
 });
 

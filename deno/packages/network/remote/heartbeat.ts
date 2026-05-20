@@ -46,7 +46,9 @@ export interface AgentEvent {
 // ============================================================================
 
 /** Callback that provides current agent info. Injected by the host. */
-export type AgentInfoProvider = () => Promise<RemoteAgentInfo[]> | RemoteAgentInfo[];
+export type AgentInfoProvider = () =>
+  | Promise<RemoteAgentInfo[]>
+  | RemoteAgentInfo[];
 
 // ============================================================================
 // Heartbeat Collector

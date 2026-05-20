@@ -1,0 +1,12 @@
+{
+  "name": "@brainwires/eval",
+  "license": "MIT",
+  "version": "0.11.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./adversarial": "./adversarial.ts",
+    "./regression": "./regression.ts",
+    "./ranking-metrics": "./ranking_metrics.ts",
+    "./stability": "./stability_tests.ts"
+  }
+}

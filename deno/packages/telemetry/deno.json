@@ -1,6 +1,9 @@
 {
   "name": "@brainwires/telemetry",
   "license": "MIT",
-  "version": "0.10.1",
-  "exports": "./mod.ts"
+  "version": "0.11.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./anomaly": "./anomaly.ts"
+  }
 }

@@ -87,7 +87,9 @@ async function main() {
   console.log(`--- All Templates (${all.length}) ---`);
   for (const t of all) {
     console.log(
-      `  [${t.templateId.slice(0, 8)}] ${t.name} -- ${t.description} (used ${t.usageCount} times)`,
+      `  [${
+        t.templateId.slice(0, 8)
+      }] ${t.name} -- ${t.description} (used ${t.usageCount} times)`,
     );
   }
   console.log();
@@ -122,13 +124,16 @@ async function main() {
   store.markUsed(featureTemplate.templateId);
   const updated = store.get(featureTemplate.templateId);
   if (updated) {
-    console.log(`Template "${updated.name}" usage count: ${updated.usageCount}`);
+    console.log(
+      `Template "${updated.name}" usage count: ${updated.usageCount}`,
+    );
   }
   console.log();
 
   // 9. Extract variables from arbitrary content
   console.log("--- Variable Extraction ---");
-  const customContent = "Deploy {{service}} to {{region}} with {{replicas}} replicas";
+  const customContent =
+    "Deploy {{service}} to {{region}} with {{replicas}} replicas";
   const vars = extractVariables(customContent);
   console.log(`Content: "${customContent}"`);
   console.log(`Variables: [${vars.join(", ")}]`);

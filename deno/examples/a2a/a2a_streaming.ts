@@ -211,7 +211,12 @@ async function main(): Promise<void> {
     taskStream,
   ];
 
-  const labels = ["status update", "artifact update", "message", "task snapshot"];
+  const labels = [
+    "status update",
+    "artifact update",
+    "message",
+    "task snapshot",
+  ];
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
@@ -231,7 +236,9 @@ async function main(): Promise<void> {
       JSON.stringify(deserialized) === JSON.stringify(event);
 
     console.log(
-      `  Event ${i} (${labels[i]}): round-trip ${roundTripMatch ? "OK" : "FAILED"}, guards=[${guards.join(", ")}]`,
+      `  Event ${i} (${labels[i]}): round-trip ${
+        roundTripMatch ? "OK" : "FAILED"
+      }, guards=[${guards.join(", ")}]`,
     );
   }
 

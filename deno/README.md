@@ -1,95 +1,102 @@
 # Brainwires Framework — Deno/TypeScript Port
 
-A modular, Deno-native TypeScript port of the [Brainwires Agent Framework](https://github.com/Brainwires/brainwires-framework). Build autonomous AI agents with tool use, multi-provider support, inter-agent communication, and fine-grained permissions — all running on Deno.
+A modular, Deno-native TypeScript port of the
+[Brainwires Agent Framework](https://github.com/Brainwires/brainwires-framework).
+Build autonomous AI agents with tool use, multi-provider support, inter-agent
+communication, and fine-grained permissions — all running on Deno.
 
-## Packages
+## Packages (v0.11.0)
 
-| Package | JSR | Description |
-|---------|-----|-------------|
-| `@brainwires/core` | `deno add @brainwires/core` | Foundation types, messages, tools, errors, lifecycle hooks |
-| `@brainwires/providers` | `deno add @brainwires/providers` | AI chat providers (Anthropic, OpenAI, Google, Ollama, etc.) |
-| `@brainwires/agents` | `deno add @brainwires/agents` | Agent runtime, task agents, coordination patterns |
-| `@brainwires/mcp` | `deno add @brainwires/mcp` | Model Context Protocol client |
-| `@brainwires/a2a` | `deno add @brainwires/a2a` | Agent-to-Agent protocol (Google A2A) |
-| `@brainwires/storage` | `deno add @brainwires/storage` | Backend-agnostic storage with domain stores |
-| `@brainwires/permissions` | `deno add @brainwires/permissions` | Capability profiles, policy engine, audit, trust |
-| `@brainwires/tools` | `deno add @brainwires/tools` | Tool registry, built-in tools (bash, files, git, web, search) |
-| `@brainwires/knowledge` | `deno add @brainwires/knowledge` | Prompting techniques, knowledge graph, RAG interfaces |
-| `@brainwires/network` | `deno add @brainwires/network` | MCP server framework, middleware, routing, discovery |
-| `@brainwires/session` | `deno add @brainwires/session` | Pluggable session persistence (in-memory, Deno KV) |
-| `@brainwires/resilience` | `deno add @brainwires/resilience` | Retry / budget / circuit-breaker / cache provider decorators |
-| `@brainwires/telemetry` | `deno add @brainwires/telemetry` | Analytics events, sinks, Prometheus metrics, billing hooks |
-| `@brainwires/reasoning` | `deno add @brainwires/reasoning` | Plan parser, complexity/router/validator/retrieval scorers |
-| `@brainwires/training` | `deno add @brainwires/training` | Cloud fine-tuning (OpenAI, Together, Fireworks) |
+All 28 packages publish to JSR under the `@brainwires/*` scope. The shape
+mirrors the Rust workspace 1:1 (post-v0.11.0 restructure): singular crate names,
+mcp-client / mcp-server split, finetune-not-training, etc.
 
-The core 10 packages are at **0.5.0**; the five new packages start at **0.1.0**. All are published to JSR under the `@brainwires` scope.
+| Package                       | Description                                                                                                      |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `@brainwires/core`            | Foundation types — messages, tools, errors, lifecycle, confidence, paths, file_context                           |
+| `@brainwires/a2a`             | Agent-to-Agent protocol (Google A2A) — JSON-RPC + REST                                                           |
+| `@brainwires/agent`           | Coordination primitives: communication, locks, task manager, contract-net, saga, market, three-state, wait-queue |
+| `@brainwires/inference`       | LLM workhorses: TaskAgent / ChatAgent / Judge / Planner / Validator / CycleOrchestrator / runtime                |
+| `@brainwires/mdap`            | MAKER voting framework — k-of-n consensus, decomposition, red-flag validation                                    |
+| `@brainwires/seal`            | Self-Evolving Agentic Learning loop                                                                              |
+| `@brainwires/skills`          | SKILL.md skills system (parser, registry, executor, router)                                                      |
+| `@brainwires/eval`            | Evaluation harness (trial runner, regression, adversarial, ranking metrics)                                      |
+| `@brainwires/provider`        | LLM chat providers (Anthropic, OpenAI, Google, Bedrock, Vertex, Ollama, Brainwires Relay)                        |
+| `@brainwires/provider-speech` | TTS/STT/ASR clients (Azure, Cartesia, Deepgram, ElevenLabs, Fish, Google TTS, Murf)                              |
+| `@brainwires/call-policy`     | Provider decorators — retry / budget / circuit-breaker / cache                                                   |
+| `@brainwires/mcp-client`      | Model Context Protocol client                                                                                    |
+| `@brainwires/mcp-server`      | MCP server framework + middleware pipeline + stdio transport                                                     |
+| `@brainwires/network`         | Agent-to-agent networking: identity, routing, discovery, peer table, remote bridge                               |
+| `@brainwires/storage`         | StorageBackend trait + Postgres/MySQL/Qdrant/SurrealDB/Pinecone/Weaviate/Milvus + embeddings                     |
+| `@brainwires/stores`          | Domain stores: message, conversation, task, plan, template, lock, image                                          |
+| `@brainwires/memory`          | Tiered memory (hot/warm/cold) + multi-factor retention scoring                                                   |
+| `@brainwires/session`         | Pluggable session persistence (in-memory, Deno KV)                                                               |
+| `@brainwires/knowledge`       | BrainClient + entity/relationship graph + BKS/PKS thought storage                                                |
+| `@brainwires/prompting`       | 15 prompting techniques + task clustering + temperature optimization                                             |
+| `@brainwires/rag`             | RAG client interface + code-analysis (symbol extraction, repo maps)                                              |
+| `@brainwires/tool-runtime`    | Tool execution framework: registry, executor, sanitization, router, transaction, OpenAPI, OAuth, validation      |
+| `@brainwires/tool-builtins`   | Built-in tools: bash, file ops, git, web, search, semantic search, calendar, sessions                            |
+| `@brainwires/permission`      | Capability profiles, policy engine, audit, trust                                                                 |
+| `@brainwires/telemetry`       | Analytics events, sinks, Prometheus metrics, billing hooks, anomaly detection                                    |
+| `@brainwires/reasoning`       | Plan parser, complexity/router/validator/retrieval scorers                                                       |
+| `@brainwires/finetune`        | Cloud fine-tuning (OpenAI, Together, Fireworks)                                                                  |
+| `@brainwires/tools`           | **DEPRECATED — 0.11.x transitional barrel** — re-exports `tool-runtime` + `tool-builtins`. Remove in 0.12.0.     |
+
+A `0.10.2` tombstone publish of the pre-rename package names (`providers`,
+`permissions`, `agents`, `mcp`, `resilience`, `training`, `tools`) is published
+from a release branch — each re-exports the new name and carries a deprecation
+banner.
 
 ## Documentation & Examples
 
-- **[Documentation](./docs/)** — Guides covering architecture, each subsystem, and extensibility
-- **[Examples](./examples/)** — 43 runnable TypeScript examples ported from the Rust crates
+- **[Documentation](./docs/)** — Guides covering architecture, each subsystem,
+  and extensibility
+- **[Examples](./examples/)** — Runnable TypeScript examples ported from the
+  Rust crates
 
 ## Package Dependency Diagram
 
 ```
-                     @brainwires/core
-                    /    |    |    \
-                   /     |    |     \
-          providers  storage  mcp  permissions
-              |        |       |
-              +--------+-------+
-              |
-            agents -----> tools
-              |             |
-           network      knowledge
-              |
-             a2a
-```
+                          core (zero deps)
+                            │
+        ┌──────────┬────────┼─────────┬────────┬───────────┐
+   call-policy  permission  │   provider   storage    telemetry
+                            │      │          │          │
+                          mcp-client          │          │
+                            │                 │          │
+                       mcp-server          stores       memory
+                                              │          │
+                                           session    knowledge
+                                                         │
+                                                     prompting, rag
 
-`core` has zero external dependencies. Every other package depends on `core`. The `agents` package pulls in `providers`, `storage`, `mcp`, `tools`, and skills (absorbed). The `network` and `a2a` packages are leaf-level consumers.
+                tool-runtime ── tool-builtins ── skills
+                      │
+                  inference (needs provider + tool-runtime + call-policy)
+                      │
+                  agent (coordination)
+                  mdap, seal, eval (independent)
+```
 
 ## Quick Start
 
-### 1. Create a provider and send a message
-
-```ts
-import { Message, ChatOptions } from "@brainwires/core";
-import { AnthropicChatProvider } from "@brainwires/providers";
-
-const provider = new AnthropicChatProvider(
-  Deno.env.get("ANTHROPIC_API_KEY")!,
-  "claude-sonnet-4-20250514",
-  "anthropic",
-);
-
-const messages = [Message.user("What is the Deno runtime?")];
-const options = new ChatOptions({ max_tokens: 1024 });
-
-const response = await provider.chat(messages, undefined, options);
-console.log(response.content);
-```
-
-### 2. Register tools and run an agent
-
 ```ts
 import { ChatOptions, Message } from "@brainwires/core";
-import { AnthropicChatProvider } from "@brainwires/providers";
-import { ToolRegistry, BashTool, FileOpsTool } from "@brainwires/tools";
-import { TaskAgent, AgentContext, spawnTaskAgent } from "@brainwires/agents";
+import { AnthropicChatProvider } from "@brainwires/provider";
+import { BashTool, FileOpsTool } from "@brainwires/tool-builtins";
+import { ToolRegistry } from "@brainwires/tool-runtime";
+import { AgentContext, spawnTaskAgent, TaskAgent } from "@brainwires/inference";
 
-// Set up tools
 const registry = new ToolRegistry();
 registry.registerTools(BashTool.getTools());
 registry.registerTools(FileOpsTool.getTools());
 
-// Create provider
 const provider = new AnthropicChatProvider(
   Deno.env.get("ANTHROPIC_API_KEY")!,
   "claude-sonnet-4-20250514",
   "anthropic",
 );
 
-// Build agent context and run
 const context = new AgentContext({ tools: registry.allTools() });
 const result = await spawnTaskAgent({
   agentId: "demo-agent",
@@ -102,66 +109,24 @@ const result = await spawnTaskAgent({
 console.log(`Success: ${result.success}, Output: ${result.output}`);
 ```
 
-### 3. Connect to an MCP server
-
-```ts
-import { McpClient } from "@brainwires/mcp";
-
-const client = McpClient.createDefault();
-await client.connect("my-server", {
-  command: "npx",
-  args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
-});
-
-const tools = await client.listTools("my-server");
-console.log("Available tools:", tools.map((t) => t.name));
-```
-
 ## What's Ported vs What's Not
 
-Per-file detail lives in [docs/parity.md](./docs/parity.md). Summary:
+Per-file detail lives in [docs/parity.md](./docs/parity.md). Runtime-boundary
+crates that stay Rust-only:
 
-| Rust Crate | Deno Package | Status |
-|------------|-------------|--------|
-| `brainwires-core` | `@brainwires/core` | Faithful (+ event.ts, workflow_state.ts, output parsers) |
-| `brainwires-providers` | `@brainwires/providers` | Chat providers + Relay + 7 audio HTTP clients. `local_llm` (llama-cpp) stays Rust-only. |
-| `brainwires-agent` | `@brainwires/agents` | Runtime, task agent, coordination, MDAP, skills, seal, eval, system_prompts, roles |
-| `brainwires-mcp` | `@brainwires/mcp` | Client + stdio transport + JSON-RPC |
-| `brainwires-mcp-server` | folded into `@brainwires/network` | Server framework + middleware pipeline |
-| `brainwires-a2a` | `@brainwires/a2a` | JSON-RPC + REST (no gRPC by design) |
-| `brainwires-storage` | `@brainwires/storage` | In-memory + Postgres/MySQL/Qdrant/SurrealDB/Pinecone/Weaviate/Milvus + domain stores |
-| `brainwires-permissions` | `@brainwires/permissions` | Capabilities, policy, audit, trust, anomaly |
-| `brainwires-tools` | `@brainwires/tools` | Bash, file_ops, git, web, search, validation, openapi, oauth, calendar, sessions, tool_search, tool_embedding, semantic_search. `interpreters`/`orchestrator`/`sandbox_executor`/`code_exec`/`browser` stay Rust-only (see packages/tools/tools/SKIPPED.md). |
-| `brainwires-knowledge` | `@brainwires/knowledge` | Prompting + code analysis implemented; RAG / BKS / PKS stay as client interfaces. |
-| `brainwires-network` | `@brainwires/network` | MCP server, middleware, routing, discovery, remote bridge |
-| `brainwires-session` | `@brainwires/session` | InMemory + DenoKv backends (replaces the Rust SQLite backend) |
-| `brainwires-resilience` | `@brainwires/resilience` | Retry / budget / circuit-breaker / memory-cache decorators |
-| `brainwires-telemetry` | `@brainwires/telemetry` | Analytics events, sinks, Prometheus metrics, billing hook (SQLite sink + tracing-crate layer intentionally omitted) |
-| `brainwires-reasoning` | `@brainwires/reasoning` | Tier-1 slice: plan parser, complexity, router, validator, retrieval. `strategies`, `strategy_selector`, `summarizer`, `relevance_scorer`, `entity_enhancer` deferred. |
-| `brainwires-training` | `@brainwires/training` | Cloud-only: OpenAI, Together, Fireworks + JobPoller + TrainingManager. Bedrock/Vertex (vendor SDKs) and the local Burn-based path intentionally stay Rust-only. |
-| `brainwires-hardware` | — | Runtime boundary — Rust-only (GPIO/USB/BLE/CPAL audio/Zigbee/Z-Wave/Matter). |
-| `brainwires-sandbox` · `-sandbox-proxy` | — | Infra sidecars (Bollard Docker, Hyper HTTP proxy) — drive from the Rust binary. |
+- **`brainwires-hardware`** — kernel access
+  (GPIO/USB/BLE/ALSA/Zigbee/Z-Wave/Matter)
+- **`brainwires-sandbox` / -sandbox-proxy** — Bollard Docker / Hyper HTTP proxy
+- Within `@brainwires/tool-builtins` — `interpreters`, `code_exec`,
+  `sandbox_executor`, `browser`, `email`, `system` (see `SKIPPED.md`)
+- Local LLM inference (llama.cpp, Candle) — use `OllamaChatProvider` instead
 
 ## Installation
 
-Install any package with `deno add`:
-
 ```sh
-deno add @brainwires/core
-deno add @brainwires/providers
-deno add @brainwires/agents
-# ... etc.
+deno add @brainwires/core @brainwires/provider @brainwires/inference
+# … etc per package needed
 ```
-
-Or import directly from JSR in your source:
-
-```ts
-import { Message, ChatOptions } from "jsr:@brainwires/core@0.5.0";
-```
-
-## Rust Crate Documentation
-
-For full API documentation of the underlying Rust crates, see the [crates README](../crates/README.md) and the per-crate docs on [docs.rs](https://docs.rs).
 
 ## License
 
