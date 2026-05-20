@@ -12,7 +12,7 @@
 //! ## Quick start
 //!
 //! ```rust,no_run
-//! use brainwires_lan::lan;
+//! use brainwires_network::lan;
 //! use std::time::Duration;
 //!
 //! #[tokio::main]
